@@ -1,0 +1,169 @@
+import tempfile
+import tomllib
+import unittest
+from io import StringIO
+
+import pydantic
+
+from imbi_automations import utils
+
+
+class TestSanitize(unittest.TestCase):
+    def test_sanitize_url_with_password(self) -> None:
+        """Test sanitizing URL containing password."""
+        url = 'https://user:secret123@example.com/path'
+        result = utils.sanitize(url)
+        expected = 'https://user:******@example.com/path'
+        self.assertEqual(result, expected)
+
+    def test_sanitize_url_without_password(self) -> None:
+        """Test sanitizing URL without password."""
+        url = 'https://example.com/path'
+        result = utils.sanitize(url)
+        self.assertEqual(result, url)
+
+    def test_sanitize_url_with_username_only(self) -> None:
+        """Test sanitizing URL with username but no password."""
+        url = 'https://user@example.com/path'
+        result = utils.sanitize(url)
+        self.assertEqual(result, url)
+
+    def test_sanitize_multiple_urls_in_string(self) -> None:
+        """Test sanitizing string with multiple URLs containing passwords."""
+        text = (
+            'Connect to https://user1:pass1@server1.com and '
+            'https://user2:pass2@server2.com for data'
+        )
+        result = utils.sanitize(text)
+        expected = (
+            'Connect to https://user1:******@server1.com and '
+            'https://user2:******@server2.com for data'
+        )
+        self.assertEqual(result, expected)
+
+    def test_sanitize_different_protocols(self) -> None:
+        """Test sanitizing URLs with different protocols."""
+        urls = [
+            'http://user:pass@example.com',
+            'ftp://user:pass@example.com',
+            'ssh://user:pass@example.com',
+        ]
+        for url in urls:
+            result = utils.sanitize(url)
+            self.assertIn('******', result)
+            self.assertNotIn('pass', result)
+
+    def test_sanitize_pydantic_anyurl(self) -> None:
+        """Test sanitizing pydantic AnyUrl object."""
+        url = pydantic.AnyUrl('https://user:secret@example.com')
+        result = utils.sanitize(url)
+        expected = 'https://user:******@example.com/'
+        self.assertEqual(result, expected)
+
+    def test_sanitize_complex_password(self) -> None:
+        """Test sanitizing URL with complex password containing special characters."""
+        url = 'https://user:password123!@example.com/path'
+        result = utils.sanitize(url)
+        expected = 'https://user:******@example.com/path'
+        self.assertEqual(result, expected)
+
+
+class TestLoadToml(unittest.TestCase):
+    def test_load_toml_success(self) -> None:
+        """Test successful TOML loading."""
+        toml_content = '''
+        [section]
+        key = "value"
+        number = 42
+        boolean = true
+        '''
+        toml_file = StringIO(toml_content)
+
+        result = utils.load_toml(toml_file)
+
+        expected = {
+            'section': {
+                'key': 'value',
+                'number': 42,
+                'boolean': True
+            }
+        }
+        self.assertEqual(result, expected)
+
+    def test_load_toml_empty_file(self) -> None:
+        """Test loading empty TOML file."""
+        toml_file = StringIO('')
+        result = utils.load_toml(toml_file)
+        self.assertEqual(result, {})
+
+    def test_load_toml_invalid_syntax(self) -> None:
+        """Test loading TOML with invalid syntax."""
+        toml_file = StringIO('[invalid toml content [')
+
+        with self.assertRaises(tomllib.TOMLDecodeError):
+            utils.load_toml(toml_file)
+
+    def test_load_toml_complex_structure(self) -> None:
+        """Test loading TOML with complex nested structure."""
+        toml_content = '''
+        [database]
+        hostname = "localhost"
+        port = 5432
+
+        [database.credentials]
+        username = "user"
+        password = "pass"
+
+        [[servers]]
+        name = "server1"
+        ip = "192.168.1.1"
+
+        [[servers]]
+        name = "server2"
+        ip = "192.168.1.2"
+        '''
+        toml_file = StringIO(toml_content)
+
+        result = utils.load_toml(toml_file)
+
+        self.assertEqual(result['database']['hostname'], 'localhost')
+        self.assertEqual(result['database']['port'], 5432)
+        self.assertEqual(result['database']['credentials']['username'], 'user')
+        self.assertEqual(len(result['servers']), 2)
+        self.assertEqual(result['servers'][0]['name'], 'server1')
+        self.assertEqual(result['servers'][1]['ip'], '192.168.1.2')
+
+    def test_load_toml_unicode_content(self) -> None:
+        """Test loading TOML with unicode characters."""
+        toml_content = '''
+        [unicode]
+        name = "测试"
+        emoji = "🚀"
+        '''
+        toml_file = StringIO(toml_content)
+
+        result = utils.load_toml(toml_file)
+
+        self.assertEqual(result['unicode']['name'], '测试')
+        self.assertEqual(result['unicode']['emoji'], '🚀')
+
+    def test_load_toml_file_positioning(self) -> None:
+        """Test that file is read completely regardless of initial position."""
+        toml_content = '''
+        [test]
+        value = "content"
+        '''
+        toml_file = StringIO(toml_content)
+
+        # Read some content first to change file position
+        toml_file.read(5)
+        # Reset position
+        toml_file.seek(0)
+
+        result = utils.load_toml(toml_file)
+
+        self.assertEqual(result['test']['value'], 'content')
+
+
+if __name__ == '__main__':
+    unittest.main()
