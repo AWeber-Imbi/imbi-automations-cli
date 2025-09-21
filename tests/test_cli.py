@@ -1,9 +1,12 @@
 import argparse
 import logging
 import tempfile
+import tomllib
 import unittest
-from unittest import mock
 from pathlib import Path
+from unittest import mock
+
+import pydantic
 
 from imbi_automations import cli, engine, models
 
@@ -15,7 +18,9 @@ class TestWorkflowFunction(unittest.TestCase):
             # Create a workflow directory with config.toml
             workflow_dir = Path(tmp_dir) / 'test-workflow'
             workflow_dir.mkdir()
-            (workflow_dir / 'config.toml').write_text('[workflow]\nname = "test"')
+            (workflow_dir / 'config.toml').write_text(
+                '[workflow]\nname = "test"'
+            )
 
             result = cli.workflow(str(workflow_dir))
             self.assertEqual(result, workflow_dir)
@@ -54,19 +59,26 @@ class TestParseArgs(unittest.TestCase):
 
         self.workflow_dir = Path(self.temp_dir) / 'workflow'
         self.workflow_dir.mkdir()
-        (self.workflow_dir / 'config.toml').write_text('[workflow]\nname = "test"')
+        (self.workflow_dir / 'config.toml').write_text(
+            '[workflow]\nname = "test"'
+        )
 
     def tearDown(self) -> None:
         # Clean up temporary files
         import shutil
+
         shutil.rmtree(self.temp_dir)
 
     def test_parse_args_imbi_project_id(self) -> None:
         """Test parsing args with Imbi project ID target."""
-        args = cli.parse_args([
-            str(self.config_file), str(self.workflow_dir),
-            '--imbi-project-id', '123'
-        ])
+        args = cli.parse_args(
+            [
+                str(self.config_file),
+                str(self.workflow_dir),
+                '--imbi-project-id',
+                '123',
+            ]
+        )
 
         self.assertEqual(len(args.config), 1)
         self.assertEqual(args.config[0].name, str(self.config_file))
@@ -76,82 +88,116 @@ class TestParseArgs(unittest.TestCase):
 
     def test_parse_args_imbi_project_type(self) -> None:
         """Test parsing args with Imbi project type target."""
-        args = cli.parse_args([
-            str(self.config_file), str(self.workflow_dir),
-            '--imbi-project-type', 'api'
-        ])
+        args = cli.parse_args(
+            [
+                str(self.config_file),
+                str(self.workflow_dir),
+                '--imbi-project-type',
+                'api',
+            ]
+        )
 
         self.assertEqual(args.imbi_project_type, 'api')
 
     def test_parse_args_all_imbi_projects(self) -> None:
         """Test parsing args with all Imbi projects target."""
-        args = cli.parse_args([
-            str(self.config_file), str(self.workflow_dir),
-            '--all-imbi-projects'
-        ])
+        args = cli.parse_args(
+            [
+                str(self.config_file),
+                str(self.workflow_dir),
+                '--all-imbi-projects',
+            ]
+        )
 
         self.assertTrue(args.all_imbi_projects)
 
     def test_parse_args_github_repository(self) -> None:
         """Test parsing args with GitHub repository target."""
-        args = cli.parse_args([
-            str(self.config_file), str(self.workflow_dir),
-            '--github-repository', 'https://github.com/org/repo'
-        ])
+        args = cli.parse_args(
+            [
+                str(self.config_file),
+                str(self.workflow_dir),
+                '--github-repository',
+                'https://github.com/org/repo',
+            ]
+        )
 
         self.assertEqual(args.github_repository, 'https://github.com/org/repo')
 
     def test_parse_args_github_organization(self) -> None:
         """Test parsing args with GitHub organization target."""
-        args = cli.parse_args([
-            str(self.config_file), str(self.workflow_dir),
-            '--github-organization', 'myorg'
-        ])
+        args = cli.parse_args(
+            [
+                str(self.config_file),
+                str(self.workflow_dir),
+                '--github-organization',
+                'myorg',
+            ]
+        )
 
         self.assertEqual(args.github_organization, 'myorg')
 
     def test_parse_args_all_github_repositories(self) -> None:
         """Test parsing args with all GitHub repositories target."""
-        args = cli.parse_args([
-            str(self.config_file), str(self.workflow_dir),
-            '--all-github-repositories'
-        ])
+        args = cli.parse_args(
+            [
+                str(self.config_file),
+                str(self.workflow_dir),
+                '--all-github-repositories',
+            ]
+        )
 
         self.assertTrue(args.all_github_repositories)
 
     def test_parse_args_gitlab_repository(self) -> None:
         """Test parsing args with GitLab repository target."""
-        args = cli.parse_args([
-            str(self.config_file), str(self.workflow_dir),
-            '--gitlab-repository', 'https://gitlab.com/org/repo'
-        ])
+        args = cli.parse_args(
+            [
+                str(self.config_file),
+                str(self.workflow_dir),
+                '--gitlab-repository',
+                'https://gitlab.com/org/repo',
+            ]
+        )
 
         self.assertEqual(args.gitlab_repository, 'https://gitlab.com/org/repo')
 
     def test_parse_args_gitlab_organization(self) -> None:
         """Test parsing args with GitLab organization target."""
-        args = cli.parse_args([
-            str(self.config_file), str(self.workflow_dir),
-            '--gitlab-organization', 'myorg'
-        ])
+        args = cli.parse_args(
+            [
+                str(self.config_file),
+                str(self.workflow_dir),
+                '--gitlab-organization',
+                'myorg',
+            ]
+        )
 
         self.assertEqual(args.gitlab_organization, 'myorg')
 
     def test_parse_args_all_gitlab_repositories(self) -> None:
         """Test parsing args with all GitLab repositories target."""
-        args = cli.parse_args([
-            str(self.config_file), str(self.workflow_dir),
-            '--all-gitlab-repositories'
-        ])
+        args = cli.parse_args(
+            [
+                str(self.config_file),
+                str(self.workflow_dir),
+                '--all-gitlab-repositories',
+            ]
+        )
 
         self.assertTrue(args.all_gitlab_repositories)
 
     def test_parse_args_verbose(self) -> None:
         """Test parsing args with verbose flag."""
-        args = cli.parse_args([
-            str(self.config_file), str(self.workflow_dir),
-            '--imbi-project-id', '123', '--verbose'
-        ])
+        args = cli.parse_args(
+            [
+                str(self.config_file),
+                str(self.workflow_dir),
+                '--imbi-project-id',
+                '123',
+                '--verbose',
+            ]
+        )
 
         self.assertTrue(args.verbose)
 
@@ -163,38 +209,53 @@ class TestParseArgs(unittest.TestCase):
     def test_parse_args_mutually_exclusive(self) -> None:
         """Test that target arguments are mutually exclusive."""
         with self.assertRaises(SystemExit):
-            cli.parse_args([
-                str(self.config_file), str(self.workflow_dir),
-                '--imbi-project-id', '123',
-                '--github-repository', 'https://github.com/org/repo'
-            ])
+            cli.parse_args(
+                [
+                    str(self.config_file),
+                    str(self.workflow_dir),
+                    '--imbi-project-id',
+                    '123',
+                    '--github-repository',
+                    'https://github.com/org/repo',
+                ]
+            )
 
     def test_parse_args_invalid_config_file(self) -> None:
         """Test parsing args with non-existent config file."""
         with self.assertRaises(SystemExit):
-            cli.parse_args([
-                '/nonexistent/config.toml', str(self.workflow_dir),
-                '--imbi-project-id', '123'
-            ])
+            cli.parse_args(
+                [
+                    '/nonexistent/config.toml',
+                    str(self.workflow_dir),
+                    '--imbi-project-id',
+                    '123',
+                ]
+            )
 
     def test_parse_args_invalid_workflow_dir(self) -> None:
         """Test parsing args with invalid workflow directory."""
         with self.assertRaises(SystemExit):
-            cli.parse_args([
-                str(self.config_file), '/nonexistent/workflow',
-                '--imbi-project-id', '123'
-            ])
+            cli.parse_args(
+                [
+                    str(self.config_file),
+                    '/nonexistent/workflow',
+                    '--imbi-project-id',
+                    '123',
+                ]
+            )
 
 
 class TestLoadConfiguration(unittest.TestCase):
     def test_load_configuration_success(self) -> None:
         """Test successful configuration loading."""
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.toml', delete=False) as f:
+        with tempfile.NamedTemporaryFile(
+            mode='w', suffix='.toml', delete=False
+        ) as f:
             f.write('[imbi]\nhostname = "test.com"\napi_key = "test-key"')
             f.flush()
 
             try:
-                with open(f.name, 'r') as config_file:
+                with open(f.name) as config_file:
                     config = cli.load_configuration(config_file)
 
                 self.assertIsInstance(config, models.Configuration)
@@ -202,6 +263,7 @@ class TestLoadConfiguration(unittest.TestCase):
                 self.assertEqual(config.imbi.hostname, 'test.com')
             finally:
                 import os
+
                 os.unlink(f.name)
 
     def test_load_configuration_invalid_toml(self) -> None:
@@ -210,9 +272,11 @@ class TestLoadConfiguration(unittest.TestCase):
             f.write('invalid toml content [')
             f.flush()
 
-            with open(f.name, 'r') as config_file:
-                with self.assertRaises(Exception):  # TOMLDecodeError
-                    cli.load_configuration(config_file)
+            with (
+                open(f.name) as config_file,
+                self.assertRaises(tomllib.TOMLDecodeError),
+            ):
+                cli.load_configuration(config_file)
 
     def test_load_configuration_invalid_model(self) -> None:
         """Test configuration loading with invalid model data."""
@@ -220,9 +284,11 @@ class TestLoadConfiguration(unittest.TestCase):
             f.write('[imbi]\n# missing required fields')
             f.flush()
 
-            with open(f.name, 'r') as config_file:
-                with self.assertRaises(Exception):  # ValidationError
-                    cli.load_configuration(config_file)
+            with (
+                open(f.name) as config_file,
+                self.assertRaises(pydantic.ValidationError),
+            ):
+                cli.load_configuration(config_file)
 
 
 class TestConfigureLogging(unittest.TestCase):
@@ -263,7 +329,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             all_github_repositories=False,
             gitlab_repository=None,
             gitlab_organization=None,
-            all_gitlab_repositories=False
+            all_gitlab_repositories=False,
         )
 
         result = cli.determine_iterator_type(args)
@@ -280,7 +346,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             all_github_repositories=False,
             gitlab_repository=None,
             gitlab_organization=None,
-            all_gitlab_repositories=False
+            all_gitlab_repositories=False,
         )
 
         result = cli.determine_iterator_type(args)
@@ -297,7 +363,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             all_github_repositories=False,
             gitlab_repository=None,
             gitlab_organization=None,
-            all_gitlab_repositories=False
+            all_gitlab_repositories=False,
         )
 
         result = cli.determine_iterator_type(args)
@@ -314,7 +380,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             all_github_repositories=False,
             gitlab_repository=None,
             gitlab_organization=None,
-            all_gitlab_repositories=False
+            all_gitlab_repositories=False,
         )
 
         result = cli.determine_iterator_type(args)
@@ -331,7 +397,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             all_github_repositories=False,
             gitlab_repository=None,
             gitlab_organization=None,
-            all_gitlab_repositories=False
+            all_gitlab_repositories=False,
         )
 
         result = cli.determine_iterator_type(args)
@@ -348,7 +414,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             all_github_repositories=True,
             gitlab_repository=None,
             gitlab_organization=None,
-            all_gitlab_repositories=False
+            all_gitlab_repositories=False,
         )
 
         result = cli.determine_iterator_type(args)
@@ -365,7 +431,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             all_github_repositories=False,
             gitlab_repository='https://gitlab.com/org/repo',
             gitlab_organization=None,
-            all_gitlab_repositories=False
+            all_gitlab_repositories=False,
         )
 
         result = cli.determine_iterator_type(args)
@@ -382,7 +448,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             all_github_repositories=False,
             gitlab_repository=None,
             gitlab_organization='myorg',
-            all_gitlab_repositories=False
+            all_gitlab_repositories=False,
         )
 
         result = cli.determine_iterator_type(args)
@@ -399,7 +465,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             all_github_repositories=False,
             gitlab_repository=None,
             gitlab_organization=None,
-            all_gitlab_repositories=True
+            all_gitlab_repositories=True,
         )
 
         result = cli.determine_iterator_type(args)
@@ -416,13 +482,15 @@ class TestDetermineIteratorType(unittest.TestCase):
             all_github_repositories=False,
             gitlab_repository=None,
             gitlab_organization=None,
-            all_gitlab_repositories=False
+            all_gitlab_repositories=False,
         )
 
         with self.assertRaises(ValueError) as cm:
             cli.determine_iterator_type(args)
 
-        self.assertEqual(str(cm.exception), 'No valid target argument provided')
+        self.assertEqual(
+            str(cm.exception), 'No valid target argument provided'
+        )
 
 
 class TestMain(unittest.TestCase):
@@ -442,7 +510,7 @@ class TestMain(unittest.TestCase):
         mock_determine_iterator_type: mock.Mock,
         mock_load_configuration: mock.Mock,
         mock_configure_logging: mock.Mock,
-        mock_parse_args: mock.Mock
+        mock_parse_args: mock.Mock,
     ) -> None:
         """Test successful execution of main function."""
         # Setup mocks
@@ -471,7 +539,9 @@ class TestMain(unittest.TestCase):
         mock_load_configuration.assert_called_once_with(mock_config_file)
         mock_config_file.close.assert_called_once()
         mock_determine_iterator_type.assert_called_once_with(mock_args)
-        mock_automation_engine.assert_called_once_with(mock_config, mock_iterator_type)
+        mock_automation_engine.assert_called_once_with(
+            mock_config, mock_iterator_type
+        )
         mock_engine_instance.run.assert_called_once()
 
     @mock.patch('imbi_automations.cli.parse_args')
@@ -485,7 +555,7 @@ class TestMain(unittest.TestCase):
         mock_determine_iterator_type: mock.Mock,
         mock_load_configuration: mock.Mock,
         mock_configure_logging: mock.Mock,
-        mock_parse_args: mock.Mock
+        mock_parse_args: mock.Mock,
     ) -> None:
         """Test main function handles KeyboardInterrupt gracefully."""
         # Setup mocks
@@ -515,7 +585,9 @@ class TestMain(unittest.TestCase):
         mock_load_configuration.assert_called_once_with(mock_config_file)
         mock_config_file.close.assert_called_once()
         mock_determine_iterator_type.assert_called_once_with(mock_args)
-        mock_automation_engine.assert_called_once_with(mock_config, mock_iterator_type)
+        mock_automation_engine.assert_called_once_with(
+            mock_config, mock_iterator_type
+        )
         mock_engine_instance.run.assert_called_once()
 
     @mock.patch('imbi_automations.cli.parse_args')
@@ -529,9 +601,9 @@ class TestMain(unittest.TestCase):
         mock_determine_iterator_type: mock.Mock,
         mock_load_configuration: mock.Mock,
         mock_configure_logging: mock.Mock,
-        mock_parse_args: mock.Mock
+        mock_parse_args: mock.Mock,
     ) -> None:
-        """Test that non-KeyboardInterrupt exceptions from engine are propagated."""
+        """Test that non-KeyboardInterrupt exceptions propagate."""
         # Setup mocks
         mock_args = mock.Mock()
         mock_args.verbose = False
@@ -562,7 +634,9 @@ class TestMain(unittest.TestCase):
         mock_load_configuration.assert_called_once_with(mock_config_file)
         mock_config_file.close.assert_called_once()
         mock_determine_iterator_type.assert_called_once_with(mock_args)
-        mock_automation_engine.assert_called_once_with(mock_config, mock_iterator_type)
+        mock_automation_engine.assert_called_once_with(
+            mock_config, mock_iterator_type
+        )
         mock_engine_instance.run.assert_called_once()
 
 

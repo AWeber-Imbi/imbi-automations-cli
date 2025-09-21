@@ -1,4 +1,3 @@
-import tempfile
 import tomllib
 import unittest
 from io import StringIO
@@ -61,7 +60,7 @@ class TestSanitize(unittest.TestCase):
         self.assertEqual(result, expected)
 
     def test_sanitize_complex_password(self) -> None:
-        """Test sanitizing URL with complex password containing special characters."""
+        """Test sanitizing URL with complex password."""
         url = 'https://user:password123!@example.com/path'
         result = utils.sanitize(url)
         expected = 'https://user:******@example.com/path'
@@ -71,23 +70,17 @@ class TestSanitize(unittest.TestCase):
 class TestLoadToml(unittest.TestCase):
     def test_load_toml_success(self) -> None:
         """Test successful TOML loading."""
-        toml_content = '''
+        toml_content = """
         [section]
         key = "value"
         number = 42
         boolean = true
-        '''
+        """
         toml_file = StringIO(toml_content)
 
         result = utils.load_toml(toml_file)
 
-        expected = {
-            'section': {
-                'key': 'value',
-                'number': 42,
-                'boolean': True
-            }
-        }
+        expected = {'section': {'key': 'value', 'number': 42, 'boolean': True}}
         self.assertEqual(result, expected)
 
     def test_load_toml_empty_file(self) -> None:
@@ -105,7 +98,7 @@ class TestLoadToml(unittest.TestCase):
 
     def test_load_toml_complex_structure(self) -> None:
         """Test loading TOML with complex nested structure."""
-        toml_content = '''
+        toml_content = """
         [database]
         hostname = "localhost"
         port = 5432
@@ -121,7 +114,7 @@ class TestLoadToml(unittest.TestCase):
         [[servers]]
         name = "server2"
         ip = "192.168.1.2"
-        '''
+        """
         toml_file = StringIO(toml_content)
 
         result = utils.load_toml(toml_file)
@@ -135,11 +128,11 @@ class TestLoadToml(unittest.TestCase):
 
     def test_load_toml_unicode_content(self) -> None:
         """Test loading TOML with unicode characters."""
-        toml_content = '''
+        toml_content = """
         [unicode]
         name = "测试"
         emoji = "🚀"
-        '''
+        """
         toml_file = StringIO(toml_content)
 
         result = utils.load_toml(toml_file)
@@ -149,10 +142,10 @@ class TestLoadToml(unittest.TestCase):
 
     def test_load_toml_file_positioning(self) -> None:
         """Test that file is read completely regardless of initial position."""
-        toml_content = '''
+        toml_content = """
         [test]
         value = "content"
-        '''
+        """
         toml_file = StringIO(toml_content)
 
         # Read some content first to change file position
