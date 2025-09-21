@@ -36,6 +36,7 @@ classifiers = [
 dependencies = [
   "colorlog",
   "httpx",
+  "jinja2",
   "pydantic",
   "rich",
   "truststore",
