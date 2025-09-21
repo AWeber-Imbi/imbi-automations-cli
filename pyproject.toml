@@ -1,0 +1,101 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "imbi-automations"
+version = "1.0.0"
+description = "CLI tool for executing automated workflows across Imbi projects with AI-powered transformations and GitHub PR integration."
+authors = [
+  {name = "Gavin M. Roy", email = "gavinr@aweber.com"},
+]
+license = {text = "BSD-3-Clause"}
+readme = "README.md"
+requires-python = ">=3.12"
+keywords = [
+  "imbi",
+  "github",
+  "claude",
+  "cli",
+  "llm",
+]
+classifiers = [
+  "Development Status :: 3 - Alpha",
+  "Environment :: Console",
+  "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: BSD License",
+  "Natural Language :: English",
+  "Operating System :: OS Independent",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+  "Topic :: Database",
+  "Topic :: System :: Systems Administration",
+  "Typing :: Typed",
+]
+dependencies = [
+  "colorlog",
+  "httpx",
+  "pydantic",
+  "rich",
+  "truststore",
+  "yarl"
+]
+
+[project.optional-dependencies]
+dev = [
+  "build",
+  "coverage[toml]",
+  "pre-commit",
+  "pytest",
+  "ruff",
+]
+
+[project.scripts]
+imbi-automations = "imbi_automations.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/AWeber-Imbi/imbi-automations"
+Repository = "https://github.com/AWeber-Imbi/imbi-automations"
+"Bug Tracker" = "https://github.com/AWeber-Imbi/imbi-automations/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/imbi_automations"]
+
+[tool.ruff]
+line-length = 79
+target-version = "py312"
+
+[tool.ruff.format]
+docstring-code-format = true
+docstring-code-line-length = 40
+quote-style = "single"
+skip-magic-trailing-comma = true
+
+[tool.ruff.lint]
+select = [
+  "ANN",    # flake9-annotations
+  "ASYNC",  # flake8-async
+  "B",      # flake8-bugbear
+  "BLE",    # flake8-blind-except
+  "C4",     # flake8-comprehensions
+  "DTZ",    # flake8-datetimez
+  "E", "W", # pycodestyle
+  "F",      # pyflakes
+  "G",      # flake8-logging-format
+  "I",      # isort
+  "S",      # flake8-bandit
+  "SIM",    # flake8-simplify
+  "T20",    # flake8-print
+  "UP",     # pyupgrade
+  "F401",   # unused imports
+  "F841",   # unused variables
+  "B027",   # empty method in abstract base class
+  "B905",   # zip() without explicit strict parameter
+]
+ignore = [
+  "ANN401", # There is a time and place for typing.Any
+  "RSE",    # contradicts Python Style Guide
+]
+flake8-quotes = { inline-quotes = "single" }
+isort.split-on-trailing-comma = false
