@@ -468,6 +468,314 @@ class TestImbiClient(AsyncTestCase):
         self.assertTrue(hasattr(self.instance, 'patch'))
         self.assertTrue(hasattr(self.instance, 'delete'))
 
+    async def test_update_project_fact_success(self) -> None:
+        """Test successful single project fact update."""
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            request=httpx.Request(
+                'POST', 'https://imbi.example.com/projects/123/facts'
+            ),
+        )
+
+        # Should not raise any exception
+        await self.instance.update_project_fact(123, 1, 'Python 3.12')
+
+    async def test_update_project_fact_http_error(self) -> None:
+        """Test project fact update with HTTP error."""
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.FORBIDDEN,
+            request=httpx.Request(
+                'POST', 'https://imbi.example.com/projects/123/facts'
+            ),
+        )
+
+        with self.assertRaises(httpx.HTTPError):
+            await self.instance.update_project_fact(123, 1, 'Python 3.12')
+
+    async def test_update_project_fact_different_types(self) -> None:
+        """Test project fact update with different value types."""
+        responses = [
+            httpx.Response(
+                http.HTTPStatus.OK,
+                request=httpx.Request(
+                    'POST', 'https://imbi.example.com/projects/123/facts'
+                ),
+            ),
+            httpx.Response(
+                http.HTTPStatus.OK,
+                request=httpx.Request(
+                    'POST', 'https://imbi.example.com/projects/123/facts'
+                ),
+            ),
+            httpx.Response(
+                http.HTTPStatus.OK,
+                request=httpx.Request(
+                    'POST', 'https://imbi.example.com/projects/123/facts'
+                ),
+            ),
+            httpx.Response(
+                http.HTTPStatus.OK,
+                request=httpx.Request(
+                    'POST', 'https://imbi.example.com/projects/123/facts'
+                ),
+            ),
+        ]
+
+        call_count = 0
+
+        def mock_response(request: httpx.Request) -> httpx.Response:
+            nonlocal call_count
+            response = responses[call_count]
+            call_count += 1
+            return response
+
+        self.http_client_transport = httpx.MockTransport(mock_response)
+        self.instance = imbi.Imbi(self.config, self.http_client_transport)
+
+        # Test different value types
+        await self.instance.update_project_fact(123, 1, 'String value')
+        await self.instance.update_project_fact(123, 2, 42)
+        await self.instance.update_project_fact(123, 3, 95.5)
+        await self.instance.update_project_fact(123, 4, True)
+
+    async def test_update_project_facts_success(self) -> None:
+        """Test successful multiple project facts update."""
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            request=httpx.Request(
+                'POST', 'https://imbi.example.com/projects/456/facts'
+            ),
+        )
+
+        facts = [(1, 'Python 3.12'), (2, 98.5), (3, True)]
+
+        # Should not raise any exception
+        await self.instance.update_project_facts(456, facts)
+
+    async def test_update_project_facts_http_error(self) -> None:
+        """Test multiple project facts update with HTTP error."""
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.BAD_REQUEST,
+            request=httpx.Request(
+                'POST', 'https://imbi.example.com/projects/456/facts'
+            ),
+        )
+
+        facts = [(1, 'Invalid value')]
+
+        with self.assertRaises(httpx.HTTPError):
+            await self.instance.update_project_facts(456, facts)
+
+    async def test_update_project_facts_empty_list(self) -> None:
+        """Test multiple project facts update with empty facts list."""
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            request=httpx.Request(
+                'POST', 'https://imbi.example.com/projects/789/facts'
+            ),
+        )
+
+        # Should not raise any exception
+        await self.instance.update_project_facts(789, [])
+
+    async def test_get_fact_types_success(self) -> None:
+        """Test successful fact types retrieval."""
+        fact_types_data = [
+            {
+                'id': 1,
+                'name': 'Programming Language',
+                'project_type_ids': [1, 2],
+                'fact_type': 'enum',
+                'data_type': 'string',
+                'description': 'The programming language used',
+            },
+            {
+                'id': 2,
+                'name': 'Test Coverage',
+                'project_type_ids': [1],
+                'fact_type': 'range',
+                'data_type': 'number',
+                'description': 'Test coverage percentage',
+            },
+        ]
+
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            json=fact_types_data,
+            request=httpx.Request(
+                'GET', 'https://imbi.example.com/project-fact-types'
+            ),
+        )
+
+        result = await self.instance.get_fact_types()
+
+        self.assertEqual(len(result), 2)
+        self.assertIsInstance(result[0], models.ImbiProjectFactType)
+        self.assertEqual(result[0].name, 'Programming Language')
+        self.assertEqual(result[1].name, 'Test Coverage')
+
+    async def test_get_fact_types_caching(self) -> None:
+        """Test that fact types are cached after first retrieval."""
+        # First call should make HTTP request
+        fact_types_data = [
+            {
+                'id': 1,
+                'name': 'Test Fact',
+                'project_type_ids': [1],
+                'fact_type': 'free-form',
+                'data_type': 'string',
+            }
+        ]
+
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            json=fact_types_data,
+            request=httpx.Request(
+                'GET', 'https://imbi.example.com/project-fact-types'
+            ),
+        )
+
+        result1 = await self.instance.get_fact_types()
+
+        # Second call should use cached data (no new HTTP request)
+        self.http_client_side_effect = None  # Should not be called
+        result2 = await self.instance.get_fact_types()
+
+        self.assertEqual(result1, result2)
+        self.assertEqual(len(result2), 1)
+
+    async def test_get_fact_type_id_by_name_found(self) -> None:
+        """Test fact type ID lookup by name when found."""
+        fact_types_data = [
+            {
+                'id': 5,
+                'name': 'CI Pipeline Status',
+                'project_type_ids': [1],
+                'fact_type': 'enum',
+                'data_type': 'string',
+            }
+        ]
+
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            json=fact_types_data,
+            request=httpx.Request(
+                'GET', 'https://imbi.example.com/project-fact-types'
+            ),
+        )
+
+        result = await self.instance.get_fact_type_id_by_name(
+            'CI Pipeline Status'
+        )
+
+        self.assertEqual(result, 5)
+
+    async def test_get_fact_type_id_by_name_not_found(self) -> None:
+        """Test fact type ID lookup by name when not found."""
+        fact_types_data = []
+
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            json=fact_types_data,
+            request=httpx.Request(
+                'GET', 'https://imbi.example.com/project-fact-types'
+            ),
+        )
+
+        result = await self.instance.get_fact_type_id_by_name(
+            'Nonexistent Fact'
+        )
+
+        self.assertIsNone(result)
+
+    async def test_update_project_fact_by_name_success(self) -> None:
+        """Test updating project fact by name."""
+        # Mock fact types response
+        fact_types_data = [
+            {
+                'id': 10,
+                'name': 'CI Pipeline Status',
+                'project_type_ids': [1],
+                'fact_type': 'enum',
+                'data_type': 'string',
+            }
+        ]
+
+        responses = [
+            httpx.Response(
+                http.HTTPStatus.OK,
+                json=fact_types_data,
+                request=httpx.Request(
+                    'GET', 'https://imbi.example.com/project-fact-types'
+                ),
+            ),
+            httpx.Response(
+                http.HTTPStatus.OK,
+                request=httpx.Request(
+                    'POST', 'https://imbi.example.com/projects/123/facts'
+                ),
+            ),
+        ]
+
+        call_count = 0
+
+        def mock_response(request: httpx.Request) -> httpx.Response:
+            nonlocal call_count
+            response = responses[call_count]
+            call_count += 1
+            return response
+
+        self.http_client_transport = httpx.MockTransport(mock_response)
+        self.instance = imbi.Imbi(self.config, self.http_client_transport)
+
+        # Should not raise any exception
+        await self.instance.update_project_fact(
+            123, fact_name='CI Pipeline Status', value='pass'
+        )
+
+    async def test_update_project_fact_by_name_not_found(self) -> None:
+        """Test updating project fact by name when fact type not found."""
+        fact_types_data = []
+
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            json=fact_types_data,
+            request=httpx.Request(
+                'GET', 'https://imbi.example.com/project-fact-types'
+            ),
+        )
+
+        with self.assertRaises(ValueError) as cm:
+            await self.instance.update_project_fact(
+                123, fact_name='Nonexistent Fact', value='test'
+            )
+
+        self.assertIn('Fact type not found', str(cm.exception))
+
+    async def test_update_project_fact_no_parameters(self) -> None:
+        """Test updating project fact with no fact_name or fact_type_id."""
+        with self.assertRaises(ValueError) as cm:
+            await self.instance.update_project_fact(123, value='test')
+
+        self.assertIn(
+            'Either fact_name or fact_type_id must be provided',
+            str(cm.exception),
+        )
+
+    async def test_update_project_fact_null_value(self) -> None:
+        """Test updating project fact with 'null' value converts to None."""
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            request=httpx.Request(
+                'POST', 'https://imbi.example.com/projects/123/facts'
+            ),
+        )
+
+        # Should convert "null" to None and not raise exception
+        await self.instance.update_project_fact(
+            123, fact_type_id=1, value='null'
+        )
+
 
 if __name__ == '__main__':
     unittest.main()
