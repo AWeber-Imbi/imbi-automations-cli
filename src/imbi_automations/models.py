@@ -423,6 +423,7 @@ class WorkflowAction(pydantic.BaseModel):
 class WorkflowConfiguration(pydantic.BaseModel):
     name: str
     description: str | None = None
+    clone_repository: bool = True
     actions: list[WorkflowAction] = []
 
 
