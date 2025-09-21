@@ -50,5 +50,5 @@ def parse_args(*args: tuple[str]) -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     configure_logging(args.verbose)
-    config = utils.load_configuration(args.config[0])
+    _config = utils.load_configuration(args.config[0])
     LOGGER.info('Imbi Automations v%s starting', version)

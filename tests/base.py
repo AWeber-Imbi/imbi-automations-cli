@@ -1,5 +1,4 @@
 import http
-import inspect
 import json
 import logging
 import os
@@ -7,7 +6,6 @@ import pathlib
 import sys
 import typing
 import unittest
-from unittest import mock
 
 import httpx
 import yarl
@@ -31,7 +29,6 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
         self.http_mock_transport_alt_file: pathlib.Path | None = None
         self.http_client_side_effect: httpx.Response | None = None
         self.instance: ia_http.Client | None = None
-
 
     async def asyncTearDown(self) -> None:
         # Ensure no residual mock behaviour leaks into the next test.
