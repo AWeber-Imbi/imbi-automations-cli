@@ -175,6 +175,29 @@ class GitHubRepository(pydantic.BaseModel):
     custom_properties: dict[str, str | list[str]] | None = None
 
 
+class GitHubWorkflowRun(pydantic.BaseModel):
+    """GitHub Actions workflow run."""
+
+    id: int
+    name: str | None
+    node_id: str
+    check_suite_id: int
+    check_suite_node_id: str
+    head_branch: str | None
+    head_sha: str
+    path: str
+    run_number: int
+    run_attempt: int | None = None
+    event: str
+    status: str | None
+    conclusion: str | None
+    workflow_id: int
+    url: str
+    html_url: str
+    created_at: datetime.datetime
+    updated_at: datetime.datetime | None = None
+
+
 # GitLab Related Models
 
 
@@ -362,9 +385,45 @@ class ImbiProjectFact(pydantic.BaseModel):
     weight: float = 0.0
 
 
+class WorkflowActionKwargs(pydantic.BaseModel):
+    """Dynamic kwargs for workflow actions."""
+
+    model_config = pydantic.ConfigDict(extra='allow')
+
+
+class WorkflowActionValue(pydantic.BaseModel):
+    """Configuration for retrieving a value via client method call."""
+
+    client: str
+    method: str
+    kwargs: WorkflowActionKwargs = pydantic.Field(
+        default_factory=WorkflowActionKwargs
+    )
+
+
+class WorkflowActionTarget(pydantic.BaseModel):
+    """Configuration for updating a target via client method call."""
+
+    client: str
+    method: str
+    kwargs: WorkflowActionKwargs = pydantic.Field(
+        default_factory=WorkflowActionKwargs
+    )
+
+
+class WorkflowAction(pydantic.BaseModel):
+    """A single action in a workflow."""
+
+    name: str
+    value: WorkflowActionValue
+    target: WorkflowActionTarget | None = None
+    value_mapping: dict[str, str] | None = None
+
+
 class WorkflowConfiguration(pydantic.BaseModel):
     name: str
     description: str | None = None
+    actions: list[WorkflowAction] = []
 
 
 class Workflow(pydantic.BaseModel):
