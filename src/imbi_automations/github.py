@@ -131,3 +131,82 @@ class GitHub(http.BaseURLClient):
             f'/repos/{org}/{repo_name}/properties/values', json=payload
         )
         response.raise_for_status()
+
+    async def get_latest_workflow_run(
+        self, org: str, repo_name: str
+    ) -> models.GitHubWorkflowRun | None:
+        """Get the most recent workflow run for a repository.
+
+        Args:
+            org: Organization name
+            repo_name: Repository name
+
+        Returns:
+            Most recent GitHubWorkflowRun or None if no runs found
+
+        Raises:
+            httpx.HTTPError: If API request fails
+
+        """
+        response = await self.get(
+            f'/repos/{org}/{repo_name}/actions/runs',
+            params={'per_page': 1},  # Get only the most recent run
+        )
+        response.raise_for_status()
+
+        data = response.json()
+        if data.get('workflow_runs') and len(data['workflow_runs']) > 0:
+            return models.GitHubWorkflowRun.model_validate(
+                data['workflow_runs'][0]
+            )
+        return None
+
+    async def get_repository_workflow_status(
+        self, repository: models.GitHubRepository
+    ) -> str | None:
+        """Get the status of the most recent GitHub Actions workflow run.
+
+        Args:
+            repository: GitHub repository to check workflow status for
+
+        Returns:
+            Status string or None if no runs
+
+        """
+        # Extract org and repo name from repository
+        org, repo_name = repository.full_name.split('/', 1)
+
+        latest_run = await self.get_latest_workflow_run(org, repo_name)
+        return latest_run.status if latest_run else None
+
+    async def get_latest_workflow_status(
+        self, org: str, repo_name: str, branch: str | None = None
+    ) -> str | None:
+        """Get the status/conclusion of the most recent workflow run.
+
+        Args:
+            org: Organization name
+            repo_name: Repository name
+            branch: Branch name (optional, defaults to all branches)
+
+        Returns:
+            Status or conclusion string, or None if no runs found
+
+        """
+        params = {'per_page': 1}
+        if branch:
+            params['branch'] = branch
+
+        response = await self.get(
+            f'/repos/{org}/{repo_name}/actions/runs', params=params
+        )
+        response.raise_for_status()
+
+        data = response.json()
+        if data.get('workflow_runs') and len(data['workflow_runs']) > 0:
+            run = data['workflow_runs'][0]
+            # Return conclusion if completed, otherwise return status
+            if run.get('status') == 'completed' and run.get('conclusion'):
+                return run['conclusion']
+            return run.get('status')
+        return None
