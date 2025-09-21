@@ -10,4 +10,5 @@
 /VERSION
 **/__pycache__/*
 openapi-specs/
-config.toml
+/config.toml
+/workflows
