@@ -356,11 +356,11 @@ class ImbiProjectFactType(pydantic.BaseModel):
     created_by: str | None = None
     last_modified_by: str | None = None
     name: str
-    project_type_ids: list[int]
+    project_type_ids: list[int] = pydantic.Field(default_factory=list)
     fact_type: str  # enum, free-form, range
     description: str | None = None
     data_type: str  # boolean, integer, number, string
-    ui_options: list[str] = []
+    ui_options: list[str] = pydantic.Field(default_factory=list)
     weight: float = 0.0
 
 
@@ -380,7 +380,7 @@ class ImbiProjectFact(pydantic.BaseModel):
     recorded_at: datetime.datetime | None = None
     recorded_by: str | None = None
     value: bool | int | float | str | None = None
-    ui_options: list[str] = []
+    ui_options: list[str] = pydantic.Field(default_factory=list)
     score: float | None = 0.0
     weight: float = 0.0
 
@@ -424,7 +424,7 @@ class WorkflowConfiguration(pydantic.BaseModel):
     name: str
     description: str | None = None
     clone_repository: bool = True
-    actions: list[WorkflowAction] = []
+    actions: list[WorkflowAction] = pydantic.Field(default_factory=list)
 
 
 class Workflow(pydantic.BaseModel):
