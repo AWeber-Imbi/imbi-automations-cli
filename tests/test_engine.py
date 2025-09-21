@@ -1,4 +1,5 @@
 import unittest
+import unittest.mock
 
 from imbi_automations import engine, models
 
@@ -16,9 +17,7 @@ class TestAutomationIterator(unittest.TestCase):
         self.assertEqual(
             engine.AutomationIterator.gitlab_repositories.value, 4
         )
-        self.assertEqual(
-            engine.AutomationIterator.gitlab_organization.value, 5
-        )
+        self.assertEqual(engine.AutomationIterator.gitlab_group.value, 5)
         self.assertEqual(engine.AutomationIterator.gitlab_project.value, 6)
         self.assertEqual(engine.AutomationIterator.imbi_project_types.value, 7)
         self.assertEqual(engine.AutomationIterator.imbi_project.value, 8)
@@ -42,8 +41,7 @@ class TestAutomationIterator(unittest.TestCase):
             'gitlab_repositories',
         )
         self.assertEqual(
-            engine.AutomationIterator.gitlab_organization.name,
-            'gitlab_organization',
+            engine.AutomationIterator.gitlab_group.name, 'gitlab_group'
         )
         self.assertEqual(
             engine.AutomationIterator.gitlab_project.name, 'gitlab_project'
@@ -101,6 +99,56 @@ class TestAutomationEngine(unittest.TestCase):
 
         with contextlib.suppress(NotImplementedError):
             ae.run()
+
+    def test_automation_engine_run_method_calls_correct_processor(
+        self,
+    ) -> None:
+        """Test that run method calls the correct processor method."""
+        config = models.Configuration()
+
+        test_cases = [
+            (
+                engine.AutomationIterator.github_repositories,
+                '_process_github_repositories',
+            ),
+            (
+                engine.AutomationIterator.github_organization,
+                '_process_github_organization',
+            ),
+            (
+                engine.AutomationIterator.github_project,
+                '_process_github_project',
+            ),
+            (
+                engine.AutomationIterator.gitlab_repositories,
+                '_process_gitlab_repositories',
+            ),
+            (engine.AutomationIterator.gitlab_group, '_process_gitlab_group'),
+            (
+                engine.AutomationIterator.gitlab_project,
+                '_process_gitlab_project',
+            ),
+            (
+                engine.AutomationIterator.imbi_project_types,
+                '_process_imbi_project_types',
+            ),
+            (engine.AutomationIterator.imbi_project, '_process_imbi_project'),
+            (
+                engine.AutomationIterator.imbi_projects,
+                '_process_imbi_projects',
+            ),
+        ]
+
+        for iterator_type, expected_method in test_cases:
+            with self.subTest(iterator=iterator_type):
+                ae = engine.AutomationEngine(config, iterator_type)
+
+                # Mock the expected method to verify it gets called
+                with unittest.mock.patch.object(
+                    ae, expected_method
+                ) as mock_method:
+                    ae.run()
+                    mock_method.assert_called_once()
 
 
 if __name__ == '__main__':
