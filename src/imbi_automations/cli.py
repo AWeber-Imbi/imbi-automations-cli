@@ -62,8 +62,8 @@ def determine_iterator_type(
         return engine.AutomationIterator.github_repositories
     elif args.gitlab_repository:
         return engine.AutomationIterator.gitlab_project
-    elif args.gitlab_organization:
-        return engine.AutomationIterator.gitlab_organization
+    elif args.gitlab_group:
+        return engine.AutomationIterator.gitlab_group
     elif args.all_gitlab_repositories:
         return engine.AutomationIterator.gitlab_repositories
     else:
@@ -158,9 +158,9 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         help='Process a single GitLab repository by URL',
     )
     target_group.add_argument(
-        '--gitlab-organization',
-        metavar='ORG',
-        help='Process all repositories in a GitLab organization/group',
+        '--gitlab-group',
+        metavar='GROUP',
+        help='Recursively process all repositories in a GitLab group',
     )
     target_group.add_argument(
         '--all-gitlab-repositories',
