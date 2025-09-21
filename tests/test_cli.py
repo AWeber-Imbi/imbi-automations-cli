@@ -162,18 +162,18 @@ class TestParseArgs(unittest.TestCase):
 
         self.assertEqual(args.gitlab_repository, 'https://gitlab.com/org/repo')
 
-    def test_parse_args_gitlab_organization(self) -> None:
-        """Test parsing args with GitLab organization target."""
+    def test_parse_args_gitlab_group(self) -> None:
+        """Test parsing args with GitLab group target."""
         args = cli.parse_args(
             [
                 str(self.config_file),
                 str(self.workflow_dir),
-                '--gitlab-organization',
-                'myorg',
+                '--gitlab-group',
+                'group',
             ]
         )
 
-        self.assertEqual(args.gitlab_organization, 'myorg')
+        self.assertEqual(args.gitlab_group, 'group')
 
     def test_parse_args_all_gitlab_repositories(self) -> None:
         """Test parsing args with all GitLab repositories target."""
@@ -328,7 +328,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             github_organization=None,
             all_github_repositories=False,
             gitlab_repository=None,
-            gitlab_organization=None,
+            gitlab_group=None,
             all_gitlab_repositories=False,
         )
 
@@ -345,7 +345,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             github_organization=None,
             all_github_repositories=False,
             gitlab_repository=None,
-            gitlab_organization=None,
+            gitlab_group=None,
             all_gitlab_repositories=False,
         )
 
@@ -362,7 +362,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             github_organization=None,
             all_github_repositories=False,
             gitlab_repository=None,
-            gitlab_organization=None,
+            gitlab_group=None,
             all_gitlab_repositories=False,
         )
 
@@ -379,7 +379,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             github_organization=None,
             all_github_repositories=False,
             gitlab_repository=None,
-            gitlab_organization=None,
+            gitlab_group=None,
             all_gitlab_repositories=False,
         )
 
@@ -396,7 +396,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             github_organization='myorg',
             all_github_repositories=False,
             gitlab_repository=None,
-            gitlab_organization=None,
+            gitlab_group=None,
             all_gitlab_repositories=False,
         )
 
@@ -413,7 +413,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             github_organization=None,
             all_github_repositories=True,
             gitlab_repository=None,
-            gitlab_organization=None,
+            gitlab_group=None,
             all_gitlab_repositories=False,
         )
 
@@ -430,14 +430,14 @@ class TestDetermineIteratorType(unittest.TestCase):
             github_organization=None,
             all_github_repositories=False,
             gitlab_repository='https://gitlab.com/org/repo',
-            gitlab_organization=None,
+            gitlab_group=None,
             all_gitlab_repositories=False,
         )
 
         result = cli.determine_iterator_type(args)
         self.assertEqual(result, engine.AutomationIterator.gitlab_project)
 
-    def test_determine_iterator_type_gitlab_organization(self) -> None:
+    def test_determine_iterator_type_gitlab_group(self) -> None:
         """Test iterator type for GitLab organization."""
         args = argparse.Namespace(
             imbi_project_id=None,
@@ -447,12 +447,12 @@ class TestDetermineIteratorType(unittest.TestCase):
             github_organization=None,
             all_github_repositories=False,
             gitlab_repository=None,
-            gitlab_organization='myorg',
+            gitlab_group='myorg',
             all_gitlab_repositories=False,
         )
 
         result = cli.determine_iterator_type(args)
-        self.assertEqual(result, engine.AutomationIterator.gitlab_organization)
+        self.assertEqual(result, engine.AutomationIterator.gitlab_group)
 
     def test_determine_iterator_type_all_gitlab_repositories(self) -> None:
         """Test iterator type for all GitLab repositories."""
@@ -464,7 +464,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             github_organization=None,
             all_github_repositories=False,
             gitlab_repository=None,
-            gitlab_organization=None,
+            gitlab_group=None,
             all_gitlab_repositories=True,
         )
 
@@ -481,7 +481,7 @@ class TestDetermineIteratorType(unittest.TestCase):
             github_organization=None,
             all_github_repositories=False,
             gitlab_repository=None,
-            gitlab_organization=None,
+            gitlab_group=None,
             all_gitlab_repositories=False,
         )
 
