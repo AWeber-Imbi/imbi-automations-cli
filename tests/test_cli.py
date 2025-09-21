@@ -19,12 +19,13 @@ class TestWorkflowFunction(unittest.TestCase):
             workflow_dir = Path(tmp_dir) / 'test-workflow'
             workflow_dir.mkdir()
             (workflow_dir / 'config.toml').write_text(
-                '[workflow]\nname = "test"'
+                'name = "test"\ndescription = "Test workflow"'
             )
 
             result = cli.workflow(str(workflow_dir))
-            self.assertEqual(result, workflow_dir)
-            self.assertTrue(result.is_dir())
+            self.assertIsInstance(result, models.Workflow)
+            self.assertEqual(result.path, workflow_dir)
+            self.assertEqual(result.configuration.name, 'test')
 
     def test_workflow_nonexistent_directory(self) -> None:
         """Test workflow function with non-existent directory."""
@@ -60,7 +61,7 @@ class TestParseArgs(unittest.TestCase):
         self.workflow_dir = Path(self.temp_dir) / 'workflow'
         self.workflow_dir.mkdir()
         (self.workflow_dir / 'config.toml').write_text(
-            '[workflow]\nname = "test"'
+            'name = "test"\ndescription = "Test workflow"'
         )
 
     def tearDown(self) -> None:
@@ -82,7 +83,8 @@ class TestParseArgs(unittest.TestCase):
 
         self.assertEqual(len(args.config), 1)
         self.assertEqual(args.config[0].name, str(self.config_file))
-        self.assertEqual(args.workflow, self.workflow_dir)
+        self.assertIsInstance(args.workflow, models.Workflow)
+        self.assertEqual(args.workflow.path, self.workflow_dir)
         self.assertEqual(args.imbi_project_id, 123)
         self.assertFalse(args.verbose)
 
@@ -504,8 +506,10 @@ class TestMain(unittest.TestCase):
     @mock.patch('imbi_automations.cli.load_configuration')
     @mock.patch('imbi_automations.cli.determine_iterator_type')
     @mock.patch('imbi_automations.engine.AutomationEngine')
+    @mock.patch('asyncio.run')
     def test_main_success(
         self,
+        mock_asyncio_run: mock.Mock,
         mock_automation_engine: mock.Mock,
         mock_determine_iterator_type: mock.Mock,
         mock_load_configuration: mock.Mock,
@@ -519,6 +523,9 @@ class TestMain(unittest.TestCase):
         mock_config_file = mock.Mock()
         mock_config_file.close = mock.Mock()
         mock_args.config = [mock_config_file]
+        mock_args.workflow = (
+            mock.Mock()
+        )  # pathlib.Path from workflow validator
         mock_parse_args.return_value = mock_args
 
         mock_config = models.Configuration()
@@ -540,17 +547,22 @@ class TestMain(unittest.TestCase):
         mock_config_file.close.assert_called_once()
         mock_determine_iterator_type.assert_called_once_with(mock_args)
         mock_automation_engine.assert_called_once_with(
-            mock_config, mock_iterator_type
+            args=mock_args,
+            configuration=mock_config,
+            iterator=mock_iterator_type,
+            workflow=mock_args.workflow,
         )
-        mock_engine_instance.run.assert_called_once()
+        mock_asyncio_run.assert_called_once_with(mock_engine_instance.run())
 
     @mock.patch('imbi_automations.cli.parse_args')
     @mock.patch('imbi_automations.cli.configure_logging')
     @mock.patch('imbi_automations.cli.load_configuration')
     @mock.patch('imbi_automations.cli.determine_iterator_type')
     @mock.patch('imbi_automations.engine.AutomationEngine')
+    @mock.patch('asyncio.run')
     def test_main_keyboard_interrupt(
         self,
+        mock_asyncio_run: mock.Mock,
         mock_automation_engine: mock.Mock,
         mock_determine_iterator_type: mock.Mock,
         mock_load_configuration: mock.Mock,
@@ -564,6 +576,9 @@ class TestMain(unittest.TestCase):
         mock_config_file = mock.Mock()
         mock_config_file.close = mock.Mock()
         mock_args.config = [mock_config_file]
+        mock_args.workflow = (
+            mock.Mock()
+        )  # pathlib.Path from workflow validator
         mock_parse_args.return_value = mock_args
 
         mock_config = models.Configuration()
@@ -573,7 +588,7 @@ class TestMain(unittest.TestCase):
         mock_determine_iterator_type.return_value = mock_iterator_type
 
         mock_engine_instance = mock.Mock()
-        mock_engine_instance.run.side_effect = KeyboardInterrupt()
+        mock_asyncio_run.side_effect = KeyboardInterrupt()
         mock_automation_engine.return_value = mock_engine_instance
 
         # Run main - should not raise exception
@@ -586,17 +601,22 @@ class TestMain(unittest.TestCase):
         mock_config_file.close.assert_called_once()
         mock_determine_iterator_type.assert_called_once_with(mock_args)
         mock_automation_engine.assert_called_once_with(
-            mock_config, mock_iterator_type
+            args=mock_args,
+            configuration=mock_config,
+            iterator=mock_iterator_type,
+            workflow=mock_args.workflow,
         )
-        mock_engine_instance.run.assert_called_once()
+        mock_asyncio_run.assert_called_once_with(mock_engine_instance.run())
 
     @mock.patch('imbi_automations.cli.parse_args')
     @mock.patch('imbi_automations.cli.configure_logging')
     @mock.patch('imbi_automations.cli.load_configuration')
     @mock.patch('imbi_automations.cli.determine_iterator_type')
     @mock.patch('imbi_automations.engine.AutomationEngine')
+    @mock.patch('asyncio.run')
     def test_main_engine_exception_propagates(
         self,
+        mock_asyncio_run: mock.Mock,
         mock_automation_engine: mock.Mock,
         mock_determine_iterator_type: mock.Mock,
         mock_load_configuration: mock.Mock,
@@ -610,6 +630,9 @@ class TestMain(unittest.TestCase):
         mock_config_file = mock.Mock()
         mock_config_file.close = mock.Mock()
         mock_args.config = [mock_config_file]
+        mock_args.workflow = (
+            mock.Mock()
+        )  # pathlib.Path from workflow validator
         mock_parse_args.return_value = mock_args
 
         mock_config = models.Configuration()
@@ -619,7 +642,7 @@ class TestMain(unittest.TestCase):
         mock_determine_iterator_type.return_value = mock_iterator_type
 
         mock_engine_instance = mock.Mock()
-        mock_engine_instance.run.side_effect = RuntimeError('Engine error')
+        mock_asyncio_run.side_effect = RuntimeError('Engine error')
         mock_automation_engine.return_value = mock_engine_instance
 
         # Run main - should raise RuntimeError
@@ -635,9 +658,12 @@ class TestMain(unittest.TestCase):
         mock_config_file.close.assert_called_once()
         mock_determine_iterator_type.assert_called_once_with(mock_args)
         mock_automation_engine.assert_called_once_with(
-            mock_config, mock_iterator_type
+            args=mock_args,
+            configuration=mock_config,
+            iterator=mock_iterator_type,
+            workflow=mock_args.workflow,
         )
-        mock_engine_instance.run.assert_called_once()
+        mock_asyncio_run.assert_called_once_with(mock_engine_instance.run())
 
 
 if __name__ == '__main__':

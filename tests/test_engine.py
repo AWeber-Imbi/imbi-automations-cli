@@ -1,3 +1,6 @@
+import argparse
+import pathlib
+import tempfile
 import unittest
 import unittest.mock
 
@@ -63,22 +66,58 @@ class TestAutomationIterator(unittest.TestCase):
 
 
 class TestAutomationEngine(unittest.TestCase):
+    def setUp(self) -> None:
+        """Set up test fixtures."""
+        # Create a temporary workflow directory
+        self.temp_dir = tempfile.mkdtemp()
+        self.workflow_dir = pathlib.Path(self.temp_dir) / 'workflow'
+        self.workflow_dir.mkdir()
+        (self.workflow_dir / 'config.toml').write_text(
+            '[workflow]\nname = "test"'
+        )
+
+        # Create test workflow and args
+        self.workflow = models.Workflow(
+            path=self.workflow_dir,
+            configuration=models.WorkflowConfiguration(name='test'),
+        )
+        self.args = argparse.Namespace(
+            config=['config.toml'], workflow=self.workflow_dir, verbose=False
+        )
+
+    def tearDown(self) -> None:
+        """Clean up test fixtures."""
+        import shutil
+
+        shutil.rmtree(self.temp_dir)
+
     def test_automation_engine_init(self) -> None:
         """Test AutomationEngine initialization."""
         config = models.Configuration()
         iterator = engine.AutomationIterator.imbi_project
 
-        ae = engine.AutomationEngine(config, iterator)
+        ae = engine.AutomationEngine(
+            args=self.args,
+            configuration=config,
+            iterator=iterator,
+            workflow=self.workflow,
+        )
 
         self.assertEqual(ae.configuration, config)
         self.assertEqual(ae.iterator, iterator)
+        self.assertEqual(ae.workflow, self.workflow)
 
     def test_automation_engine_init_all_iterator_types(self) -> None:
         """Test AutomationEngine initialization with all iterator types."""
         config = models.Configuration()
 
         for iterator in engine.AutomationIterator:
-            ae = engine.AutomationEngine(config, iterator)
+            ae = engine.AutomationEngine(
+                args=self.args,
+                configuration=config,
+                iterator=iterator,
+                workflow=self.workflow,
+            )
             self.assertEqual(ae.configuration, config)
             self.assertEqual(ae.iterator, iterator)
 
@@ -87,18 +126,16 @@ class TestAutomationEngine(unittest.TestCase):
         config = models.Configuration()
         iterator = engine.AutomationIterator.imbi_project
 
-        ae = engine.AutomationEngine(config, iterator)
+        ae = engine.AutomationEngine(
+            args=self.args,
+            configuration=config,
+            iterator=iterator,
+            workflow=self.workflow,
+        )
 
         # Test that run method exists and is callable
         self.assertTrue(hasattr(ae, 'run'))
         self.assertTrue(callable(ae.run))
-
-        # Test that run method doesn't raise exception when called
-        # (it's a stub implementation with ... so should not raise)
-        import contextlib
-
-        with contextlib.suppress(NotImplementedError):
-            ae.run()
 
     def test_automation_engine_run_method_calls_correct_processor(
         self,
@@ -141,13 +178,20 @@ class TestAutomationEngine(unittest.TestCase):
 
         for iterator_type, expected_method in test_cases:
             with self.subTest(iterator=iterator_type):
-                ae = engine.AutomationEngine(config, iterator_type)
+                ae = engine.AutomationEngine(
+                    args=self.args,
+                    configuration=config,
+                    iterator=iterator_type,
+                    workflow=self.workflow,
+                )
 
                 # Mock the expected method to verify it gets called
                 with unittest.mock.patch.object(
                     ae, expected_method
                 ) as mock_method:
-                    ae.run()
+                    import asyncio
+
+                    asyncio.run(ae.run())
                     mock_method.assert_called_once()
 
 
