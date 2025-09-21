@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import logging
 import pathlib
 import typing
@@ -87,16 +88,18 @@ def load_configuration(config_file: typing.TextIO) -> models.Configuration:
     return models.Configuration.model_validate(utils.load_toml(config_file))
 
 
-def workflow(path: str) -> pathlib.Path:
-    """Run a workflow from a directory.
-
-    @TODO have it load in/return the Workflow model once it's created
-
-    """
+def workflow(path: str) -> models.Workflow:
+    """Argument type for parsing a workflow and its configuration."""
     path_obj = pathlib.Path(path)
     if not path_obj.is_dir() or not (path_obj / 'config.toml').is_file():
         raise argparse.ArgumentTypeError(f'Invalid workflow path: {path}')
-    return path_obj
+    with path_obj.joinpath('config.toml').open('r') as f:
+        return models.Workflow(
+            path=path_obj,
+            configuration=models.WorkflowConfiguration.model_validate(
+                utils.load_toml(f)
+            ),
+        )
 
 
 def parse_args(args: list[str] | None = None) -> argparse.Namespace:
@@ -181,8 +184,13 @@ def main() -> None:
     args.config[0].close()
 
     LOGGER.info('Imbi Automations v%s starting', version)
-    ae = engine.AutomationEngine(config, determine_iterator_type(args))
+    ae = engine.AutomationEngine(
+        args=args,
+        configuration=config,
+        iterator=determine_iterator_type(args),
+        workflow=args.workflow,
+    )
     try:
-        ae.run()
+        asyncio.run(ae.run())
     except KeyboardInterrupt:
         LOGGER.info('Interrupted, exiting')
