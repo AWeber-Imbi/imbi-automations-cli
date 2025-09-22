@@ -1,12 +1,13 @@
 import argparse
 import enum
 import logging
+import pathlib
 import re
 import typing
 
 import jinja2
 
-from imbi_automations import github, gitlab, imbi, models
+from imbi_automations import git, github, gitlab, imbi, models
 
 LOGGER = logging.getLogger(__name__)
 
@@ -116,7 +117,25 @@ class AutomationEngine:
 
     async def _process_imbi_project_types(self) -> None:
         """Iterate over all Imbi projects for a specific project type."""
-        ...
+        if not self.imbi:
+            raise RuntimeError(
+                'Imbi client is required for project type iteration'
+            )
+
+        project_type_slug = self.args.imbi_project_type
+        LOGGER.info(
+            'Processing Imbi projects for project type: %s', project_type_slug
+        )
+
+        projects = await self.imbi.get_projects_by_type(project_type_slug)
+        LOGGER.info(
+            'Found %d projects with project type %s',
+            len(projects),
+            project_type_slug,
+        )
+
+        for project in projects:
+            await self._execute_workflow_run(imbi_project=project)
 
     async def _process_imbi_project(self) -> None:
         """Process a single Imbi project."""
@@ -339,6 +358,15 @@ class AutomationEngine:
                 'Imbi project is required for workflow execution'
             )
 
+        # Check if project matches workflow filter criteria
+        if not self._project_matches_filter(imbi_project):
+            LOGGER.info(
+                'Skipping project %d (%s) - does not match workflow filter',
+                imbi_project.id,
+                imbi_project.name,
+            )
+            return
+
         # Check if workflow requires GitHub repository but we don't have one
         if self._workflow_requires_github() and not github_repository:
             LOGGER.info(
@@ -379,10 +407,17 @@ class AutomationEngine:
         """Check if workflow requires GitHub repository context."""
         for action in self.workflow.configuration.actions:
             # Check if any templates reference github_repository
-            for kwargs in [
-                action.value.kwargs,
-                action.target.kwargs if action.target else None,
-            ]:
+            kwargs_to_check = []
+
+            if action.value:
+                kwargs_to_check.append(action.value.kwargs)
+
+            if action.target and isinstance(
+                action.target, models.WorkflowActionTarget
+            ):
+                kwargs_to_check.append(action.target.kwargs)
+
+            for kwargs in kwargs_to_check:
                 if kwargs:
                     for value in kwargs.model_dump().values():
                         if (
@@ -390,10 +425,15 @@ class AutomationEngine:
                             and 'github_repository' in value
                         ):
                             return True
+
             # Check if any client calls are to GitHub
-            if action.value.client == 'github':
+            if action.value and action.value.client == 'github':
                 return True
-            if action.target and action.target.client == 'github':
+            if (
+                action.target
+                and isinstance(action.target, models.WorkflowActionTarget)
+                and action.target.client == 'github'
+            ):
                 return True
         return False
 
@@ -401,10 +441,17 @@ class AutomationEngine:
         """Check if workflow requires GitLab project context."""
         for action in self.workflow.configuration.actions:
             # Check if any templates reference gitlab_project
-            for kwargs in [
-                action.value.kwargs,
-                action.target.kwargs if action.target else None,
-            ]:
+            kwargs_to_check = []
+
+            if action.value:
+                kwargs_to_check.append(action.value.kwargs)
+
+            if action.target and isinstance(
+                action.target, models.WorkflowActionTarget
+            ):
+                kwargs_to_check.append(action.target.kwargs)
+
+            for kwargs in kwargs_to_check:
                 if kwargs:
                     for value in kwargs.model_dump().values():
                         if (
@@ -412,12 +459,65 @@ class AutomationEngine:
                             and 'gitlab_project' in value
                         ):
                             return True
+
             # Check if any client calls are to GitLab
-            if action.value.client == 'gitlab':
+            if action.value and action.value.client == 'gitlab':
                 return True
-            if action.target and action.target.client == 'gitlab':
+            if (
+                action.target
+                and isinstance(action.target, models.WorkflowActionTarget)
+                and action.target.client == 'gitlab'
+            ):
                 return True
         return False
+
+    def _project_matches_filter(
+        self, imbi_project: models.ImbiProject
+    ) -> bool:
+        """Check if an Imbi project matches the workflow filter criteria.
+
+        Args:
+            imbi_project: Imbi project to check against filter
+
+        Returns:
+            True if project matches filter criteria (or no filter),
+            False otherwise
+        """
+        workflow_filter = self.workflow.configuration.filter
+        if not workflow_filter:
+            return True  # No filter means all projects match
+
+        # Check project_ids filter
+        if (
+            workflow_filter.project_ids
+            and imbi_project.id not in workflow_filter.project_ids
+        ):
+            LOGGER.debug(
+                'Project %d (%s) excluded by project_ids filter',
+                imbi_project.id,
+                imbi_project.name,
+            )
+            return False
+
+        # Check project_types filter
+        if (
+            workflow_filter.project_types
+            and imbi_project.project_type_slug not in workflow_filter.project_types
+        ):
+            LOGGER.debug(
+                'Project %d (%s) excluded by project_types filter - type: %s',
+                imbi_project.id,
+                imbi_project.name,
+                imbi_project.project_type_slug,
+            )
+            return False
+
+        LOGGER.debug(
+            'Project %d (%s) matches filter criteria',
+            imbi_project.id,
+            imbi_project.name,
+        )
+        return True
 
 
 class WorkflowEngine:
@@ -447,7 +547,11 @@ class WorkflowEngine:
         self, run: models.WorkflowRun
     ) -> dict[str, typing.Any]:
         """Create template context from workflow run data."""
-        context = {'workflow': run.workflow, 'actions': self.action_results}
+        context = {
+            'workflow': run.workflow,
+            'workflow_run': run,
+            'actions': self.action_results,
+        }
 
         if run.github_repository:
             context['github_repository'] = run.github_repository
@@ -455,6 +559,8 @@ class WorkflowEngine:
             context['gitlab_project'] = run.gitlab_project
         if run.imbi_project:
             context['imbi_project'] = run.imbi_project
+        if run.working_directory:
+            context['working_directory'] = run.working_directory
 
         return context
 
@@ -477,6 +583,30 @@ class WorkflowEngine:
                         'Available actions: %s',
                         list(context['actions'].keys()),
                     )
+                # Check if this is a direct reference to an action result
+                if value.strip().startswith(
+                    '{{ actions['
+                ) and value.strip().endswith('].result }}'):
+                    # Extract the action name and return the actual result object
+                    import re
+
+                    action_match = re.match(
+                        r'\s*{{\s*actions\[[\'"](.*?)[\'"]\]\.result\s*}}\s*',
+                        value,
+                    )
+                    if action_match:
+                        action_name = action_match.group(1)
+                        if action_name in context.get('actions', {}):
+                            rendered[key] = context['actions'][action_name][
+                                'result'
+                            ]
+                            LOGGER.debug(
+                                'Rendered %s: direct action result → %s',
+                                key,
+                                type(rendered[key]),
+                            )
+                            continue
+
                 template = self.jinja_env.from_string(value)
                 rendered_value = template.render(context)
                 # Try to convert back to original type if it was a number
@@ -518,7 +648,29 @@ class WorkflowEngine:
     async def _execute_action(
         self, action: models.WorkflowAction, context: dict[str, typing.Any]
     ) -> typing.Any:
-        """Execute a single workflow action."""
+        """Execute a single workflow action based on its type."""
+        LOGGER.debug(
+            'Executing action %s of type %s', action.name, action.type
+        )
+
+        # Dispatch to appropriate handler based on action type
+        match action.type:
+            case models.WorkflowActionTypes.callable:
+                return await self._execute_callable_action(action, context)
+            case models.WorkflowActionTypes.templates:
+                return await self._execute_templates_action(action, context)
+            case _:
+                raise ValueError(f'Unsupported action type: {action.type}')
+
+    async def _execute_callable_action(
+        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+    ) -> typing.Any:
+        """Execute a callable workflow action (client method call)."""
+
+        if not action.value:
+            raise RuntimeError(
+                f'Callable action {action.name} requires value configuration'
+            )
 
         # Get value via client method call
         value_client = self._get_client(action.value.client)
@@ -552,8 +704,10 @@ class WorkflowEngine:
         # Update context for any subsequent template rendering
         context['actions'] = self.action_results
 
-        # Execute target if configured
-        if action.target:
+        # Execute target if configured (only for callable actions)
+        if action.target and isinstance(
+            action.target, models.WorkflowActionTarget
+        ):
             target_client = self._get_client(action.target.client)
             target_method = getattr(target_client, action.target.method)
             target_kwargs = self._render_template_kwargs(
@@ -571,6 +725,353 @@ class WorkflowEngine:
 
         return mapped_result
 
+    async def _execute_templates_action(
+        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+    ) -> typing.Any:
+        """Execute a templates workflow action by copying files from workflow templates directory."""
+        import os
+        import shutil
+
+        workflow_run = context['workflow_run']
+
+        if not workflow_run.working_directory:
+            raise RuntimeError(
+                f'Templates action {action.name} requires cloned repository (working_directory)'
+            )
+
+        # Get the templates directory path
+        templates_dir = workflow_run.workflow.path / 'templates'
+
+        if not templates_dir.exists() or not templates_dir.is_dir():
+            LOGGER.warning(
+                'Templates directory not found for action %s: %s',
+                action.name,
+                templates_dir,
+            )
+            self.action_results[action.name] = {'result': 'no_templates'}
+            context['actions'] = self.action_results
+            return 'no_templates'
+
+        LOGGER.info(
+            'Copying templates from %s to %s',
+            templates_dir,
+            workflow_run.working_directory,
+        )
+
+        copied_files = []
+        errors = []
+
+        # Walk through all files in templates directory
+        for root, _dirs, files in os.walk(templates_dir):
+            for file in files:
+                template_file = pathlib.Path(root) / file
+
+                # Calculate relative path from templates directory
+                rel_path = template_file.relative_to(templates_dir)
+
+                # Determine target path
+                if template_file.suffix == '.j2':
+                    # Remove .j2 extension for Jinja2 templates
+                    target_rel_path = rel_path.with_suffix('')
+                else:
+                    target_rel_path = rel_path
+
+                # Apply target directory if specified
+                if isinstance(action.target, str) and action.target != '/':
+                    # Target is a subdirectory path
+                    target_base_path = pathlib.Path(action.target.lstrip('/'))
+                    target_file = (
+                        workflow_run.working_directory
+                        / target_base_path
+                        / target_rel_path
+                    )
+                else:
+                    # Default to repository root
+                    target_file = (
+                        workflow_run.working_directory / target_rel_path
+                    )
+
+                try:
+                    # Create target directory if it doesn't exist
+                    target_file.parent.mkdir(parents=True, exist_ok=True)
+
+                    if template_file.suffix == '.j2':
+                        # Render Jinja2 template
+                        await self._render_template_file(
+                            template_file, target_file, context
+                        )
+                    else:
+                        # Copy file directly, preserving permissions
+                        shutil.copy2(template_file, target_file)
+
+                    copied_files.append(str(target_rel_path))
+                    LOGGER.debug(
+                        'Copied template file: %s → %s',
+                        rel_path,
+                        target_rel_path,
+                    )
+
+                except Exception as exc:
+                    error_msg = f'Failed to copy {rel_path}: {exc}'
+                    errors.append(error_msg)
+                    LOGGER.error(error_msg)
+
+        # Note: Git operations moved to end of workflow execution
+
+        # Determine result status
+        if errors:
+            if copied_files:
+                status = 'partial'
+                LOGGER.warning(
+                    'Templates action %s completed with errors: %d copied, %d failed',
+                    action.name,
+                    len(copied_files),
+                    len(errors),
+                )
+            else:
+                status = 'failed'
+                LOGGER.error(
+                    'Templates action %s failed: %s',
+                    action.name,
+                    '; '.join(errors),
+                )
+        else:
+            status = 'success'
+            LOGGER.info(
+                'Templates action %s completed successfully: %d files copied',
+                action.name,
+                len(copied_files),
+            )
+
+        result = {
+            'status': status,
+            'copied_files': copied_files,
+            'errors': errors,
+        }
+
+        self.action_results[action.name] = {'result': result}
+        context['actions'] = self.action_results
+
+        return result
+
+    async def _render_template_file(
+        self,
+        template_file: pathlib.Path,
+        target_file: pathlib.Path,
+        context: dict[str, typing.Any],
+    ) -> None:
+        """Render a Jinja2 template file and write to target location.
+
+        Args:
+            template_file: Source .j2 template file
+            target_file: Target file path (without .j2 extension)
+            context: Template context dictionary
+        """
+        try:
+            # Read template content
+            template_content = template_file.read_text(encoding='utf-8')
+
+            # Create Jinja2 template
+            template = self.jinja_env.from_string(template_content)
+
+            # Render with context - use the full context as-is since it contains the WorkflowRun data
+            rendered_content = template.render(context)
+
+            # Write rendered content
+            target_file.write_text(rendered_content, encoding='utf-8')
+
+            # Copy file permissions from template
+            template_stat = template_file.stat()
+            target_file.chmod(template_stat.st_mode)
+
+            LOGGER.debug(
+                'Rendered template %s to %s', template_file.name, target_file
+            )
+
+        except Exception as exc:
+            raise RuntimeError(
+                f'Failed to render template {template_file.name}: {exc}'
+            ) from exc
+
+    async def _evaluate_condition(
+        self,
+        condition: models.WorkflowCondition,
+        working_directory: pathlib.Path,
+    ) -> bool:
+        """Evaluate a single workflow condition.
+
+        Args:
+            condition: Condition to evaluate
+            working_directory: Repository working directory for file checks
+
+        Returns:
+            True if condition is met, False otherwise
+        """
+        if condition.file_exists:
+            file_path = working_directory / condition.file_exists
+            result = file_path.exists()
+            LOGGER.debug(
+                'Condition file_exists "%s": %s', condition.file_exists, result
+            )
+            return result
+
+        if condition.file_not_exists:
+            file_path = working_directory / condition.file_not_exists
+            result = not file_path.exists()
+            LOGGER.debug(
+                'Condition file_not_exists "%s": %s',
+                condition.file_not_exists,
+                result,
+            )
+            return result
+
+        # If no conditions are specified, consider it as True
+        LOGGER.debug('Empty condition evaluated as True')
+        return True
+
+    async def _evaluate_conditions(self, run: models.WorkflowRun) -> bool:
+        """Evaluate all workflow conditions.
+
+        Args:
+            run: Workflow run containing configuration and working directory
+
+        Returns:
+            True if all conditions are met according to condition_type logic
+        """
+        if not run.workflow.configuration.conditions:
+            LOGGER.debug('No conditions specified, proceeding with workflow')
+            return True
+
+        if not run.working_directory:
+            LOGGER.warning(
+                'Cannot evaluate conditions without working directory (clone_repository=true required)'
+            )
+            return True  # Allow workflow to proceed if no working directory
+
+        LOGGER.debug(
+            'Evaluating %d conditions with %s logic',
+            len(run.workflow.configuration.conditions),
+            run.workflow.configuration.condition_type,
+        )
+
+        condition_results = []
+        for i, condition in enumerate(run.workflow.configuration.conditions):
+            result = await self._evaluate_condition(
+                condition, run.working_directory
+            )
+            condition_results.append(result)
+            LOGGER.debug('Condition %d result: %s', i + 1, result)
+
+        # Apply condition_type logic
+        if (
+            run.workflow.configuration.condition_type
+            == models.WorkflowConditionType.all
+        ):
+            overall_result = all(condition_results)
+            LOGGER.debug('All conditions must pass: %s', overall_result)
+        else:  # any
+            overall_result = any(condition_results)
+            LOGGER.debug('Any condition must pass: %s', overall_result)
+
+        return overall_result
+
+    async def _commit_workflow_changes(
+        self, run: models.WorkflowRun, project_info: str
+    ) -> None:
+        """Commit all changes made during workflow execution.
+
+        Args:
+            run: Workflow run containing working directory and action results
+            project_info: Project information string for logging
+        """
+        try:
+            # Collect all copied files from template actions
+            all_copied_files = []
+            template_actions = []
+
+            for action_name in self.action_results:
+                action_data = self.action_results[action_name]
+                result = action_data.get('result', {})
+                if isinstance(result, dict) and 'copied_files' in result:
+                    copied_files = result['copied_files']
+                    if copied_files:
+                        all_copied_files.extend(copied_files)
+                        template_actions.append(action_name)
+
+            if not all_copied_files:
+                LOGGER.debug(
+                    'No template files to commit for project %s', project_info
+                )
+                return
+
+            LOGGER.info(
+                'Committing %d template files from %d actions for project %s',
+                len(all_copied_files),
+                len(template_actions),
+                project_info,
+            )
+
+            # Add files to git staging area
+            await git.add_files(run.working_directory, all_copied_files)
+
+            # Create commit message in specified format
+            workflow_name = run.workflow.configuration.name
+            workflow_description = (
+                run.workflow.configuration.description
+                or 'No description provided'
+            )
+
+            commit_message = (
+                f'imbi-automations: {workflow_name}\n\n{workflow_description}'
+            )
+
+            # Commit changes
+            commit_sha = await git.commit_changes(
+                working_directory=run.working_directory,
+                message=commit_message,
+                author_name='Imbi Automations',
+                author_email='noreply@aweber.com',
+            )
+
+            if commit_sha:
+                LOGGER.info(
+                    'Successfully committed workflow changes for project %s: %s',
+                    project_info,
+                    commit_sha,
+                )
+
+                # Push changes to remote repository
+                try:
+                    await git.push_changes(
+                        working_directory=run.working_directory,
+                        remote='origin',
+                        branch=None,  # Push current branch
+                    )
+                    LOGGER.info(
+                        'Successfully pushed workflow changes for project %s',
+                        project_info,
+                    )
+                except Exception as exc:
+                    LOGGER.error(
+                        'Failed to push workflow changes for project %s: %s',
+                        project_info,
+                        exc,
+                    )
+                    # Don't re-raise - commit succeeded, push failure is secondary
+            else:
+                LOGGER.info(
+                    'No changes to commit for project %s (files already up-to-date)',
+                    project_info,
+                )
+
+        except Exception as exc:
+            LOGGER.error(
+                'Failed to commit workflow changes for project %s: %s',
+                project_info,
+                exc,
+            )
+            # Don't re-raise - workflow should complete even if commit fails
+
     async def execute(self, run: models.WorkflowRun) -> None:
         """Execute a complete workflow run."""
         project_info = (
@@ -586,6 +1087,18 @@ class WorkflowEngine:
 
         # Clear previous action results
         self.action_results = ActionResults()
+
+        # Handle repository cloning if required
+        if run.workflow.configuration.clone_repository:
+            await self._setup_repository_clone(run)
+
+        # Evaluate workflow conditions
+        if not await self._evaluate_conditions(run):
+            LOGGER.info(
+                'Skipping workflow execution for project %s - conditions not met',
+                project_info,
+            )
+            return
 
         # Create template context
         context = self._create_template_context(run)
@@ -608,6 +1121,63 @@ class WorkflowEngine:
                 )
                 raise
 
+        # Commit all template changes at the end of workflow
+        if run.working_directory:
+            await self._commit_workflow_changes(run, project_info)
+
         LOGGER.info(
             'Workflow completed successfully for project %s', project_info
         )
+
+    async def _setup_repository_clone(self, run: models.WorkflowRun) -> None:
+        """Set up repository cloning for workflows that require it.
+
+        Args:
+            run: Workflow run containing repository information
+
+        Raises:
+            RuntimeError: If no clonable repository is available
+
+        """
+        clone_url = None
+        repo_name = 'unknown'
+
+        # Determine which repository to clone (prefer GitHub, fallback to GitLab)
+        if run.github_repository:
+            clone_url = (
+                run.github_repository.ssh_url
+            )  # Use SSH instead of HTTPS
+            repo_name = run.github_repository.full_name
+            branch = run.github_repository.default_branch
+        elif run.gitlab_project:
+            clone_url = (
+                run.gitlab_project.ssh_url_to_repo
+            )  # Use SSH instead of HTTPS
+            repo_name = run.gitlab_project.path_with_namespace
+            branch = run.gitlab_project.default_branch
+
+        if not clone_url:
+            raise RuntimeError(
+                'No repository available for cloning. Workflow requires either '
+                'GitHub repository or GitLab project to be available.'
+            )
+
+        LOGGER.info('Cloning repository %s for workflow execution', repo_name)
+
+        try:
+            working_directory = await git.clone_repository(
+                clone_url=clone_url,
+                branch=branch,
+                depth=1,  # Shallow clone for faster performance
+            )
+
+            # Update the WorkflowRun with the working directory
+            run.working_directory = working_directory
+
+            LOGGER.debug(
+                'Repository cloned to working directory: %s', working_directory
+            )
+
+        except Exception as exc:
+            LOGGER.error('Failed to clone repository %s: %s', repo_name, exc)
+            raise
