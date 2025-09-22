@@ -260,6 +260,96 @@ class GitHub(http.BaseURLClient):
             return run.get('status')
         return None
 
+    async def get_sonarqube_job_status(
+        self,
+        org: str,
+        repo_name: str,
+        branch: str | None = None,
+        keyword: str = 'sonar',
+    ) -> str | None:
+        """Get job status with specified keyword from most recent workflow run.
+
+        Args:
+            org: Organization name
+            repo_name: Repository name
+            branch: Branch name (optional, defaults to all branches)
+            keyword: Keyword to search for in job names (default: 'sonar')
+
+        Returns:
+            Status string: 'failure', 'success', 'skipped', 'in_progress',
+            or None if no matching jobs found
+
+        """
+        # Get the most recent workflow run
+        params = {'per_page': 1}  # Only get the most recent run
+        if branch:
+            params['branch'] = branch
+
+        response = await self.get(
+            f'/repos/{org}/{repo_name}/actions/runs', params=params
+        )
+        response.raise_for_status()
+
+        data = response.json()
+        workflow_runs = data.get('workflow_runs', [])
+
+        if not workflow_runs:
+            LOGGER.debug('No workflow runs found for %s/%s', org, repo_name)
+            return None
+
+        # Get the most recent workflow run
+        latest_run = workflow_runs[0]
+        run_id = latest_run['id']
+
+        LOGGER.debug(
+            'Checking most recent workflow run %s for %s/%s',
+            run_id,
+            org,
+            repo_name,
+        )
+
+        # Get jobs for the most recent workflow run
+        jobs_response = await self.get(
+            f'/repos/{org}/{repo_name}/actions/runs/{run_id}/jobs'
+        )
+        jobs_response.raise_for_status()
+
+        jobs_data = jobs_response.json()
+        jobs = jobs_data.get('jobs', [])
+
+        # Look for jobs with the specified keyword (case-insensitive search)
+        for job in jobs:
+            job_name = job.get('name', '').lower()
+            if keyword.lower() in job_name:
+                # Found a matching job, return its status
+                job_status = job.get('status')
+                job_conclusion = job.get('conclusion')
+
+                LOGGER.debug(
+                    'Found job "%s" with keyword "%s" in %s/%s: '
+                    'status=%s, conclusion=%s',
+                    job.get('name'),
+                    keyword,
+                    org,
+                    repo_name,
+                    job_status,
+                    job_conclusion,
+                )
+
+                # Return conclusion if completed, otherwise return status
+                if job_status == 'completed' and job_conclusion:
+                    return job_conclusion
+                return job_status
+
+        LOGGER.debug(
+            'No jobs with keyword "%s" found in most recent workflow run '
+            'for %s/%s',
+            keyword,
+            org,
+            repo_name,
+        )
+        return None
+
     async def get_repository_team_permissions(
         self, org: str, repo_name: str
     ) -> dict[str, str]:

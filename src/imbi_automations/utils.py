@@ -1,4 +1,5 @@
 import logging
+import pathlib
 import re
 import tomllib
 import typing
@@ -6,6 +7,38 @@ import typing
 import pydantic
 
 LOGGER = logging.getLogger(__name__)
+
+
+class Utils:
+    """Utility client for file operations and other utility functions."""
+
+    async def append_file(self, file: str, value: str) -> str:
+        """Append a value to a file.
+
+        Args:
+            file: Path to the file to append to
+            value: Content to append to the file
+
+        Returns:
+            Status string: 'success' or 'failed'
+
+        """
+        try:
+            file_path = pathlib.Path(file)
+
+            # Create parent directory if it doesn't exist
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+
+            # Append the value to the file
+            with open(file_path, 'a', encoding='utf-8') as f:  # noqa: ASYNC230
+                f.write(value)
+
+            LOGGER.debug('Successfully appended to file: %s', file)
+            return 'success'
+
+        except Exception as exc:  # noqa: BLE001
+            LOGGER.error('Failed to append to file %s: %s', file, exc)
+            return 'failed'
 
 
 def sanitize(url: str | pydantic.AnyUrl) -> str:

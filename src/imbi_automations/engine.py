@@ -8,7 +8,7 @@ import typing
 
 import jinja2
 
-from imbi_automations import git, github, gitlab, imbi, models
+from imbi_automations import git, github, gitlab, imbi, models, utils
 
 LOGGER = logging.getLogger(__name__)
 
@@ -555,6 +555,7 @@ class WorkflowEngine:
         self.github = github_client
         self.gitlab = gitlab_client
         self.imbi = imbi_client
+        self.utils = utils.Utils()
 
         # Initialize Jinja2 environment
         self.jinja_env = jinja2.Environment(
@@ -653,6 +654,7 @@ class WorkflowEngine:
             'github': self.github,
             'gitlab': self.gitlab,
             'imbi': self.imbi,
+            'utils': self.utils,
         }
 
         client = clients.get(client_name)
@@ -1108,6 +1110,40 @@ class WorkflowEngine:
 
         return overall_result
 
+    def _evaluate_action_condition(
+        self, condition: str, context: dict[str, typing.Any]
+    ) -> bool:
+        """Evaluate an action condition against the current context.
+
+        Args:
+            condition: Condition string to evaluate
+                (e.g., "actions['failing-sonarqube'].result == 'failure'")
+            context: Template context containing action results
+
+        Returns:
+            True if condition is met, False otherwise
+
+        """
+        try:
+            # Create a safe evaluation environment
+            safe_globals = {
+                '__builtins__': {},
+                'actions': context.get('actions', {}),
+            }
+
+            # Evaluate the condition
+            result = eval(condition, safe_globals)  # noqa: S307
+            LOGGER.debug(
+                'Action condition "%s" evaluated to: %s', condition, result
+            )
+            return bool(result)
+
+        except Exception as exc:  # noqa: BLE001
+            LOGGER.error(
+                'Failed to evaluate action condition "%s": %s', condition, exc
+            )
+            return False
+
     async def _commit_workflow_changes(
         self, run: models.WorkflowRun, project_info: str
     ) -> None:
@@ -1295,6 +1331,19 @@ class WorkflowEngine:
         # Execute each action sequentially
         for action in run.workflow.configuration.actions:
             try:
+                # Check action condition if specified
+                if action.condition and not self._evaluate_action_condition(
+                    action.condition, context
+                ):
+                    LOGGER.debug(
+                        'Skipping action %s for project %s - '
+                        'condition not met: %s',
+                        action.name,
+                        project_info,
+                        action.condition,
+                    )
+                    continue
+
                 LOGGER.debug(
                     'Executing action: %s for project %s',
                     action.name,

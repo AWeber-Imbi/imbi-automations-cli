@@ -199,6 +199,22 @@ class GitHubWorkflowRun(pydantic.BaseModel):
     updated_at: datetime.datetime | None = None
 
 
+class GitHubWorkflowJob(pydantic.BaseModel):
+    """GitHub Actions workflow job."""
+
+    id: int
+    run_id: int
+    node_id: str
+    name: str
+    status: str | None
+    conclusion: str | None
+    created_at: datetime.datetime
+    started_at: datetime.datetime | None = None
+    completed_at: datetime.datetime | None = None
+    url: str
+    html_url: str
+
+
 class GitHubTeam(pydantic.BaseModel):
     """GitHub team with repository permission."""
 
@@ -458,6 +474,9 @@ class WorkflowAction(pydantic.BaseModel):
     value: WorkflowActionValue | None = None
     target: WorkflowActionTarget | str | None = None
     value_mapping: dict[str, str] | None = None
+
+    # Conditional execution - action only runs if condition is met
+    condition: str | None = None
 
     # File action fields
     command: str | None = None

@@ -47,6 +47,9 @@ dependencies = [
 dev = [
   "build",
   "coverage[toml]",
+  "mkdocs",
+  "mkdocs-material",
+  "mkdocstrings[python]",
   "pre-commit",
   "pytest",
   "pytest-cov",
