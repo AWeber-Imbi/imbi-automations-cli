@@ -1,4 +1,5 @@
 import datetime
+import enum
 import os
 import pathlib
 import typing
@@ -196,6 +197,29 @@ class GitHubWorkflowRun(pydantic.BaseModel):
     html_url: str
     created_at: datetime.datetime
     updated_at: datetime.datetime | None = None
+
+
+class GitHubTeam(pydantic.BaseModel):
+    """GitHub team with repository permission."""
+
+    id: int
+    node_id: str
+    name: str
+    slug: str
+    description: str | None
+    privacy: str  # 'closed' or 'secret'
+    permission: str  # Repository permission level
+    url: str
+    html_url: str
+    members_url: str
+    repositories_url: str
+
+
+class GitHubTeamPermission(pydantic.BaseModel):
+    """GitHub team permission on a repository."""
+
+    team_slug: str
+    permission: str  # pull, triage, push, maintain, admin
 
 
 # GitLab Related Models
@@ -411,19 +435,50 @@ class WorkflowActionTarget(pydantic.BaseModel):
     )
 
 
+class WorkflowActionTypes(enum.StrEnum):
+    """Enumeration of supported workflow action types."""
+
+    callable = 'callable'
+    templates = 'templates'
+
+
+class WorkflowConditionType(enum.StrEnum):
+    """Enumeration of supported condition logic types."""
+
+    all = 'all'
+    any = 'any'
+
+
 class WorkflowAction(pydantic.BaseModel):
     """A single action in a workflow."""
 
     name: str
-    value: WorkflowActionValue
-    target: WorkflowActionTarget | None = None
+    type: WorkflowActionTypes = WorkflowActionTypes.callable
+    value: WorkflowActionValue | None = None
+    target: WorkflowActionTarget | str | None = None
     value_mapping: dict[str, str] | None = None
+
+
+class WorkflowCondition(pydantic.BaseModel):
+    """A single condition in a workflow."""
+
+    file_exists: str | None = None
+    file_not_exists: str | None = None
+
+
+class WorkflowFilter(pydantic.BaseModel):
+    project_ids: list[int] = pydantic.Field(default_factory=list)
+    project_types: list[str] = pydantic.Field(default_factory=list)
 
 
 class WorkflowConfiguration(pydantic.BaseModel):
     name: str
     description: str | None = None
+    filter: WorkflowFilter | None = None
     clone_repository: bool = True
+    condition_type: WorkflowConditionType = WorkflowConditionType.all
+    conditions: list[WorkflowCondition] = pydantic.Field(default_factory=list)
+    create_pull_request: bool = True
     actions: list[WorkflowAction] = pydantic.Field(default_factory=list)
 
 
@@ -434,6 +489,7 @@ class Workflow(pydantic.BaseModel):
 
 class WorkflowRun(pydantic.BaseModel):
     workflow: Workflow
+    working_directory: pathlib.Path | None = None
     github_repository: GitHubRepository | None = None
     gitlab_project: GitLabProject | None = None
     imbi_project: ImbiProject
