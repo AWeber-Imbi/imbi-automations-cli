@@ -3,6 +3,7 @@ import enum
 import logging
 import pathlib
 import re
+import subprocess
 import typing
 
 import jinja2
@@ -36,6 +37,9 @@ class ActionResults:
 
     def get(self, key: str, default: typing.Any = None) -> typing.Any:
         return self._results.get(key, default)
+
+    def __iter__(self) -> typing.Iterator[str]:
+        return iter(self._results)
 
 
 class AutomationIterator(enum.Enum):
@@ -502,7 +506,8 @@ class AutomationEngine:
         # Check project_types filter
         if (
             workflow_filter.project_types
-            and imbi_project.project_type_slug not in workflow_filter.project_types
+            and imbi_project.project_type_slug
+            not in workflow_filter.project_types
         ):
             LOGGER.debug(
                 'Project %d (%s) excluded by project_types filter - type: %s',
@@ -587,7 +592,7 @@ class WorkflowEngine:
                 if value.strip().startswith(
                     '{{ actions['
                 ) and value.strip().endswith('].result }}'):
-                    # Extract the action name and return the actual result object
+                    # Extract action name and return actual result object
                     import re
 
                     action_match = re.match(
@@ -659,6 +664,8 @@ class WorkflowEngine:
                 return await self._execute_callable_action(action, context)
             case models.WorkflowActionTypes.templates:
                 return await self._execute_templates_action(action, context)
+            case models.WorkflowActionTypes.file:
+                return await self._execute_file_action(action, context)
             case _:
                 raise ValueError(f'Unsupported action type: {action.type}')
 
@@ -728,7 +735,7 @@ class WorkflowEngine:
     async def _execute_templates_action(
         self, action: models.WorkflowAction, context: dict[str, typing.Any]
     ) -> typing.Any:
-        """Execute a templates workflow action by copying files from workflow templates directory."""
+        """Execute templates action by copying files from templates dir."""
         import os
         import shutil
 
@@ -736,7 +743,8 @@ class WorkflowEngine:
 
         if not workflow_run.working_directory:
             raise RuntimeError(
-                f'Templates action {action.name} requires cloned repository (working_directory)'
+                f'Templates action {action.name} requires cloned repository '
+                f'(working_directory)'
             )
 
         # Get the templates directory path
@@ -811,7 +819,7 @@ class WorkflowEngine:
                         target_rel_path,
                     )
 
-                except Exception as exc:
+                except (OSError, PermissionError, FileNotFoundError) as exc:
                     error_msg = f'Failed to copy {rel_path}: {exc}'
                     errors.append(error_msg)
                     LOGGER.error(error_msg)
@@ -823,7 +831,8 @@ class WorkflowEngine:
             if copied_files:
                 status = 'partial'
                 LOGGER.warning(
-                    'Templates action %s completed with errors: %d copied, %d failed',
+                    'Templates action %s completed with errors: '
+                    '%d copied, %d failed',
                     action.name,
                     len(copied_files),
                     len(errors),
@@ -854,6 +863,109 @@ class WorkflowEngine:
 
         return result
 
+    async def _execute_file_action(
+        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+    ) -> typing.Any:
+        """Execute a file workflow action (rename, remove, etc.)."""
+
+        if not action.command:
+            raise ValueError(
+                f'File action {action.name} missing required command'
+            )
+
+        if not action.source:
+            raise ValueError(
+                f'File action {action.name} missing required source'
+            )
+
+        # Get working directory from context
+        workflow_run = context.get('workflow_run')
+        if not workflow_run or not workflow_run.working_directory:
+            raise RuntimeError(
+                f'File action {action.name} requires working directory'
+            )
+
+        working_directory = workflow_run.working_directory
+        source_path = working_directory / action.source
+
+        LOGGER.debug(
+            'Executing file action %s: %s on %s',
+            action.name,
+            action.command,
+            action.source,
+        )
+
+        result = {}
+
+        match action.command:
+            case 'rename':
+                if not action.destination:
+                    raise ValueError(
+                        f'Rename action {action.name} missing destination'
+                    )
+
+                destination_path = working_directory / action.destination
+
+                # Validate source file exists
+                if not source_path.exists():
+                    raise FileNotFoundError(
+                        f'Source file not found: {action.source}'
+                    )
+
+                # Validate destination doesn't exist
+                if destination_path.exists():
+                    raise FileExistsError(
+                        f'Destination file already exists: '
+                        f'{action.destination}'
+                    )
+
+                # Perform rename
+                source_path.rename(destination_path)
+
+                LOGGER.info(
+                    'Renamed file %s to %s', action.source, action.destination
+                )
+
+                result = {
+                    'operation': 'rename',
+                    'source': action.source,
+                    'destination': action.destination,
+                    'status': 'success',
+                }
+
+            case 'remove':
+                # Validate source file exists
+                if not source_path.exists():
+                    raise FileNotFoundError(
+                        f'Source file not found: {action.source}'
+                    )
+
+                # Perform remove
+                source_path.unlink()
+
+                LOGGER.info('Removed file %s', action.source)
+
+                result = {
+                    'operation': 'remove',
+                    'source': action.source,
+                    'status': 'success',
+                }
+
+            case 'regex':
+                # Placeholder for future regex implementation
+                raise NotImplementedError(
+                    'Regex file operations not yet implemented'
+                )
+
+            case _:
+                raise ValueError(f'Unsupported file command: {action.command}')
+
+        # Store result for future template references
+        self.action_results[action.name] = {'result': result}
+        context['actions'] = self.action_results
+
+        return result
+
     async def _render_template_file(
         self,
         template_file: pathlib.Path,
@@ -874,7 +986,7 @@ class WorkflowEngine:
             # Create Jinja2 template
             template = self.jinja_env.from_string(template_content)
 
-            # Render with context - use the full context as-is since it contains the WorkflowRun data
+            # Render with context containing WorkflowRun data
             rendered_content = template.render(context)
 
             # Write rendered content
@@ -944,7 +1056,8 @@ class WorkflowEngine:
 
         if not run.working_directory:
             LOGGER.warning(
-                'Cannot evaluate conditions without working directory (clone_repository=true required)'
+                'Cannot evaluate conditions without working directory '
+                '(clone_repository=true required)'
             )
             return True  # Allow workflow to proceed if no working directory
 
@@ -985,34 +1098,75 @@ class WorkflowEngine:
             project_info: Project information string for logging
         """
         try:
-            # Collect all copied files from template actions
+            # Collect all files to commit from actions
             all_copied_files = []
+            file_operations = []
             template_actions = []
 
             for action_name in self.action_results:
                 action_data = self.action_results[action_name]
                 result = action_data.get('result', {})
-                if isinstance(result, dict) and 'copied_files' in result:
-                    copied_files = result['copied_files']
-                    if copied_files:
-                        all_copied_files.extend(copied_files)
-                        template_actions.append(action_name)
 
-            if not all_copied_files:
-                LOGGER.debug(
-                    'No template files to commit for project %s', project_info
-                )
+                if isinstance(result, dict):
+                    # Handle template actions (copied files)
+                    if 'copied_files' in result:
+                        copied_files = result['copied_files']
+                        if copied_files:
+                            all_copied_files.extend(copied_files)
+                            template_actions.append(action_name)
+
+                    # Handle file operations (renames, removes)
+                    if 'operation' in result:
+                        file_operations.append(result)
+
+                        # For renames, track the new file for git add
+                        if (
+                            result['operation'] == 'rename'
+                            and 'destination' in result
+                        ):
+                            all_copied_files.append(result['destination'])
+
+            if not all_copied_files and not file_operations:
+                LOGGER.debug('No files to commit for project %s', project_info)
                 return
 
-            LOGGER.info(
-                'Committing %d template files from %d actions for project %s',
-                len(all_copied_files),
-                len(template_actions),
+            operation_summary = []
+            if template_actions:
+                operation_summary.append(
+                    f'{len(template_actions)} template actions'
+                )
+            if file_operations:
+                operation_summary.append(
+                    f'{len(file_operations)} file operations'
+                )
+
+            LOGGER.debug(
+                'Committing changes from %s for project %s',
+                ' and '.join(operation_summary),
                 project_info,
             )
 
-            # Add files to git staging area
-            await git.add_files(run.working_directory, all_copied_files)
+            # Handle file operations that need special git handling
+            for operation in file_operations:
+                if operation['operation'] == 'rename':
+                    # For renames, remove old file from git tracking
+                    source_file = operation['source']
+                    LOGGER.debug('Removing old file from git: %s', source_file)
+                    await git.remove_files(
+                        run.working_directory, [source_file]
+                    )
+
+                elif operation['operation'] == 'remove':
+                    # For removes, we need to remove the file from git tracking
+                    source_file = operation['source']
+                    LOGGER.debug('Removing file from git: %s', source_file)
+                    await git.remove_files(
+                        run.working_directory, [source_file]
+                    )
+
+            # Add files to git staging area (new files and renamed files)
+            if all_copied_files:
+                await git.add_files(run.working_directory, all_copied_files)
 
             # Create commit message in specified format
             workflow_name = run.workflow.configuration.name
@@ -1025,6 +1179,10 @@ class WorkflowEngine:
                 f'imbi-automations: {workflow_name}\n\n{workflow_description}'
             )
 
+            # Add skip-checks trailer if ci_skip_checks is enabled
+            if run.workflow.configuration.ci_skip_checks:
+                commit_message += '\n\nskip-checks: true'
+
             # Commit changes
             commit_sha = await git.commit_changes(
                 working_directory=run.working_directory,
@@ -1035,7 +1193,8 @@ class WorkflowEngine:
 
             if commit_sha:
                 LOGGER.info(
-                    'Successfully committed workflow changes for project %s: %s',
+                    'Successfully committed workflow changes for '
+                    'project %s: %s',
                     project_info,
                     commit_sha,
                 )
@@ -1051,20 +1210,21 @@ class WorkflowEngine:
                         'Successfully pushed workflow changes for project %s',
                         project_info,
                     )
-                except Exception as exc:
+                except (OSError, subprocess.CalledProcessError) as exc:
                     LOGGER.error(
                         'Failed to push workflow changes for project %s: %s',
                         project_info,
                         exc,
                     )
-                    # Don't re-raise - commit succeeded, push failure is secondary
+                    # Don't re-raise - commit succeeded, push failure secondary
             else:
                 LOGGER.info(
-                    'No changes to commit for project %s (files already up-to-date)',
+                    'No changes to commit for project %s '
+                    '(files already up-to-date)',
                     project_info,
                 )
 
-        except Exception as exc:
+        except (OSError, subprocess.CalledProcessError) as exc:
             LOGGER.error(
                 'Failed to commit workflow changes for project %s: %s',
                 project_info,
@@ -1095,7 +1255,8 @@ class WorkflowEngine:
         # Evaluate workflow conditions
         if not await self._evaluate_conditions(run):
             LOGGER.info(
-                'Skipping workflow execution for project %s - conditions not met',
+                'Skipping workflow execution for project %s - '
+                'conditions not met',
                 project_info,
             )
             return
@@ -1142,7 +1303,7 @@ class WorkflowEngine:
         clone_url = None
         repo_name = 'unknown'
 
-        # Determine which repository to clone (prefer GitHub, fallback to GitLab)
+        # Determine which repository to clone (prefer GitHub, fallback GitLab)
         if run.github_repository:
             clone_url = (
                 run.github_repository.ssh_url
@@ -1158,7 +1319,8 @@ class WorkflowEngine:
 
         if not clone_url:
             raise RuntimeError(
-                'No repository available for cloning. Workflow requires either '
+                'No repository available for cloning. Workflow requires '
+                'either '
                 'GitHub repository or GitLab project to be available.'
             )
 

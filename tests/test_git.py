@@ -540,6 +540,45 @@ class TestGitModule(base.AsyncTestCase):
         self.assertIn('Git push failed', str(context.exception))
         self.assertIn('Permission denied', str(context.exception))
 
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_remove_files_success(self, mock_run_git: mock.Mock) -> None:
+        """Test successful git rm operation."""
+        mock_run_git.return_value = (0, '', '')
+
+        await git.remove_files(self.git_dir, ['old-file.txt', 'another.txt'])
+
+        # Verify git rm command
+        mock_run_git.assert_called_once_with(
+            ['git', 'rm', 'old-file.txt', 'another.txt'],
+            cwd=self.git_dir,
+            timeout=60,
+        )
+
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_remove_files_empty_list(
+        self, mock_run_git: mock.Mock
+    ) -> None:
+        """Test git rm with empty file list."""
+        await git.remove_files(self.git_dir, [])
+
+        # Should not call git rm for empty list
+        mock_run_git.assert_not_called()
+
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_remove_files_failure(self, mock_run_git: mock.Mock) -> None:
+        """Test git rm operation failure."""
+        mock_run_git.return_value = (
+            1,
+            '',
+            "pathspec 'nonexistent.txt' did not match any files",
+        )
+
+        with self.assertRaises(RuntimeError) as context:
+            await git.remove_files(self.git_dir, ['nonexistent.txt'])
+
+        self.assertIn('Git rm failed', str(context.exception))
+        self.assertIn('did not match any files', str(context.exception))
+
 
 if __name__ == '__main__':
     unittest.main()

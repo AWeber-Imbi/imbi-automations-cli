@@ -728,7 +728,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
     def test_create_template_context_with_working_directory(self) -> None:
         """Test template context creation includes working directory."""
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
 
         workflow_run = models.WorkflowRun(
             workflow=self.workflow,
@@ -778,7 +778,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         # Create mock workflow run with working directory
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
         workflow_run = models.WorkflowRun(
             workflow=self.workflow,
             working_directory=mock_working_dir,
@@ -858,7 +858,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         # Create mock workflow run with working directory
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
         workflow_run = models.WorkflowRun(
             workflow=self.workflow,
             working_directory=mock_working_dir,
@@ -898,7 +898,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
     ) -> None:
         """Test templates action with actual template files."""
         # Set up mock working directory and workflow
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
         templates_dir = self.workflow_dir / 'templates'
 
         # Mock templates directory existence
@@ -1047,7 +1047,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         mock_push: mock.Mock,
     ) -> None:
         """Test workflow-level commit with single template action."""
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
         mock_commit.return_value = 'def456'
 
         # Set up action results with copied files
@@ -1094,7 +1094,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         mock_push: mock.Mock,
     ) -> None:
         """Test workflow-level commit with multiple template actions."""
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
         mock_commit.return_value = 'ghi789'
 
         # Set up action results with multiple template actions
@@ -1144,7 +1144,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
     async def test_commit_workflow_changes_no_template_files(self) -> None:
         """Test workflow-level commit with no template files to commit."""
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
 
         # Set up action results with no template actions
         self.workflow_engine.action_results = {
@@ -1180,7 +1180,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         mock_push: mock.Mock,
     ) -> None:
         """Test complete workflow execution with templates and commit."""
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
         mock_commit.return_value = 'workflow123'
 
         # Create workflow with templates action
@@ -1258,7 +1258,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_exists: mock.Mock
     ) -> None:
         """Test condition evaluation for file_exists when file exists."""
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
         mock_exists.return_value = True
 
         condition = models.WorkflowCondition(file_exists='.gitignore')
@@ -1274,7 +1274,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_exists: mock.Mock
     ) -> None:
         """Test condition evaluation for file_exists when file doesn't exist."""
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
         mock_exists.return_value = False
 
         condition = models.WorkflowCondition(file_exists='package.json')
@@ -1289,7 +1289,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_exists: mock.Mock
     ) -> None:
         """Test condition evaluation for file_not_exists when file doesn't exist."""
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
         mock_exists.return_value = False
 
         condition = models.WorkflowCondition(file_not_exists='.env')
@@ -1304,7 +1304,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_exists: mock.Mock
     ) -> None:
         """Test condition evaluation for file_not_exists when file exists."""
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
         mock_exists.return_value = True
 
         condition = models.WorkflowCondition(file_not_exists='README.md')
@@ -1316,7 +1316,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
     async def test_evaluate_condition_empty(self) -> None:
         """Test condition evaluation for empty condition."""
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
 
         condition = models.WorkflowCondition()
         result = await self.workflow_engine._evaluate_condition(
@@ -1360,7 +1360,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_exists: mock.Mock
     ) -> None:
         """Test conditions evaluation with 'all' type - all conditions pass."""
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
         mock_exists.return_value = True  # All files exist
 
         workflow_config = models.WorkflowConfiguration(
@@ -1389,7 +1389,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_exists: mock.Mock
     ) -> None:
         """Test conditions evaluation with 'all' type - one condition fails."""
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
 
         # Mock different return values for different files
         def side_effect():
@@ -1432,7 +1432,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_exists: mock.Mock
     ) -> None:
         """Test conditions evaluation with 'any' type - one condition passes."""
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
 
         # Mock different return values for different files
         def side_effect():
@@ -1476,7 +1476,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_exists: mock.Mock
     ) -> None:
         """Test conditions evaluation with 'any' type - all conditions fail."""
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
         mock_exists.return_value = False  # No files exist
 
         workflow_config = models.WorkflowConfiguration(
@@ -1505,7 +1505,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_clone: mock.Mock
     ) -> None:
         """Test complete workflow execution that gets skipped due to conditions."""
-        mock_working_dir = pathlib.Path('/tmp/test-working-dir')
+        mock_working_dir = self.git_dir
         mock_clone.return_value = mock_working_dir
 
         # Create workflow with condition that will fail
@@ -1545,6 +1545,470 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
             # Verify no actions were executed (GitHub method should not be called)
             self.mock_github.get_latest_workflow_status.assert_not_called()
+
+    async def test_execute_file_action_rename_success(self) -> None:
+        """Test successful file rename action."""
+        action = models.WorkflowAction(
+            name='rename-file',
+            type=models.WorkflowActionTypes.file,
+            command='rename',
+            source='compose.yml',
+            destination='compose.yaml',
+        )
+
+        mock_working_dir = self.git_dir
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow,
+            working_directory=mock_working_dir,
+            imbi_project=self.imbi_project,
+        )
+
+        context = {
+            'workflow': workflow_run.workflow,
+            'workflow_run': workflow_run,
+            'actions': {},
+        }
+
+        # Mock source file exists, destination doesn't exist
+        with mock.patch('pathlib.Path.exists') as mock_exists:
+            # Set up exists behavior: source=True, destination=False
+            def exists_side_effect(path_obj: typing.Any) -> bool:
+                if str(path_obj).endswith('compose.yml'):
+                    return True
+                elif str(path_obj).endswith('compose.yaml'):
+                    return False
+                return False
+
+            mock_exists.side_effect = lambda: exists_side_effect(
+                mock_exists.call_args[0][0] if mock_exists.call_args else None
+            )
+
+            # Mock the path objects
+            source_path = mock.MagicMock()
+            source_path.exists.return_value = True
+            dest_path = mock.MagicMock()
+            dest_path.exists.return_value = False
+
+            with mock.patch.object(
+                pathlib.Path,
+                '__truediv__',
+                side_effect=[source_path, dest_path],
+            ):
+                result = await self.workflow_engine._execute_file_action(
+                    action, context
+                )
+
+                # Verify rename was called
+                source_path.rename.assert_called_once_with(dest_path)
+
+                # Verify result
+                expected_result = {
+                    'operation': 'rename',
+                    'source': 'compose.yml',
+                    'destination': 'compose.yaml',
+                    'status': 'success',
+                }
+                self.assertEqual(result, expected_result)
+                self.assertIn(
+                    'rename-file', self.workflow_engine.action_results
+                )
+
+    async def test_execute_file_action_rename_missing_source(self) -> None:
+        """Test file rename action with missing source file."""
+        action = models.WorkflowAction(
+            name='rename-file',
+            type=models.WorkflowActionTypes.file,
+            command='rename',
+            source='nonexistent.yml',
+            destination='compose.yaml',
+        )
+
+        mock_working_dir = self.git_dir
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow,
+            working_directory=mock_working_dir,
+            imbi_project=self.imbi_project,
+        )
+
+        context = {'workflow_run': workflow_run}
+
+        # Mock source file doesn't exist
+        source_path = mock.MagicMock()
+        source_path.exists.return_value = False
+
+        with mock.patch.object(
+            pathlib.Path, '__truediv__', return_value=source_path
+        ):
+            with self.assertRaises(FileNotFoundError) as cm:
+                await self.workflow_engine._execute_file_action(
+                    action, context
+                )
+
+            self.assertIn(
+                'Source file not found: nonexistent.yml', str(cm.exception)
+            )
+
+    async def test_execute_file_action_rename_destination_exists(self) -> None:
+        """Test file rename action when destination already exists."""
+        action = models.WorkflowAction(
+            name='rename-file',
+            type=models.WorkflowActionTypes.file,
+            command='rename',
+            source='compose.yml',
+            destination='compose.yaml',
+        )
+
+        mock_working_dir = self.git_dir
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow,
+            working_directory=mock_working_dir,
+            imbi_project=self.imbi_project,
+        )
+
+        context = {'workflow_run': workflow_run}
+
+        # Mock both source and destination exist
+        source_path = mock.MagicMock()
+        source_path.exists.return_value = True
+        dest_path = mock.MagicMock()
+        dest_path.exists.return_value = True
+
+        with mock.patch.object(
+            pathlib.Path, '__truediv__', side_effect=[source_path, dest_path]
+        ):
+            with self.assertRaises(FileExistsError) as cm:
+                await self.workflow_engine._execute_file_action(
+                    action, context
+                )
+
+            self.assertIn(
+                'Destination file already exists: compose.yaml',
+                str(cm.exception),
+            )
+
+    async def test_execute_file_action_remove_success(self) -> None:
+        """Test successful file remove action."""
+        action = models.WorkflowAction(
+            name='remove-file',
+            type=models.WorkflowActionTypes.file,
+            command='remove',
+            source='old-file.txt',
+        )
+
+        mock_working_dir = self.git_dir
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow,
+            working_directory=mock_working_dir,
+            imbi_project=self.imbi_project,
+        )
+
+        context = {'workflow_run': workflow_run}
+
+        # Mock source file exists
+        source_path = mock.MagicMock()
+        source_path.exists.return_value = True
+
+        with mock.patch.object(
+            pathlib.Path, '__truediv__', return_value=source_path
+        ):
+            result = await self.workflow_engine._execute_file_action(
+                action, context
+            )
+
+            # Verify unlink was called
+            source_path.unlink.assert_called_once()
+
+            # Verify result
+            expected_result = {
+                'operation': 'remove',
+                'source': 'old-file.txt',
+                'status': 'success',
+            }
+            self.assertEqual(result, expected_result)
+
+    async def test_execute_file_action_remove_missing_file(self) -> None:
+        """Test file remove action with missing source file."""
+        action = models.WorkflowAction(
+            name='remove-file',
+            type=models.WorkflowActionTypes.file,
+            command='remove',
+            source='nonexistent.txt',
+        )
+
+        mock_working_dir = self.git_dir
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow,
+            working_directory=mock_working_dir,
+            imbi_project=self.imbi_project,
+        )
+
+        context = {'workflow_run': workflow_run}
+
+        # Mock source file doesn't exist
+        source_path = mock.MagicMock()
+        source_path.exists.return_value = False
+
+        with mock.patch.object(
+            pathlib.Path, '__truediv__', return_value=source_path
+        ):
+            with self.assertRaises(FileNotFoundError) as cm:
+                await self.workflow_engine._execute_file_action(
+                    action, context
+                )
+
+            self.assertIn(
+                'Source file not found: nonexistent.txt', str(cm.exception)
+            )
+
+    async def test_execute_file_action_missing_command(self) -> None:
+        """Test file action with missing command."""
+        action = models.WorkflowAction(
+            name='bad-file-action',
+            type=models.WorkflowActionTypes.file,
+            source='some-file.txt',
+        )
+
+        context = {'workflow_run': mock.MagicMock()}
+
+        with self.assertRaises(ValueError) as cm:
+            await self.workflow_engine._execute_file_action(action, context)
+
+        self.assertIn('missing required command', str(cm.exception))
+
+    async def test_execute_file_action_missing_source(self) -> None:
+        """Test file action with missing source."""
+        action = models.WorkflowAction(
+            name='bad-file-action',
+            type=models.WorkflowActionTypes.file,
+            command='rename',
+        )
+
+        context = {'workflow_run': mock.MagicMock()}
+
+        with self.assertRaises(ValueError) as cm:
+            await self.workflow_engine._execute_file_action(action, context)
+
+        self.assertIn('missing required source', str(cm.exception))
+
+    async def test_execute_file_action_missing_working_directory(self) -> None:
+        """Test file action without working directory."""
+        action = models.WorkflowAction(
+            name='file-action',
+            type=models.WorkflowActionTypes.file,
+            command='rename',
+            source='file.txt',
+        )
+
+        context = {'workflow_run': None}
+
+        with self.assertRaises(RuntimeError) as cm:
+            await self.workflow_engine._execute_file_action(action, context)
+
+        self.assertIn('requires working directory', str(cm.exception))
+
+    async def test_execute_file_action_unsupported_command(self) -> None:
+        """Test file action with unsupported command."""
+        action = models.WorkflowAction(
+            name='file-action',
+            type=models.WorkflowActionTypes.file,
+            command='unsupported',
+            source='file.txt',
+        )
+
+        mock_working_dir = self.git_dir
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow,
+            working_directory=mock_working_dir,
+            imbi_project=self.imbi_project,
+        )
+
+        context = {'workflow_run': workflow_run}
+
+        with self.assertRaises(ValueError) as cm:
+            await self.workflow_engine._execute_file_action(action, context)
+
+        self.assertIn(
+            'Unsupported file command: unsupported', str(cm.exception)
+        )
+
+    async def test_execute_file_action_regex_not_implemented(self) -> None:
+        """Test file action regex command is not yet implemented."""
+        action = models.WorkflowAction(
+            name='regex-action',
+            type=models.WorkflowActionTypes.file,
+            command='regex',
+            source='file.txt',
+            pattern='old',
+            replacement='new',
+        )
+
+        mock_working_dir = self.git_dir
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow,
+            working_directory=mock_working_dir,
+            imbi_project=self.imbi_project,
+        )
+
+        context = {'workflow_run': workflow_run}
+
+        with self.assertRaises(NotImplementedError) as cm:
+            await self.workflow_engine._execute_file_action(action, context)
+
+        self.assertIn(
+            'Regex file operations not yet implemented', str(cm.exception)
+        )
+
+    async def test_execute_action_file_type(self) -> None:
+        """Test dispatching to file action handler."""
+        action = models.WorkflowAction(
+            name='test-file',
+            type=models.WorkflowActionTypes.file,
+            command='rename',
+            source='old.txt',
+            destination='new.txt',
+        )
+
+        mock_working_dir = self.git_dir
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow,
+            working_directory=mock_working_dir,
+            imbi_project=self.imbi_project,
+        )
+
+        context = {'workflow_run': workflow_run}
+
+        # Mock successful file operation
+        source_path = mock.MagicMock()
+        source_path.exists.return_value = True
+        dest_path = mock.MagicMock()
+        dest_path.exists.return_value = False
+
+        with mock.patch.object(
+            pathlib.Path, '__truediv__', side_effect=[source_path, dest_path]
+        ):
+            result = await self.workflow_engine._execute_action(
+                action, context
+            )
+
+            self.assertEqual(result['operation'], 'rename')
+            self.assertEqual(result['status'], 'success')
+
+    @mock.patch('imbi_automations.git.push_changes')
+    @mock.patch('imbi_automations.git.add_files')
+    @mock.patch('imbi_automations.git.commit_changes')
+    async def test_commit_workflow_changes_with_ci_skip_checks(
+        self,
+        mock_commit: mock.Mock,
+        mock_add_files: mock.Mock,
+        mock_push: mock.Mock,
+    ) -> None:
+        """Test workflow commit with ci_skip_checks enabled."""
+        mock_working_dir = self.git_dir
+        mock_commit.return_value = 'abc123'
+
+        # Create workflow configuration with ci_skip_checks enabled
+        workflow_config = models.WorkflowConfiguration(
+            name='test-ci-skip',
+            description='Test workflow with CI skip',
+            ci_skip_checks=True,
+        )
+        workflow = models.Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        # Set up action results with copied files
+        self.workflow_engine.action_results['test-action'] = {
+            'result': {
+                'status': 'success',
+                'copied_files': ['test.txt'],
+                'errors': [],
+            }
+        }
+
+        workflow_run = models.WorkflowRun(
+            workflow=workflow,
+            working_directory=mock_working_dir,
+            imbi_project=self.imbi_project,
+        )
+
+        await self.workflow_engine._commit_workflow_changes(
+            workflow_run, 'test-project'
+        )
+
+        # Verify commit was called
+        mock_commit.assert_called_once()
+
+        # Check commit message includes skip-checks trailer
+        call_args = mock_commit.call_args
+        commit_message = call_args.kwargs['message']
+        self.assertIn('imbi-automations: test-ci-skip', commit_message)
+        self.assertIn('Test workflow with CI skip', commit_message)
+        self.assertIn('skip-checks:true', commit_message)
+
+        # Verify the trailer is properly formatted (on its own line)
+        lines = commit_message.split('\n')
+        self.assertIn('skip-checks:true', lines)
+
+    @mock.patch('imbi_automations.git.push_changes')
+    @mock.patch('imbi_automations.git.add_files')
+    @mock.patch('imbi_automations.git.remove_files')
+    @mock.patch('imbi_automations.git.commit_changes')
+    async def test_commit_workflow_changes_with_file_operations(
+        self,
+        mock_commit: mock.Mock,
+        mock_remove_files: mock.Mock,
+        mock_add_files: mock.Mock,
+        mock_push: mock.Mock,
+    ) -> None:
+        """Test workflow commit with file operations (rename and remove)."""
+        mock_working_dir = self.git_dir
+        mock_commit.return_value = 'file123'
+
+        # Set up action results with file operations
+        self.workflow_engine.action_results = {
+            'rename-action': {
+                'result': {
+                    'operation': 'rename',
+                    'source': 'old.txt',
+                    'destination': 'new.txt',
+                    'status': 'success',
+                }
+            },
+            'remove-action': {
+                'result': {
+                    'operation': 'remove',
+                    'source': 'unwanted.txt',
+                    'status': 'success',
+                }
+            },
+        }
+
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow,
+            working_directory=mock_working_dir,
+            imbi_project=self.imbi_project,
+        )
+
+        await self.workflow_engine._commit_workflow_changes(
+            workflow_run, 'test-project'
+        )
+
+        # Verify git operations for file operations
+        # Should remove both the renamed source file and the removed file
+        expected_remove_calls = [
+            mock.call(mock_working_dir, ['old.txt']),  # From rename operation
+            mock.call(
+                mock_working_dir, ['unwanted.txt']
+            ),  # From remove operation
+        ]
+        mock_remove_files.assert_has_calls(expected_remove_calls)
+
+        # Should add the renamed destination file
+        mock_add_files.assert_called_once_with(mock_working_dir, ['new.txt'])
+
+        # Should commit the changes
+        mock_commit.assert_called_once()
+        mock_push.assert_called_once()
 
 
 if __name__ == '__main__':

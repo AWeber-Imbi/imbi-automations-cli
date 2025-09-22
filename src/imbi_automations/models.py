@@ -440,6 +440,7 @@ class WorkflowActionTypes(enum.StrEnum):
 
     callable = 'callable'
     templates = 'templates'
+    file = 'file'
 
 
 class WorkflowConditionType(enum.StrEnum):
@@ -458,6 +459,13 @@ class WorkflowAction(pydantic.BaseModel):
     target: WorkflowActionTarget | str | None = None
     value_mapping: dict[str, str] | None = None
 
+    # File action fields
+    command: str | None = None
+    source: str | None = None
+    destination: str | None = None
+    pattern: str | None = None
+    replacement: str | None = None
+
 
 class WorkflowCondition(pydantic.BaseModel):
     """A single condition in a workflow."""
@@ -475,6 +483,7 @@ class WorkflowConfiguration(pydantic.BaseModel):
     name: str
     description: str | None = None
     filter: WorkflowFilter | None = None
+    ci_skip_checks: bool = False
     clone_repository: bool = True
     condition_type: WorkflowConditionType = WorkflowConditionType.all
     conditions: list[WorkflowCondition] = pydantic.Field(default_factory=list)

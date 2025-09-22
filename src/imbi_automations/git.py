@@ -191,7 +191,41 @@ async def add_files(working_directory: pathlib.Path, files: list[str]) -> None:
             f'Git add failed (exit code {returncode}): {stderr or stdout}'
         )
 
-    LOGGER.info('Successfully added %d files to git staging area', len(files))
+    LOGGER.debug('Successfully added %d files to git staging area', len(files))
+
+
+async def remove_files(
+    working_directory: pathlib.Path, files: list[str]
+) -> None:
+    """Remove files from git tracking and staging area.
+
+    Args:
+        working_directory: Git repository working directory
+        files: List of file paths relative to working directory
+
+    Raises:
+        RuntimeError: If git rm fails
+
+    """
+    if not files:
+        LOGGER.debug('No files to remove from git tracking')
+        return
+
+    LOGGER.debug('Removing %d files from git tracking', len(files))
+
+    # Use git rm with multiple files
+    command = ['git', 'rm'] + files
+
+    returncode, stdout, stderr = await _run_git_command(
+        command, cwd=working_directory, timeout=60
+    )
+
+    if returncode != 0:
+        raise RuntimeError(
+            f'Git rm failed (exit code {returncode}): {stderr or stdout}'
+        )
+
+    LOGGER.debug('Successfully removed %d files from git tracking', len(files))
 
 
 async def commit_changes(
@@ -247,7 +281,7 @@ async def commit_changes(
         if sha_match:
             commit_sha = sha_match.group(1)
 
-    LOGGER.info(
+    LOGGER.debug(
         'Successfully committed changes: %s', commit_sha or 'unknown SHA'
     )
     return commit_sha
