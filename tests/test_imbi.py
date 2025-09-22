@@ -478,7 +478,9 @@ class TestImbiClient(AsyncTestCase):
         )
 
         # Should not raise any exception
-        await self.instance.update_project_fact(123, 1, 'Python 3.12')
+        await self.instance.update_project_fact(
+            123, fact_type_id=1, value='Python 3.12', skip_validations=True
+        )
 
     async def test_update_project_fact_http_error(self) -> None:
         """Test project fact update with HTTP error."""
@@ -490,7 +492,9 @@ class TestImbiClient(AsyncTestCase):
         )
 
         with self.assertRaises(httpx.HTTPError):
-            await self.instance.update_project_fact(123, 1, 'Python 3.12')
+            await self.instance.update_project_fact(
+                123, fact_type_id=1, value='Python 3.12', skip_validations=True
+            )
 
     async def test_update_project_fact_different_types(self) -> None:
         """Test project fact update with different value types."""
@@ -533,10 +537,18 @@ class TestImbiClient(AsyncTestCase):
         self.instance = imbi.Imbi(self.config, self.http_client_transport)
 
         # Test different value types
-        await self.instance.update_project_fact(123, 1, 'String value')
-        await self.instance.update_project_fact(123, 2, 42)
-        await self.instance.update_project_fact(123, 3, 95.5)
-        await self.instance.update_project_fact(123, 4, True)
+        await self.instance.update_project_fact(
+            123, fact_type_id=1, value='String value', skip_validations=True
+        )
+        await self.instance.update_project_fact(
+            123, fact_type_id=2, value=42, skip_validations=True
+        )
+        await self.instance.update_project_fact(
+            123, fact_type_id=3, value=95.5, skip_validations=True
+        )
+        await self.instance.update_project_fact(
+            123, fact_type_id=4, value=True, skip_validations=True
+        )
 
     async def test_update_project_facts_success(self) -> None:
         """Test successful multiple project facts update."""
@@ -730,7 +742,10 @@ class TestImbiClient(AsyncTestCase):
 
         # Should not raise any exception
         await self.instance.update_project_fact(
-            123, fact_name='CI Pipeline Status', value='pass'
+            123,
+            fact_name='CI Pipeline Status',
+            value='pass',
+            skip_validations=True,
         )
 
     async def test_update_project_fact_by_name_not_found(self) -> None:
@@ -747,7 +762,10 @@ class TestImbiClient(AsyncTestCase):
 
         with self.assertRaises(ValueError) as cm:
             await self.instance.update_project_fact(
-                123, fact_name='Nonexistent Fact', value='test'
+                123,
+                fact_name='Nonexistent Fact',
+                value='test',
+                skip_validations=True,
             )
 
         self.assertIn('Fact type not found', str(cm.exception))
@@ -755,7 +773,9 @@ class TestImbiClient(AsyncTestCase):
     async def test_update_project_fact_no_parameters(self) -> None:
         """Test updating project fact with no fact_name or fact_type_id."""
         with self.assertRaises(ValueError) as cm:
-            await self.instance.update_project_fact(123, value='test')
+            await self.instance.update_project_fact(
+                123, value='test', skip_validations=True
+            )
 
         self.assertIn(
             'Either fact_name or fact_type_id must be provided',
@@ -773,7 +793,7 @@ class TestImbiClient(AsyncTestCase):
 
         # Should convert "null" to None and not raise exception
         await self.instance.update_project_fact(
-            123, fact_type_id=1, value='null'
+            123, fact_type_id=1, value='null', skip_validations=True
         )
 
     async def test_update_github_identifier_new_value(self) -> None:

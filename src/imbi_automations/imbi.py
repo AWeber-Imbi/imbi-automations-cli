@@ -264,6 +264,25 @@ class Imbi(http.BaseURLClient):
             ]
         return self._fact_types
 
+    async def get_project_types(self) -> list[models.ImbiProjectType]:
+        """Get all project types.
+
+        Returns:
+            List of all project types
+
+        Raises:
+            httpx.HTTPError: If API request fails
+
+        """
+        if not self._project_types:
+            response = await self.get('/project-types')
+            response.raise_for_status()
+            self._project_types = [
+                models.ImbiProjectType.model_validate(project_type)
+                for project_type in response.json()
+            ]
+        return self._project_types
+
     async def get_fact_type_id_by_name(self, fact_name: str) -> int | None:
         """Get fact type ID by name.
 
@@ -327,6 +346,7 @@ class Imbi(http.BaseURLClient):
         fact_name: str | None = None,
         fact_type_id: int | None = None,
         value: bool | int | float | str | None = None,
+        skip_validations: bool = False,
     ) -> None:
         """Update a single project fact by name or ID.
 
@@ -335,6 +355,7 @@ class Imbi(http.BaseURLClient):
             fact_name: Name of the fact to update (alternative to fact_type_id)
             fact_type_id: ID of the fact type (alternative to fact_name)
             value: New value for the fact, or "unset" to remove the fact
+            skip_validations: Skip project type and current value validations
 
         Raises:
             ValueError: If neither fact_name nor fact_type_id provided
@@ -352,7 +373,63 @@ class Imbi(http.BaseURLClient):
             if not fact_type_id:
                 raise ValueError(f'Fact type not found: {fact_name}')
 
-        # Note: Current value checking disabled to avoid test complexity
+        # Perform enhanced validations unless explicitly skipped
+        if not skip_validations:
+            # Get project information to validate project type compatibility
+            project = await self.get_project(project_id)
+
+            # Validate that the fact type supports this project's type
+            fact_types = await self.get_fact_types()
+            fact_type = next(
+                (ft for ft in fact_types if ft.id == fact_type_id), None
+            )
+
+            if fact_type and fact_type.project_type_ids:
+                # Get project type ID from project_type_slug
+                project_types = await self.get_project_types()
+                project_type = next(
+                    (
+                        pt
+                        for pt in project_types
+                        if pt.slug == project.project_type_slug
+                    ),
+                    None,
+                )
+
+                if (
+                    project_type
+                    and project_type.id not in fact_type.project_type_ids
+                ):
+                    LOGGER.info(
+                        'Skipping fact update for project %d (%s) - '
+                        'fact type "%s" not supported for project type "%s"',
+                        project_id,
+                        project.name,
+                        fact_name or fact_type_id,
+                        project.project_type_slug,
+                    )
+                    return
+
+            # Check if current value is the same to avoid unnecessary updates
+            current_value = await self.get_project_fact_value(
+                project_id, fact_name or str(fact_type_id)
+            )
+
+            # Convert values to strings for comparison (API stores as strings)
+            current_str = (
+                str(current_value) if current_value is not None else None
+            )
+            new_str = str(value) if value is not None else None
+
+            if current_str == new_str:
+                LOGGER.debug(
+                    'Skipping fact update for project %d - '
+                    'value unchanged (%s = %s)',
+                    project_id,
+                    fact_name or fact_type_id,
+                    value,
+                )
+                return
 
         # Handle "null" value by setting to null
         if value == 'null':

@@ -12,3 +12,4 @@
 openapi-specs/
 /config.toml
 /workflows
+/site
