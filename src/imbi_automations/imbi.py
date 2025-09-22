@@ -400,7 +400,7 @@ class Imbi(http.BaseURLClient):
                     project_type
                     and project_type.id not in fact_type.project_type_ids
                 ):
-                    LOGGER.info(
+                    LOGGER.debug(
                         'Skipping fact update for project %d (%s) - '
                         'fact type "%s" not supported for project type "%s"',
                         project_id,
