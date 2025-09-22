@@ -785,7 +785,11 @@ class TestWorkflowEngine(base.AsyncTestCase):
             imbi_project=self.imbi_project,
         )
 
-        context = {'workflow': workflow_run.workflow, 'workflow_run': workflow_run, 'actions': {}}
+        context = {
+            'workflow': workflow_run.workflow,
+            'workflow_run': workflow_run,
+            'actions': {},
+        }
 
         # Since the templates directory doesn't exist, expect 'no_templates' result
         result = await self.workflow_engine._execute_action(action, context)
@@ -861,7 +865,11 @@ class TestWorkflowEngine(base.AsyncTestCase):
             imbi_project=self.imbi_project,
         )
 
-        context = {'workflow': workflow_run.workflow, 'workflow_run': workflow_run, 'actions': {}}
+        context = {
+            'workflow': workflow_run.workflow,
+            'workflow_run': workflow_run,
+            'actions': {},
+        }
         result = await self.workflow_engine._execute_templates_action(
             action, context
         )
@@ -973,7 +981,11 @@ class TestWorkflowEngine(base.AsyncTestCase):
             imbi_project=self.imbi_project,
         )
 
-        context = {'workflow': workflow_run.workflow, 'workflow_run': workflow_run, 'actions': {}}
+        context = {
+            'workflow': workflow_run.workflow,
+            'workflow_run': workflow_run,
+            'actions': {},
+        }
 
         with self.assertRaises(RuntimeError) as cm:
             await self.workflow_engine._execute_templates_action(
@@ -1029,7 +1041,10 @@ class TestWorkflowEngine(base.AsyncTestCase):
     @mock.patch('imbi_automations.git.add_files')
     @mock.patch('imbi_automations.git.commit_changes')
     async def test_commit_workflow_changes_single_action(
-        self, mock_commit: mock.Mock, mock_add_files: mock.Mock, mock_push: mock.Mock
+        self,
+        mock_commit: mock.Mock,
+        mock_add_files: mock.Mock,
+        mock_push: mock.Mock,
     ) -> None:
         """Test workflow-level commit with single template action."""
         mock_working_dir = pathlib.Path('/tmp/test-working-dir')
@@ -1040,7 +1055,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
             'result': {
                 'status': 'success',
                 'copied_files': ['.gitignore', 'package.json'],
-                'errors': []
+                'errors': [],
             }
         }
 
@@ -1060,9 +1075,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
         mock_commit.assert_called_once()
         mock_push.assert_called_once_with(
-            working_directory=mock_working_dir,
-            remote='origin',
-            branch=None
+            working_directory=mock_working_dir, remote='origin', branch=None
         )
 
         # Check commit message format
@@ -1075,7 +1088,10 @@ class TestWorkflowEngine(base.AsyncTestCase):
     @mock.patch('imbi_automations.git.add_files')
     @mock.patch('imbi_automations.git.commit_changes')
     async def test_commit_workflow_changes_multiple_actions(
-        self, mock_commit: mock.Mock, mock_add_files: mock.Mock, mock_push: mock.Mock
+        self,
+        mock_commit: mock.Mock,
+        mock_add_files: mock.Mock,
+        mock_push: mock.Mock,
     ) -> None:
         """Test workflow-level commit with multiple template actions."""
         mock_working_dir = pathlib.Path('/tmp/test-working-dir')
@@ -1087,19 +1103,17 @@ class TestWorkflowEngine(base.AsyncTestCase):
                 'result': {
                     'status': 'success',
                     'copied_files': ['.gitignore'],
-                    'errors': []
+                    'errors': [],
                 }
             },
             'copy-config': {
                 'result': {
                     'status': 'success',
                     'copied_files': ['config.json', 'settings.yml'],
-                    'errors': []
+                    'errors': [],
                 }
             },
-            'other-action': {
-                'result': 'not-a-template-action'
-            }
+            'other-action': {'result': 'not-a-template-action'},
         }
 
         workflow_run = models.WorkflowRun(
@@ -1114,12 +1128,12 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
         # Verify git operations with all files
         expected_files = ['.gitignore', 'config.json', 'settings.yml']
-        mock_add_files.assert_called_once_with(mock_working_dir, expected_files)
+        mock_add_files.assert_called_once_with(
+            mock_working_dir, expected_files
+        )
         mock_commit.assert_called_once()
         mock_push.assert_called_once_with(
-            working_directory=mock_working_dir,
-            remote='origin',
-            branch=None
+            working_directory=mock_working_dir, remote='origin', branch=None
         )
 
         # Check commit message format
@@ -1134,9 +1148,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
         # Set up action results with no template actions
         self.workflow_engine.action_results = {
-            'callable-action': {
-                'result': 'success'
-            }
+            'callable-action': {'result': 'success'}
         }
 
         workflow_run = models.WorkflowRun(
@@ -1146,9 +1158,10 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         # Should complete without error and without calling git operations
-        with mock.patch('imbi_automations.git.add_files') as mock_add_files, \
-             mock.patch('imbi_automations.git.commit_changes') as mock_commit:
-
+        with (
+            mock.patch('imbi_automations.git.add_files') as mock_add_files,
+            mock.patch('imbi_automations.git.commit_changes') as mock_commit,
+        ):
             await self.workflow_engine._commit_workflow_changes(
                 workflow_run, 'test-project'
             )
@@ -1161,7 +1174,10 @@ class TestWorkflowEngine(base.AsyncTestCase):
     @mock.patch('imbi_automations.git.add_files')
     @mock.patch('imbi_automations.git.commit_changes')
     async def test_execute_workflow_with_templates_and_commit(
-        self, mock_commit: mock.Mock, mock_add_files: mock.Mock, mock_push: mock.Mock
+        self,
+        mock_commit: mock.Mock,
+        mock_add_files: mock.Mock,
+        mock_push: mock.Mock,
     ) -> None:
         """Test complete workflow execution with templates and commit."""
         mock_working_dir = pathlib.Path('/tmp/test-working-dir')
@@ -1176,8 +1192,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
                     name='apply-templates',
                     type=models.WorkflowActionTypes.templates,
                     value=models.WorkflowActionValue(
-                        client='unused',
-                        method='unused',
+                        client='unused', method='unused'
                     ),
                 )
             ],
@@ -1199,15 +1214,22 @@ class TestWorkflowEngine(base.AsyncTestCase):
             result = {
                 'status': 'success',
                 'copied_files': ['.gitignore'],
-                'errors': []
+                'errors': [],
             }
-            self.workflow_engine.action_results[action.name] = {'result': result}
+            self.workflow_engine.action_results[action.name] = {
+                'result': result
+            }
             context['actions'] = self.workflow_engine.action_results
             return result
 
-        with mock.patch('imbi_automations.git.clone_repository') as mock_clone, \
-             mock.patch.object(self.workflow_engine, '_execute_templates_action', side_effect=mock_templates_action):
-
+        with (
+            mock.patch('imbi_automations.git.clone_repository') as mock_clone,
+            mock.patch.object(
+                self.workflow_engine,
+                '_execute_templates_action',
+                side_effect=mock_templates_action,
+            ),
+        ):
             # Set the clone mock to return the expected working directory
             mock_clone.return_value = mock_working_dir
 
@@ -1221,56 +1243,74 @@ class TestWorkflowEngine(base.AsyncTestCase):
             )
 
             # Verify workflow-level git operations were called
-            mock_add_files.assert_called_once_with(mock_working_dir, ['.gitignore'])
+            mock_add_files.assert_called_once_with(
+                mock_working_dir, ['.gitignore']
+            )
             mock_commit.assert_called_once()
             mock_push.assert_called_once_with(
                 working_directory=mock_working_dir,
                 remote='origin',
-                branch=None
+                branch=None,
             )
 
     @mock.patch('pathlib.Path.exists')
-    async def test_evaluate_condition_file_exists_true(self, mock_exists: mock.Mock) -> None:
+    async def test_evaluate_condition_file_exists_true(
+        self, mock_exists: mock.Mock
+    ) -> None:
         """Test condition evaluation for file_exists when file exists."""
         mock_working_dir = pathlib.Path('/tmp/test-working-dir')
         mock_exists.return_value = True
 
         condition = models.WorkflowCondition(file_exists='.gitignore')
-        result = await self.workflow_engine._evaluate_condition(condition, mock_working_dir)
+        result = await self.workflow_engine._evaluate_condition(
+            condition, mock_working_dir
+        )
 
         self.assertTrue(result)
         mock_exists.assert_called_once()
 
     @mock.patch('pathlib.Path.exists')
-    async def test_evaluate_condition_file_exists_false(self, mock_exists: mock.Mock) -> None:
+    async def test_evaluate_condition_file_exists_false(
+        self, mock_exists: mock.Mock
+    ) -> None:
         """Test condition evaluation for file_exists when file doesn't exist."""
         mock_working_dir = pathlib.Path('/tmp/test-working-dir')
         mock_exists.return_value = False
 
         condition = models.WorkflowCondition(file_exists='package.json')
-        result = await self.workflow_engine._evaluate_condition(condition, mock_working_dir)
+        result = await self.workflow_engine._evaluate_condition(
+            condition, mock_working_dir
+        )
 
         self.assertFalse(result)
 
     @mock.patch('pathlib.Path.exists')
-    async def test_evaluate_condition_file_not_exists_true(self, mock_exists: mock.Mock) -> None:
+    async def test_evaluate_condition_file_not_exists_true(
+        self, mock_exists: mock.Mock
+    ) -> None:
         """Test condition evaluation for file_not_exists when file doesn't exist."""
         mock_working_dir = pathlib.Path('/tmp/test-working-dir')
         mock_exists.return_value = False
 
         condition = models.WorkflowCondition(file_not_exists='.env')
-        result = await self.workflow_engine._evaluate_condition(condition, mock_working_dir)
+        result = await self.workflow_engine._evaluate_condition(
+            condition, mock_working_dir
+        )
 
         self.assertTrue(result)
 
     @mock.patch('pathlib.Path.exists')
-    async def test_evaluate_condition_file_not_exists_false(self, mock_exists: mock.Mock) -> None:
+    async def test_evaluate_condition_file_not_exists_false(
+        self, mock_exists: mock.Mock
+    ) -> None:
         """Test condition evaluation for file_not_exists when file exists."""
         mock_working_dir = pathlib.Path('/tmp/test-working-dir')
         mock_exists.return_value = True
 
         condition = models.WorkflowCondition(file_not_exists='README.md')
-        result = await self.workflow_engine._evaluate_condition(condition, mock_working_dir)
+        result = await self.workflow_engine._evaluate_condition(
+            condition, mock_working_dir
+        )
 
         self.assertFalse(result)
 
@@ -1279,15 +1319,16 @@ class TestWorkflowEngine(base.AsyncTestCase):
         mock_working_dir = pathlib.Path('/tmp/test-working-dir')
 
         condition = models.WorkflowCondition()
-        result = await self.workflow_engine._evaluate_condition(condition, mock_working_dir)
+        result = await self.workflow_engine._evaluate_condition(
+            condition, mock_working_dir
+        )
 
         self.assertTrue(result)
 
     async def test_evaluate_conditions_no_conditions(self) -> None:
         """Test conditions evaluation when no conditions are specified."""
         workflow_run = models.WorkflowRun(
-            workflow=self.workflow,
-            imbi_project=self.imbi_project,
+            workflow=self.workflow, imbi_project=self.imbi_project
         )
 
         result = await self.workflow_engine._evaluate_conditions(workflow_run)
@@ -1298,9 +1339,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         """Test conditions evaluation without working directory."""
         workflow_config = models.WorkflowConfiguration(
             name='test-conditions',
-            conditions=[
-                models.WorkflowCondition(file_exists='.gitignore')
-            ]
+            conditions=[models.WorkflowCondition(file_exists='.gitignore')],
         )
         workflow = models.Workflow(
             path=self.workflow_dir, configuration=workflow_config
@@ -1317,7 +1356,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self.assertTrue(result)
 
     @mock.patch('pathlib.Path.exists')
-    async def test_evaluate_conditions_all_type_pass(self, mock_exists: mock.Mock) -> None:
+    async def test_evaluate_conditions_all_type_pass(
+        self, mock_exists: mock.Mock
+    ) -> None:
         """Test conditions evaluation with 'all' type - all conditions pass."""
         mock_working_dir = pathlib.Path('/tmp/test-working-dir')
         mock_exists.return_value = True  # All files exist
@@ -1328,7 +1369,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
             conditions=[
                 models.WorkflowCondition(file_exists='.gitignore'),
                 models.WorkflowCondition(file_exists='package.json'),
-            ]
+            ],
         )
         workflow = models.Workflow(
             path=self.workflow_dir, configuration=workflow_config
@@ -1344,7 +1385,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self.assertTrue(result)
 
     @mock.patch('pathlib.Path.exists')
-    async def test_evaluate_conditions_all_type_fail(self, mock_exists: mock.Mock) -> None:
+    async def test_evaluate_conditions_all_type_fail(
+        self, mock_exists: mock.Mock
+    ) -> None:
         """Test conditions evaluation with 'all' type - one condition fails."""
         mock_working_dir = pathlib.Path('/tmp/test-working-dir')
 
@@ -1355,7 +1398,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
             if not hasattr(side_effect, 'call_count'):
                 side_effect.call_count = 0
             side_effect.call_count += 1
-            return side_effect.call_count == 1  # First call (gitignore) True, second call (package.json) False
+            return (
+                side_effect.call_count == 1
+            )  # First call (gitignore) True, second call (package.json) False
 
         mock_exists.side_effect = side_effect
 
@@ -1364,8 +1409,10 @@ class TestWorkflowEngine(base.AsyncTestCase):
             condition_type=models.WorkflowConditionType.all,
             conditions=[
                 models.WorkflowCondition(file_exists='.gitignore'),
-                models.WorkflowCondition(file_exists='package.json'),  # This will fail
-            ]
+                models.WorkflowCondition(
+                    file_exists='package.json'
+                ),  # This will fail
+            ],
         )
         workflow = models.Workflow(
             path=self.workflow_dir, configuration=workflow_config
@@ -1381,7 +1428,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self.assertFalse(result)
 
     @mock.patch('pathlib.Path.exists')
-    async def test_evaluate_conditions_any_type_pass(self, mock_exists: mock.Mock) -> None:
+    async def test_evaluate_conditions_any_type_pass(
+        self, mock_exists: mock.Mock
+    ) -> None:
         """Test conditions evaluation with 'any' type - one condition passes."""
         mock_working_dir = pathlib.Path('/tmp/test-working-dir')
 
@@ -1391,7 +1440,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
             if not hasattr(side_effect, 'call_count'):
                 side_effect.call_count = 0
             side_effect.call_count += 1
-            return side_effect.call_count == 2  # First call (gitignore) False, second call (package.json) True
+            return (
+                side_effect.call_count == 2
+            )  # First call (gitignore) False, second call (package.json) True
 
         mock_exists.side_effect = side_effect
 
@@ -1399,9 +1450,13 @@ class TestWorkflowEngine(base.AsyncTestCase):
             name='test-any-conditions',
             condition_type=models.WorkflowConditionType.any,
             conditions=[
-                models.WorkflowCondition(file_exists='.gitignore'),  # This will fail
-                models.WorkflowCondition(file_exists='package.json'),  # This will pass
-            ]
+                models.WorkflowCondition(
+                    file_exists='.gitignore'
+                ),  # This will fail
+                models.WorkflowCondition(
+                    file_exists='package.json'
+                ),  # This will pass
+            ],
         )
         workflow = models.Workflow(
             path=self.workflow_dir, configuration=workflow_config
@@ -1417,7 +1472,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self.assertTrue(result)
 
     @mock.patch('pathlib.Path.exists')
-    async def test_evaluate_conditions_any_type_fail(self, mock_exists: mock.Mock) -> None:
+    async def test_evaluate_conditions_any_type_fail(
+        self, mock_exists: mock.Mock
+    ) -> None:
         """Test conditions evaluation with 'any' type - all conditions fail."""
         mock_working_dir = pathlib.Path('/tmp/test-working-dir')
         mock_exists.return_value = False  # No files exist
@@ -1428,7 +1485,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
             conditions=[
                 models.WorkflowCondition(file_exists='.gitignore'),
                 models.WorkflowCondition(file_exists='package.json'),
-            ]
+            ],
         )
         workflow = models.Workflow(
             path=self.workflow_dir, configuration=workflow_config
@@ -1462,8 +1519,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
                 models.WorkflowAction(
                     name='test-action',
                     value=models.WorkflowActionValue(
-                        client='github',
-                        method='get_latest_workflow_status',
+                        client='github', method='get_latest_workflow_status'
                     ),
                 )
             ],

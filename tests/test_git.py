@@ -498,13 +498,13 @@ class TestGitModule(base.AsyncTestCase):
 
         # Verify git push command
         mock_run_git.assert_called_once_with(
-            ['git', 'push', 'origin', 'main'],
-            cwd=self.git_dir,
-            timeout=300,
+            ['git', 'push', 'origin', 'main'], cwd=self.git_dir, timeout=300
         )
 
     @mock.patch('imbi_automations.git._run_git_command')
-    async def test_push_changes_current_branch(self, mock_run_git: mock.Mock) -> None:
+    async def test_push_changes_current_branch(
+        self, mock_run_git: mock.Mock
+    ) -> None:
         """Test git push to current branch."""
         mock_run_git.return_value = (0, '', '')
 
@@ -512,9 +512,7 @@ class TestGitModule(base.AsyncTestCase):
 
         # Verify git push command without branch
         mock_run_git.assert_called_once_with(
-            ['git', 'push', 'origin'],
-            cwd=self.git_dir,
-            timeout=300,
+            ['git', 'push', 'origin'], cwd=self.git_dir, timeout=300
         )
 
     @mock.patch('imbi_automations.git._run_git_command')
