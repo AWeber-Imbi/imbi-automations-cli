@@ -403,3 +403,91 @@ class Imbi(http.BaseURLClient):
             f'/projects/{project_id}/facts', json=payload
         )
         response.raise_for_status()
+
+    async def update_github_identifier(
+        self, project_id: int, identifier_name: str, value: int | str | None
+    ) -> None:
+        """Update GitHub identifier for a project only if different.
+
+        Args:
+            project_id: Imbi project ID
+            identifier_name: Name of the identifier (typically "github")
+            value: New identifier value
+
+        Raises:
+            httpx.HTTPError: If API request fails
+
+        """
+        # Get current project data to check existing identifier
+        project = await self.get_project(project_id)
+        if not project:
+            raise ValueError(f'Project not found: {project_id}')
+
+        current_value = None
+        if project.identifiers and identifier_name in project.identifiers:
+            current_value = project.identifiers[identifier_name]
+
+        # Convert both values to integers for comparison if possible
+        try:
+            current_int = (
+                int(current_value) if current_value is not None else None
+            )
+            new_int = int(value) if value is not None else None
+
+            if current_int == new_int:
+                LOGGER.debug(
+                    'Identifier %s unchanged for project %d, skipping update',
+                    identifier_name,
+                    project_id,
+                )
+                return
+        except (ValueError, TypeError):
+            # Fall back to string comparison if conversion fails
+            current_str = (
+                str(current_value) if current_value is not None else None
+            )
+            new_str = str(value) if value is not None else None
+
+            if current_str == new_str:
+                LOGGER.debug(
+                    'Identifier %s unchanged for project %d, skipping update',
+                    identifier_name,
+                    project_id,
+                )
+                return
+
+        LOGGER.info(
+            'Updating %s identifier from %s to %s for project %d (%s)',
+            identifier_name,
+            current_value,
+            value,
+            project_id,
+            project.name,
+        )
+
+        # Update identifier via API
+        if value is None:
+            # Delete identifier
+            response = await self.delete(
+                f'/projects/{project_id}/identifiers/{identifier_name}'
+            )
+        elif current_value is None:
+            # Create new identifier
+            payload = {
+                'integration_name': identifier_name,
+                'external_id': str(value),
+            }
+            response = await self.post(
+                f'/projects/{project_id}/identifiers', json=payload
+            )
+        else:
+            # Update existing identifier using JSON Patch
+            payload = [
+                {'op': 'replace', 'path': '/external_id', 'value': str(value)}
+            ]
+            response = await self.patch(
+                f'/projects/{project_id}/identifiers/{identifier_name}',
+                json=payload,
+            )
+
+        response.raise_for_status()

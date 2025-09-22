@@ -281,10 +281,25 @@ class TestGitHubClient(AsyncTestCase):
 
         self.assertIsNone(result)
 
-    async def test_get_repository_by_id_http_error(self) -> None:
-        """Test repository retrieval by ID with HTTP error."""
+    async def test_get_repository_by_id_forbidden_error(self) -> None:
+        """Test repository retrieval by ID with 403 Forbidden."""
         self.http_client_side_effect = httpx.Response(
             http.HTTPStatus.FORBIDDEN,
+            content=b'Access denied',
+            request=httpx.Request(
+                'GET', 'https://api.github.com/repositories/12345'
+            ),
+        )
+
+        result = await self.instance.get_repository_by_id(12345)
+
+        self.assertIsNone(result)
+
+    async def test_get_repository_by_id_server_error(self) -> None:
+        """Test repository retrieval by ID with server error."""
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.INTERNAL_SERVER_ERROR,
+            content=b'Server error',
             request=httpx.Request(
                 'GET', 'https://api.github.com/repositories/12345'
             ),
@@ -702,6 +717,63 @@ class TestGitHubClient(AsyncTestCase):
 
         result = await self.instance.get_latest_workflow_status(
             'org', 'repo', 'main'
+        )
+
+        self.assertIsNone(result)
+
+    async def test_get_repository_identifier_success(self) -> None:
+        """Test successful repository identifier retrieval."""
+        repo_data = {
+            'id': 12345,
+            'node_id': 'R_node12345',
+            'name': 'test-repo',
+            'full_name': 'testorg/test-repo',
+            'private': False,
+            'html_url': 'https://github.com/testorg/test-repo',
+            'description': 'Test repository',
+            'fork': False,
+            'url': 'https://api.github.com/repos/testorg/test-repo',
+            'default_branch': 'main',
+            'clone_url': 'https://github.com/testorg/test-repo.git',
+            'ssh_url': 'git@github.com:testorg/test-repo.git',
+            'git_url': 'git://github.com/testorg/test-repo.git',
+            'owner': {
+                'login': 'testorg',
+                'id': 456,
+                'node_id': 'O_node456',
+                'avatar_url': 'https://avatars.githubusercontent.com/u/456?v=4',
+                'url': 'https://api.github.com/users/testorg',
+                'html_url': 'https://github.com/testorg',
+                'type': 'Organization',
+                'site_admin': False,
+            },
+        }
+
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            json=repo_data,
+            request=httpx.Request(
+                'GET', 'https://api.github.com/repos/testorg/test-repo'
+            ),
+        )
+
+        result = await self.instance.get_repository_identifier(
+            'testorg', 'test-repo', 'main'
+        )
+
+        self.assertEqual(result, 12345)
+
+    async def test_get_repository_identifier_not_found(self) -> None:
+        """Test repository identifier retrieval when repository not found."""
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.NOT_FOUND,
+            request=httpx.Request(
+                'GET', 'https://api.github.com/repos/testorg/nonexistent'
+            ),
+        )
+
+        result = await self.instance.get_repository_identifier(
+            'testorg', 'nonexistent'
         )
 
         self.assertIsNone(result)

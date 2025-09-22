@@ -776,6 +776,125 @@ class TestImbiClient(AsyncTestCase):
             123, fact_type_id=1, value='null'
         )
 
+    async def test_update_github_identifier_new_value(self) -> None:
+        """Test updating GitHub identifier with new value."""
+        # Mock project data without existing identifier
+        project_data = create_mock_project_data(
+            123, 'Test Project', 'test', 'api', 'test-project'
+        )
+
+        # Mock responses: get project, then update identifier
+        responses = [
+            httpx.Response(
+                http.HTTPStatus.OK,
+                json={'hits': {'hits': [project_data]}},
+                request=httpx.Request(
+                    'POST', 'https://imbi.example.com/opensearch/projects'
+                ),
+            ),
+            httpx.Response(
+                http.HTTPStatus.OK,
+                request=httpx.Request(
+                    'POST', 'https://imbi.example.com/projects/123/identifiers'
+                ),
+            ),
+        ]
+
+        call_count = 0
+
+        def mock_response(request: httpx.Request) -> httpx.Response:
+            nonlocal call_count
+            response = responses[call_count]
+            call_count += 1
+            return response
+
+        self.http_client_transport = httpx.MockTransport(mock_response)
+        self.instance = imbi.Imbi(self.config, self.http_client_transport)
+
+        # Should not raise any exception
+        await self.instance.update_github_identifier(123, 'github', 12345)
+
+    async def test_update_github_identifier_same_value(self) -> None:
+        """Test updating GitHub identifier with same value skips update."""
+        # Mock project data with existing identifier
+        project_data = create_mock_project_data(
+            123,
+            'Test Project',
+            'test',
+            'api',
+            'test-project',
+            identifiers={'github': '12345'},
+        )
+
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            json={'hits': {'hits': [project_data]}},
+            request=httpx.Request(
+                'POST', 'https://imbi.example.com/opensearch/projects'
+            ),
+        )
+
+        # Should not make additional API call
+        await self.instance.update_github_identifier(123, 'github', 12345)
+
+    async def test_update_github_identifier_different_value(self) -> None:
+        """Test updating GitHub identifier with different value."""
+        # Mock project data with existing identifier
+        project_data = create_mock_project_data(
+            123,
+            'Test Project',
+            'test',
+            'api',
+            'test-project',
+            identifiers={'github': '54321'},
+        )
+
+        # Mock responses: get project, then update identifier
+        responses = [
+            httpx.Response(
+                http.HTTPStatus.OK,
+                json={'hits': {'hits': [project_data]}},
+                request=httpx.Request(
+                    'POST', 'https://imbi.example.com/opensearch/projects'
+                ),
+            ),
+            httpx.Response(
+                http.HTTPStatus.OK,
+                request=httpx.Request(
+                    'POST', 'https://imbi.example.com/projects/123/identifiers'
+                ),
+            ),
+        ]
+
+        call_count = 0
+
+        def mock_response(request: httpx.Request) -> httpx.Response:
+            nonlocal call_count
+            response = responses[call_count]
+            call_count += 1
+            return response
+
+        self.http_client_transport = httpx.MockTransport(mock_response)
+        self.instance = imbi.Imbi(self.config, self.http_client_transport)
+
+        # Should update identifier
+        await self.instance.update_github_identifier(123, 'github', 12345)
+
+    async def test_update_github_identifier_project_not_found(self) -> None:
+        """Test updating GitHub identifier when project doesn't exist."""
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            json={'hits': {'hits': []}},
+            request=httpx.Request(
+                'POST', 'https://imbi.example.com/opensearch/projects'
+            ),
+        )
+
+        with self.assertRaises(ValueError) as cm:
+            await self.instance.update_github_identifier(999, 'github', 12345)
+
+        self.assertIn('Project not found: 999', str(cm.exception))
+
 
 if __name__ == '__main__':
     unittest.main()

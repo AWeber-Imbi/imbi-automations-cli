@@ -46,6 +46,7 @@ class GitHub(http.BaseURLClient):
         """Get a repository by name/slug in a specific organization."""
         response = await self.get(f'/repos/{org}/{repo_name}')
         if response.status_code == http.HTTPStatus.NOT_FOUND:
+            LOGGER.debug('Repository not found: %s/%s (404)', org, repo_name)
             return None
         if response.status_code == 403:
             error_data = response.json() if response.content else {}
@@ -58,6 +59,15 @@ class GitHub(http.BaseURLClient):
                 error_message,
             )
             raise RuntimeError(f'GitHub API access denied: {error_message}')
+        elif not response.is_success:
+            LOGGER.error(
+                'GitHub API error for repository %s/%s (%s): %s',
+                org,
+                repo_name,
+                response.status_code,
+                response.text,
+            )
+
         response.raise_for_status()
         return models.GitHubRepository(**response.json())
 
@@ -78,9 +88,31 @@ class GitHub(http.BaseURLClient):
         """
         response = await self.get(f'/repositories/{repo_id}')
         if response.status_code == http.HTTPStatus.NOT_FOUND:
+            LOGGER.debug('Repository not found for ID %s (404)', repo_id)
             return None
-        response.raise_for_status()
-        return models.GitHubRepository(**response.json())
+        elif response.status_code == http.HTTPStatus.FORBIDDEN:
+            LOGGER.warning(
+                'Access forbidden for repository ID %s (403): %s',
+                repo_id,
+                response.text,
+            )
+            return None
+        elif not response.is_success:
+            LOGGER.error(
+                'GitHub API error for repository ID %s (%s): %s',
+                repo_id,
+                response.status_code,
+                response.text,
+            )
+            response.raise_for_status()
+
+        try:
+            return models.GitHubRepository(**response.json())
+        except Exception as exc:
+            LOGGER.error(
+                'Failed to parse repository data for ID %s: %s', repo_id, exc
+            )
+            raise
 
     async def get_repository_custom_properties(
         self, org: str, repo_name: str
@@ -178,6 +210,23 @@ class GitHub(http.BaseURLClient):
 
         latest_run = await self.get_latest_workflow_run(org, repo_name)
         return latest_run.status if latest_run else None
+
+    async def get_repository_identifier(
+        self, org: str, repo_name: str, branch: str | None = None
+    ) -> int | None:
+        """Get repository ID by organization and repository name.
+
+        Args:
+            org: Organization name
+            repo_name: Repository name
+            branch: Branch name (ignored, for workflow compatibility)
+
+        Returns:
+            Repository ID or None if not found
+
+        """
+        repository = await self.get_repository(org, repo_name)
+        return repository.id if repository else None
 
     async def get_latest_workflow_status(
         self, org: str, repo_name: str, branch: str | None = None

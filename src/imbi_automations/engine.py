@@ -156,7 +156,13 @@ class AutomationEngine:
         if imbi_project.identifiers and imbi_project.identifiers.get('github'):
             github_id = imbi_project.identifiers['github']
             LOGGER.debug('Found GitHub identifier: %s', github_id)
-            return await self.github.get_repository_by_id(github_id)
+            repository = await self.github.get_repository_by_id(github_id)
+            if repository:
+                return repository
+            LOGGER.debug(
+                'GitHub identifier %s failed, trying fallback methods',
+                github_id,
+            )
 
         # Fall back to GitHub link URL
         if (
@@ -174,17 +180,30 @@ class AutomationEngine:
                 LOGGER.debug(
                     'Extracted org=%s, repo=%s from URL', org, repo_name
                 )
-                return await self.github.get_repository(org, repo_name)
-            else:
-                LOGGER.warning('Could not parse GitHub URL: %s', github_url)
-        else:
+                repository = await self.github.get_repository(org, repo_name)
+                if repository:
+                    return repository
+
+        # Final fallback: try project-type-slug/project-slug pattern
+        org = imbi_project.project_type_slug
+        repo_name = imbi_project.slug
+        LOGGER.debug(
+            'Trying fallback org=%s, repo=%s based on project slugs',
+            org,
+            repo_name,
+        )
+        repository = await self.github.get_repository(org, repo_name)
+        if repository:
             LOGGER.debug(
-                'No GitHub link found. Available links: %s, Looking for: %s',
-                list(imbi_project.links.keys())
-                if imbi_project.links
-                else None,
-                self.configuration.imbi.github_link,
+                'Found repository via slug fallback: %s/%s', org, repo_name
             )
+            return repository
+
+        LOGGER.debug(
+            'All GitHub lookup methods failed. Links: %s, Looking for: %s',
+            list(imbi_project.links.keys()) if imbi_project.links else None,
+            self.configuration.imbi.github_link,
+        )
 
         return None
 
@@ -299,12 +318,7 @@ class AutomationEngine:
                         'Found GitHub repository: %s',
                         github_repository.full_name,
                     )
-                else:
-                    LOGGER.warning(
-                        'No GitHub repository found for Imbi project %d',
-                        imbi_project.id,
-                    )
-            if self.gitlab and not gitlab_project:
+            elif self.gitlab and not gitlab_project:
                 gitlab_project = await self._get_gitlab_project(imbi_project)
 
         # If we have GitHub repository but missing Imbi project, get it
@@ -328,9 +342,10 @@ class AutomationEngine:
         # Check if workflow requires GitHub repository but we don't have one
         if self._workflow_requires_github() and not github_repository:
             LOGGER.info(
-                'Skipping project %d (%s) - no GitHub repository',
+                'Skipping project %d (%s - %s) - no GitHub repository',
                 imbi_project.id,
                 imbi_project.name,
+                imbi_project.project_type_slug,
             )
             return
 
@@ -563,7 +578,7 @@ class WorkflowEngine:
             if run.imbi_project
             else 'Unknown Project'
         )
-        LOGGER.info(
+        LOGGER.debug(
             'Executing workflow: %s for project %s',
             run.workflow.configuration.name,
             project_info,
@@ -578,7 +593,7 @@ class WorkflowEngine:
         # Execute each action sequentially
         for action in run.workflow.configuration.actions:
             try:
-                LOGGER.info(
+                LOGGER.debug(
                     'Executing action: %s for project %s',
                     action.name,
                     project_info,
