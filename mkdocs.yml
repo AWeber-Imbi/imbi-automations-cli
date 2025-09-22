@@ -68,6 +68,7 @@ nav:
   - User Guide:
     - Workflows: user-guide/workflows.md
     - Actions: user-guide/actions.md
+    - Callable Functions: user-guide/callable-functions.md
     - Templates: user-guide/templates.md
     - Conditions: user-guide/conditions.md
   - API Reference:
