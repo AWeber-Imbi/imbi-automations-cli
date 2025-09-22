@@ -1181,7 +1181,7 @@ class WorkflowEngine:
 
             # Add skip-checks trailer if ci_skip_checks is enabled
             if run.workflow.configuration.ci_skip_checks:
-                commit_message += '\n\nskip-checks: true'
+                commit_message += '\n[ci skip]\n'
 
             # Commit changes
             commit_sha = await git.commit_changes(
