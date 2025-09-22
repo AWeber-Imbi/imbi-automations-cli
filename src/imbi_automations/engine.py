@@ -333,16 +333,36 @@ class AutomationEngine:
                     'Attempting to get GitHub repository for Imbi project %d',
                     imbi_project.id,
                 )
-                github_repository = await self._get_github_repository(
-                    imbi_project
-                )
-                if github_repository:
-                    LOGGER.debug(
-                        'Found GitHub repository: %s',
-                        github_repository.full_name,
+                try:
+                    github_repository = await self._get_github_repository(
+                        imbi_project
+                    )
+                    if github_repository:
+                        LOGGER.debug(
+                            'Found GitHub repository: %s',
+                            github_repository.full_name,
+                        )
+                except Exception as exc:  # noqa: BLE001
+                    LOGGER.warning(
+                        'Failed to lookup GitHub repository for '
+                        'Imbi project %d (%s): %s',
+                        imbi_project.id,
+                        imbi_project.name,
+                        exc,
                     )
             elif self.gitlab and not gitlab_project:
-                gitlab_project = await self._get_gitlab_project(imbi_project)
+                try:
+                    gitlab_project = await self._get_gitlab_project(
+                        imbi_project
+                    )
+                except Exception as exc:  # noqa: BLE001
+                    LOGGER.warning(
+                        'Failed to lookup GitLab project for '
+                        'Imbi project %d (%s): %s',
+                        imbi_project.id,
+                        imbi_project.name,
+                        exc,
+                    )
 
         # If we have GitHub repository but missing Imbi project, get it
         if github_repository and not imbi_project and self.imbi:
@@ -373,8 +393,8 @@ class AutomationEngine:
 
         # Check if workflow requires GitHub repository but we don't have one
         if self._workflow_requires_github() and not github_repository:
-            LOGGER.info(
-                'Skipping project %d (%s - %s) - no GitHub repository',
+            LOGGER.warning(
+                'Skipping project %d (%s - %s) - no GitHub repository found',
                 imbi_project.id,
                 imbi_project.name,
                 imbi_project.project_type_slug,
@@ -1250,7 +1270,15 @@ class WorkflowEngine:
 
         # Handle repository cloning if required
         if run.workflow.configuration.clone_repository:
-            await self._setup_repository_clone(run)
+            try:
+                await self._setup_repository_clone(run)
+            except RuntimeError as exc:
+                LOGGER.warning(
+                    'Skipping workflow execution for project %s - %s',
+                    project_info,
+                    exc,
+                )
+                return
 
         # Evaluate workflow conditions
         if not await self._evaluate_conditions(run):
@@ -1324,7 +1352,7 @@ class WorkflowEngine:
                 'GitHub repository or GitLab project to be available.'
             )
 
-        LOGGER.info('Cloning repository %s for workflow execution', repo_name)
+        LOGGER.debug('Cloning repository %s for workflow execution', repo_name)
 
         try:
             working_directory = await git.clone_repository(

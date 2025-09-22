@@ -109,7 +109,7 @@ async def clone_repository(
                 f'{stderr or stdout}'
             )
 
-        LOGGER.info('Successfully cloned repository to %s', repo_dir)
+        LOGGER.debug('Successfully cloned repository to %s', repo_dir)
         return repo_dir
 
     except Exception as exc:
