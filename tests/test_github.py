@@ -778,6 +778,214 @@ class TestGitHubClient(AsyncTestCase):
 
         self.assertIsNone(result)
 
+    async def test_get_repository_team_permissions_success(self) -> None:
+        """Test successful team permissions retrieval."""
+        teams_data = [
+            {
+                'id': 1001,
+                'node_id': 'T_node1001',
+                'name': 'Core Contributors',
+                'slug': 'cc',
+                'description': 'Core contributors team',
+                'privacy': 'closed',
+                'permission': 'maintain',
+                'url': 'https://api.github.com/teams/1001',
+                'html_url': 'https://github.com/orgs/testorg/teams/cc',
+                'members_url': 'https://api.github.com/teams/1001/members{/member}',
+                'repositories_url': 'https://api.github.com/teams/1001/repos',
+            },
+            {
+                'id': 1002,
+                'node_id': 'T_node1002',
+                'name': 'Platform Security Engineering',
+                'slug': 'pse',
+                'description': 'Security team',
+                'privacy': 'closed',
+                'permission': 'admin',
+                'url': 'https://api.github.com/teams/1002',
+                'html_url': 'https://github.com/orgs/testorg/teams/pse',
+                'members_url': 'https://api.github.com/teams/1002/members{/member}',
+                'repositories_url': 'https://api.github.com/teams/1002/repos',
+            },
+        ]
+
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            json=teams_data,
+            request=httpx.Request(
+                'GET', 'https://api.github.com/repos/testorg/test-repo/teams'
+            ),
+        )
+
+        result = await self.instance.get_repository_team_permissions(
+            'testorg', 'test-repo'
+        )
+
+        expected = {'cc': 'maintain', 'pse': 'admin'}
+        self.assertEqual(result, expected)
+
+    async def test_get_repository_team_permissions_empty(self) -> None:
+        """Test team permissions retrieval with no teams."""
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            json=[],
+            request=httpx.Request(
+                'GET', 'https://api.github.com/repos/testorg/test-repo/teams'
+            ),
+        )
+
+        result = await self.instance.get_repository_team_permissions(
+            'testorg', 'test-repo'
+        )
+
+        self.assertEqual(result, {})
+
+    async def test_sync_repository_team_access_no_changes(self) -> None:
+        """Test team sync when no changes are needed."""
+        current_teams = {'cc': 'maintain', 'pse': 'admin'}
+        desired_mappings = {'cc': 'maintain', 'pse': 'admin'}
+
+        result = await self.instance.sync_repository_team_access(
+            'testorg', 'test-repo', current_teams, desired_mappings
+        )
+
+        self.assertEqual(result, 'success')
+
+    async def test_sync_repository_team_access_add_team(self) -> None:
+        """Test team sync when adding a new team."""
+        current_teams = {'cc': 'maintain'}
+        desired_mappings = {'cc': 'maintain', 'pse': 'admin'}
+
+        # Mock successful team assignment
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            request=httpx.Request(
+                'PUT',
+                'https://api.github.com/orgs/testorg/teams/pse/repos/testorg/test-repo',
+            ),
+        )
+
+        result = await self.instance.sync_repository_team_access(
+            'testorg', 'test-repo', current_teams, desired_mappings
+        )
+
+        self.assertEqual(result, 'success')
+
+    async def test_sync_repository_team_access_remove_team(self) -> None:
+        """Test team sync when removing a team."""
+        current_teams = {'cc': 'maintain', 'old-team': 'push'}
+        desired_mappings = {'cc': 'maintain'}
+
+        # Mock successful team removal
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            request=httpx.Request(
+                'DELETE',
+                'https://api.github.com/orgs/testorg/teams/old-team/repos/testorg/test-repo',
+            ),
+        )
+
+        result = await self.instance.sync_repository_team_access(
+            'testorg', 'test-repo', current_teams, desired_mappings
+        )
+
+        self.assertEqual(result, 'success')
+
+    async def test_sync_repository_team_access_update_permission(self) -> None:
+        """Test team sync when updating team permission."""
+        current_teams = {'cc': 'push'}
+        desired_mappings = {'cc': 'maintain'}
+
+        # Mock successful permission update
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            request=httpx.Request(
+                'PUT',
+                'https://api.github.com/orgs/testorg/teams/cc/repos/testorg/test-repo',
+            ),
+        )
+
+        result = await self.instance.sync_repository_team_access(
+            'testorg', 'test-repo', current_teams, desired_mappings
+        )
+
+        self.assertEqual(result, 'success')
+
+    async def test_sync_repository_team_access_partial_failure(self) -> None:
+        """Test team sync with partial failures."""
+        current_teams = {}
+        desired_mappings = {'cc': 'maintain', 'pse': 'admin'}
+
+        # Mock responses: first succeeds, second fails
+        responses = [
+            httpx.Response(http.HTTPStatus.OK),  # cc team assignment succeeds
+            httpx.Response(
+                http.HTTPStatus.NOT_FOUND
+            ),  # pse team assignment fails
+        ]
+
+        def side_effect(request):
+            return responses.pop(0)
+
+        self.http_client_transport = httpx.MockTransport(side_effect)
+        self.instance = github.GitHub(self.config, self.http_client_transport)
+
+        result = await self.instance.sync_repository_team_access(
+            'testorg', 'test-repo', current_teams, desired_mappings
+        )
+
+        self.assertEqual(result, 'partial')
+
+    async def test_sync_repository_team_access_complete_failure(self) -> None:
+        """Test team sync with complete failure."""
+        current_teams = {}
+        desired_mappings = {'cc': 'maintain'}
+
+        # Mock failed team assignment
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.NOT_FOUND,
+            request=httpx.Request(
+                'PUT',
+                'https://api.github.com/orgs/testorg/teams/cc/repos/testorg/test-repo',
+            ),
+        )
+
+        result = await self.instance.sync_repository_team_access(
+            'testorg', 'test-repo', current_teams, desired_mappings
+        )
+
+        self.assertEqual(result, 'failed')
+
+    async def test_assign_team_to_repository(self) -> None:
+        """Test private method for team assignment."""
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            request=httpx.Request(
+                'PUT',
+                'https://api.github.com/orgs/testorg/teams/cc/repos/testorg/test-repo',
+            ),
+        )
+
+        # Should not raise an exception
+        await self.instance._assign_team_to_repository(
+            'testorg', 'cc', 'test-repo', 'maintain'
+        )
+
+    async def test_remove_team_from_repository(self) -> None:
+        """Test private method for team removal."""
+        self.http_client_side_effect = httpx.Response(
+            http.HTTPStatus.OK,
+            request=httpx.Request(
+                'DELETE',
+                'https://api.github.com/orgs/testorg/teams/cc/repos/testorg/test-repo',
+            ),
+        )
+
+        # Should not raise an exception
+        await self.instance._remove_team_from_repository(
+            'testorg', 'cc', 'test-repo'
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

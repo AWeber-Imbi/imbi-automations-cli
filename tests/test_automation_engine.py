@@ -195,5 +195,198 @@ class TestAutomationEngine(unittest.TestCase):
                     mock_method.assert_called_once()
 
 
+class TestAutomationEngineImbiProjectTypes(unittest.TestCase):
+    def setUp(self) -> None:
+        """Set up test fixtures."""
+        # Create a temporary workflow directory
+        self.temp_dir = tempfile.mkdtemp()
+        self.workflow_dir = pathlib.Path(self.temp_dir) / 'workflow'
+        self.workflow_dir.mkdir()
+        (self.workflow_dir / 'config.toml').write_text(
+            '[workflow]\nname = "test"'
+        )
+
+        # Create test workflow and args
+        self.workflow = models.Workflow(
+            path=self.workflow_dir,
+            configuration=models.WorkflowConfiguration(name='test'),
+        )
+        self.args = argparse.Namespace(
+            config=['config.toml'],
+            workflow=self.workflow_dir,
+            verbose=False,
+            imbi_project_type='frontend-applications',
+        )
+
+        # Mock configuration with Imbi client
+        self.config = models.Configuration(
+            imbi=models.ImbiConfiguration(
+                api_key='test-key', hostname='imbi.example.com'
+            )
+        )
+
+    def tearDown(self) -> None:
+        """Clean up test fixtures."""
+        import shutil
+
+        shutil.rmtree(self.temp_dir)
+
+    @unittest.mock.patch('imbi_automations.imbi.Imbi')
+    def test_process_imbi_project_types_success(self, mock_imbi_class):
+        """Test successful processing of projects by type."""
+        # Create mock projects
+        mock_projects = [
+            models.ImbiProject(
+                id=1,
+                name='Frontend App 1',
+                description='Test frontend app',
+                namespace='frontend',
+                namespace_slug='frontend',
+                project_type='Frontend Application',
+                project_type_slug='frontend-applications',
+                slug='frontend-app-1',
+                imbi_url='https://imbi.example.com/ui/projects/1',
+                dependencies=None,
+                environments=None,
+                facts=None,
+                identifiers=None,
+                links=None,
+                project_score=None,
+                urls=None,
+            ),
+            models.ImbiProject(
+                id=2,
+                name='Frontend App 2',
+                description='Another frontend app',
+                namespace='frontend',
+                namespace_slug='frontend',
+                project_type='Frontend Application',
+                project_type_slug='frontend-applications',
+                slug='frontend-app-2',
+                imbi_url='https://imbi.example.com/ui/projects/2',
+                dependencies=None,
+                environments=None,
+                facts=None,
+                identifiers=None,
+                links=None,
+                project_score=None,
+                urls=None,
+            ),
+        ]
+
+        # Setup mock Imbi client
+        mock_imbi_instance = unittest.mock.AsyncMock()
+        mock_imbi_instance.get_projects_by_type.return_value = mock_projects
+        mock_imbi_class.return_value = mock_imbi_instance
+
+        # Create automation engine
+        ae = engine.AutomationEngine(
+            args=self.args,
+            configuration=self.config,
+            iterator=engine.AutomationIterator.imbi_project_types,
+            workflow=self.workflow,
+        )
+
+        # Mock _execute_workflow_run to track calls
+        ae._execute_workflow_run = unittest.mock.AsyncMock()
+
+        # Run the test
+        import asyncio
+
+        asyncio.run(ae._process_imbi_project_types())
+
+        # Verify the Imbi client was called correctly
+        mock_imbi_instance.get_projects_by_type.assert_called_once_with(
+            'frontend-applications'
+        )
+
+        # Verify _execute_workflow_run was called for each project
+        self.assertEqual(ae._execute_workflow_run.call_count, 2)
+        ae._execute_workflow_run.assert_any_call(imbi_project=mock_projects[0])
+        ae._execute_workflow_run.assert_any_call(imbi_project=mock_projects[1])
+
+    def test_process_imbi_project_types_no_imbi_client(self):
+        """Test error when no Imbi client is configured."""
+        # Create automation engine without Imbi configuration
+        config_no_imbi = models.Configuration()
+        ae = engine.AutomationEngine(
+            args=self.args,
+            configuration=config_no_imbi,
+            iterator=engine.AutomationIterator.imbi_project_types,
+            workflow=self.workflow,
+        )
+
+        # Should raise RuntimeError when trying to process
+        import asyncio
+
+        with self.assertRaises(RuntimeError) as context:
+            asyncio.run(ae._process_imbi_project_types())
+
+        self.assertIn('Imbi client is required', str(context.exception))
+
+    @unittest.mock.patch('imbi_automations.imbi.Imbi')
+    def test_process_imbi_project_types_empty_results(self, mock_imbi_class):
+        """Test processing when no projects match the type."""
+        # Setup mock Imbi client with empty results
+        mock_imbi_instance = unittest.mock.AsyncMock()
+        mock_imbi_instance.get_projects_by_type.return_value = []
+        mock_imbi_class.return_value = mock_imbi_instance
+
+        # Create automation engine
+        ae = engine.AutomationEngine(
+            args=self.args,
+            configuration=self.config,
+            iterator=engine.AutomationIterator.imbi_project_types,
+            workflow=self.workflow,
+        )
+
+        # Mock _execute_workflow_run to track calls
+        ae._execute_workflow_run = unittest.mock.AsyncMock()
+
+        # Run the test
+        import asyncio
+
+        asyncio.run(ae._process_imbi_project_types())
+
+        # Verify the Imbi client was called correctly
+        mock_imbi_instance.get_projects_by_type.assert_called_once_with(
+            'frontend-applications'
+        )
+
+        # Verify _execute_workflow_run was not called
+        ae._execute_workflow_run.assert_not_called()
+
+    @unittest.mock.patch('imbi_automations.imbi.Imbi')
+    def test_process_imbi_project_types_api_error(self, mock_imbi_class):
+        """Test handling of API errors when fetching projects by type."""
+        # Setup mock Imbi client to raise an exception
+        mock_imbi_instance = unittest.mock.AsyncMock()
+        mock_imbi_instance.get_projects_by_type.side_effect = Exception(
+            'API Error'
+        )
+        mock_imbi_class.return_value = mock_imbi_instance
+
+        # Create automation engine
+        ae = engine.AutomationEngine(
+            args=self.args,
+            configuration=self.config,
+            iterator=engine.AutomationIterator.imbi_project_types,
+            workflow=self.workflow,
+        )
+
+        # Should propagate the exception
+        import asyncio
+
+        with self.assertRaises(Exception) as context:
+            asyncio.run(ae._process_imbi_project_types())
+
+        self.assertIn('API Error', str(context.exception))
+
+        # Verify the Imbi client was called
+        mock_imbi_instance.get_projects_by_type.assert_called_once_with(
+            'frontend-applications'
+        )
+
+
 if __name__ == '__main__':
     unittest.main()
