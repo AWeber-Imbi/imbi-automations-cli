@@ -389,6 +389,7 @@ class TestGitModule(base.AsyncTestCase):
             [
                 'git',
                 'commit',
+                '--cleanup=verbatim',
                 '-m',
                 'Test commit message',
                 '--author',
@@ -411,7 +412,7 @@ class TestGitModule(base.AsyncTestCase):
 
         # Verify git commit command without author
         mock_run_git.assert_called_once_with(
-            ['git', 'commit', '-m', 'Simple commit'],
+            ['git', 'commit', '--cleanup=verbatim', '-m', 'Simple commit'],
             cwd=self.git_dir,
             timeout=60,
         )
