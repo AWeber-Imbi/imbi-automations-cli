@@ -1,6 +1,7 @@
 import datetime
 import pathlib
 import tempfile
+import typing
 import unittest
 from unittest import mock
 
@@ -728,7 +729,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
     def test_create_template_context_with_working_directory(self) -> None:
         """Test template context creation includes working directory."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
 
         workflow_run = models.WorkflowRun(
             workflow=self.workflow,
@@ -778,7 +779,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         # Create mock workflow run with working directory
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         workflow_run = models.WorkflowRun(
             workflow=self.workflow,
             working_directory=mock_working_dir,
@@ -858,7 +859,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         # Create mock workflow run with working directory
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         workflow_run = models.WorkflowRun(
             workflow=self.workflow,
             working_directory=mock_working_dir,
@@ -898,7 +899,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
     ) -> None:
         """Test templates action with actual template files."""
         # Set up mock working directory and workflow
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         templates_dir = self.workflow_dir / 'templates'
 
         # Mock templates directory existence
@@ -1047,7 +1048,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         mock_push: mock.Mock,
     ) -> None:
         """Test workflow-level commit with single template action."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         mock_commit.return_value = 'def456'
 
         # Set up action results with copied files
@@ -1094,7 +1095,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         mock_push: mock.Mock,
     ) -> None:
         """Test workflow-level commit with multiple template actions."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         mock_commit.return_value = 'ghi789'
 
         # Set up action results with multiple template actions
@@ -1144,7 +1145,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
     async def test_commit_workflow_changes_no_template_files(self) -> None:
         """Test workflow-level commit with no template files to commit."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
 
         # Set up action results with no template actions
         self.workflow_engine.action_results = {
@@ -1180,7 +1181,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         mock_push: mock.Mock,
     ) -> None:
         """Test complete workflow execution with templates and commit."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         mock_commit.return_value = 'workflow123'
 
         # Create workflow with templates action
@@ -1258,7 +1259,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_exists: mock.Mock
     ) -> None:
         """Test condition evaluation for file_exists when file exists."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         mock_exists.return_value = True
 
         condition = models.WorkflowCondition(file_exists='.gitignore')
@@ -1274,7 +1275,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_exists: mock.Mock
     ) -> None:
         """Test condition evaluation for file_exists when file doesn't exist."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         mock_exists.return_value = False
 
         condition = models.WorkflowCondition(file_exists='package.json')
@@ -1289,7 +1290,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_exists: mock.Mock
     ) -> None:
         """Test condition evaluation for file_not_exists when file doesn't exist."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         mock_exists.return_value = False
 
         condition = models.WorkflowCondition(file_not_exists='.env')
@@ -1304,7 +1305,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_exists: mock.Mock
     ) -> None:
         """Test condition evaluation for file_not_exists when file exists."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         mock_exists.return_value = True
 
         condition = models.WorkflowCondition(file_not_exists='README.md')
@@ -1316,7 +1317,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
     async def test_evaluate_condition_empty(self) -> None:
         """Test condition evaluation for empty condition."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
 
         condition = models.WorkflowCondition()
         result = await self.workflow_engine._evaluate_condition(
@@ -1360,7 +1361,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_exists: mock.Mock
     ) -> None:
         """Test conditions evaluation with 'all' type - all conditions pass."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         mock_exists.return_value = True  # All files exist
 
         workflow_config = models.WorkflowConfiguration(
@@ -1389,7 +1390,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_exists: mock.Mock
     ) -> None:
         """Test conditions evaluation with 'all' type - one condition fails."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
 
         # Mock different return values for different files
         def side_effect():
@@ -1432,7 +1433,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_exists: mock.Mock
     ) -> None:
         """Test conditions evaluation with 'any' type - one condition passes."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
 
         # Mock different return values for different files
         def side_effect():
@@ -1476,7 +1477,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_exists: mock.Mock
     ) -> None:
         """Test conditions evaluation with 'any' type - all conditions fail."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         mock_exists.return_value = False  # No files exist
 
         workflow_config = models.WorkflowConfiguration(
@@ -1505,7 +1506,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_clone: mock.Mock
     ) -> None:
         """Test complete workflow execution that gets skipped due to conditions."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         mock_clone.return_value = mock_working_dir
 
         # Create workflow with condition that will fail
@@ -1556,7 +1557,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
             destination='compose.yaml',
         )
 
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         workflow_run = models.WorkflowRun(
             workflow=self.workflow,
             working_directory=mock_working_dir,
@@ -1623,7 +1624,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
             destination='compose.yaml',
         )
 
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         workflow_run = models.WorkflowRun(
             workflow=self.workflow,
             working_directory=mock_working_dir,
@@ -1658,7 +1659,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
             destination='compose.yaml',
         )
 
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         workflow_run = models.WorkflowRun(
             workflow=self.workflow,
             working_directory=mock_working_dir,
@@ -1695,7 +1696,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
             source='old-file.txt',
         )
 
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         workflow_run = models.WorkflowRun(
             workflow=self.workflow,
             working_directory=mock_working_dir,
@@ -1735,7 +1736,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
             source='nonexistent.txt',
         )
 
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         workflow_run = models.WorkflowRun(
             workflow=self.workflow,
             working_directory=mock_working_dir,
@@ -1815,7 +1816,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
             source='file.txt',
         )
 
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         workflow_run = models.WorkflowRun(
             workflow=self.workflow,
             working_directory=mock_working_dir,
@@ -1842,7 +1843,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
             replacement='new',
         )
 
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         workflow_run = models.WorkflowRun(
             workflow=self.workflow,
             working_directory=mock_working_dir,
@@ -1868,7 +1869,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
             destination='new.txt',
         )
 
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         workflow_run = models.WorkflowRun(
             workflow=self.workflow,
             working_directory=mock_working_dir,
@@ -1903,7 +1904,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         mock_push: mock.Mock,
     ) -> None:
         """Test workflow commit with ci_skip_checks enabled."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         mock_commit.return_value = 'abc123'
 
         # Create workflow configuration with ci_skip_checks enabled
@@ -1943,11 +1944,11 @@ class TestWorkflowEngine(base.AsyncTestCase):
         commit_message = call_args.kwargs['message']
         self.assertIn('imbi-automations: test-ci-skip', commit_message)
         self.assertIn('Test workflow with CI skip', commit_message)
-        self.assertIn('skip-checks:true', commit_message)
+        self.assertIn('[ci skip]', commit_message)
 
         # Verify the trailer is properly formatted (on its own line)
         lines = commit_message.split('\n')
-        self.assertIn('skip-checks:true', lines)
+        self.assertIn('[ci skip]', lines)
 
     @mock.patch('imbi_automations.git.push_changes')
     @mock.patch('imbi_automations.git.add_files')
@@ -1961,7 +1962,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         mock_push: mock.Mock,
     ) -> None:
         """Test workflow commit with file operations (rename and remove)."""
-        mock_working_dir = self.git_dir
+        mock_working_dir = pathlib.Path('/mock/working/dir')
         mock_commit.return_value = 'file123'
 
         # Set up action results with file operations

@@ -82,8 +82,11 @@ class TestGitModule(base.AsyncTestCase):
         self, mock_wait_for: mock.Mock, mock_subprocess: mock.Mock
     ) -> None:
         """Test git command execution with timeout."""
-        mock_process = mock.AsyncMock()
-        mock_process.terminate = mock.AsyncMock()
+        mock_process = mock.Mock()
+        mock_process.communicate = mock.AsyncMock()
+        mock_process.terminate = mock.Mock(
+            return_value=None
+        )  # Synchronous method
         mock_process.wait = mock.AsyncMock()
         mock_subprocess.return_value = mock_process
 
@@ -103,9 +106,12 @@ class TestGitModule(base.AsyncTestCase):
         self, mock_wait_for: mock.Mock, mock_subprocess: mock.Mock
     ) -> None:
         """Test git command timeout with force kill."""
-        mock_process = mock.AsyncMock()
-        mock_process.terminate = mock.AsyncMock()
-        mock_process.kill = mock.AsyncMock()
+        mock_process = mock.Mock()
+        mock_process.communicate = mock.AsyncMock()
+        mock_process.terminate = mock.Mock(
+            return_value=None
+        )  # Synchronous method
+        mock_process.kill = mock.Mock(return_value=None)  # Synchronous method
         mock_process.wait = mock.AsyncMock()
         mock_subprocess.return_value = mock_process
 
@@ -207,7 +213,7 @@ class TestGitModule(base.AsyncTestCase):
     ) -> None:
         """Test successful repository cloning."""
         # Mock temporary directory creation
-        mock_temp_dir = '/tmp/imbi-automations-test123'
+        mock_temp_dir = '/tmp/imbi-automations-test123'  # noqa: S108
         mock_mkdtemp.return_value = mock_temp_dir
 
         # Mock successful git clone
@@ -242,7 +248,7 @@ class TestGitModule(base.AsyncTestCase):
         self, mock_mkdtemp: mock.Mock, mock_run_git: mock.Mock
     ) -> None:
         """Test repository cloning without branch or depth specification."""
-        mock_temp_dir = '/tmp/imbi-automations-test456'
+        mock_temp_dir = '/tmp/imbi-automations-test456'  # noqa: S108
         mock_mkdtemp.return_value = mock_temp_dir
         mock_run_git.return_value = (0, '', '')
 
@@ -277,7 +283,7 @@ class TestGitModule(base.AsyncTestCase):
         mock_exists: mock.Mock,
     ) -> None:
         """Test repository cloning failure and cleanup."""
-        mock_temp_dir = '/tmp/imbi-automations-test789'
+        mock_temp_dir = '/tmp/imbi-automations-test789'  # noqa: S108
         mock_mkdtemp.return_value = mock_temp_dir
         mock_exists.return_value = True
 
@@ -302,7 +308,7 @@ class TestGitModule(base.AsyncTestCase):
         self, mock_clone: mock.Mock
     ) -> None:
         """Test successful repository cloning with context manager."""
-        mock_repo_dir = pathlib.Path('/tmp/imbi-automations-test/repository')
+        mock_repo_dir = pathlib.Path('/tmp/imbi-automations-test/repository')  # noqa: S108
         mock_clone.return_value = mock_repo_dir
 
         async with git.clone_repository_context(
@@ -389,7 +395,6 @@ class TestGitModule(base.AsyncTestCase):
             [
                 'git',
                 'commit',
-                '--cleanup=verbatim',
                 '-m',
                 'Test commit message',
                 '--author',
@@ -412,7 +417,7 @@ class TestGitModule(base.AsyncTestCase):
 
         # Verify git commit command without author
         mock_run_git.assert_called_once_with(
-            ['git', 'commit', '--cleanup=verbatim', '-m', 'Simple commit'],
+            ['git', 'commit', '-m', 'Simple commit'],
             cwd=self.git_dir,
             timeout=60,
         )

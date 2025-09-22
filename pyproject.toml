@@ -104,3 +104,9 @@ ignore = [
 ]
 flake8-quotes = { inline-quotes = "single" }
 isort.split-on-trailing-comma = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = [
+    "ignore:coroutine.*AsyncMockMixin._execute_mock_call.*was never awaited:RuntimeWarning",
+]
