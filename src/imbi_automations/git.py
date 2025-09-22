@@ -251,7 +251,7 @@ async def commit_changes(
     """
     LOGGER.debug('Committing changes with message: %s', message)
 
-    command = ['git', 'commit', '--cleanup=verbatim', '-m', message]
+    command = ['git', 'commit', '-m', message]
 
     # Add author information if provided
     if author_name and author_email:
