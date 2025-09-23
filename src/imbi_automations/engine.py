@@ -885,7 +885,7 @@ class WorkflowEngine:
                 )
 
                 # Create commit message
-                commit_message = f'Apply templates action: {action.name}'
+                commit_message = f'imbi-automations: {action.name}'
                 if len(copied_files) == 1:
                     commit_message += f'\n\nAdded: {copied_files[0]}'
                 else:
@@ -1065,7 +1065,7 @@ class WorkflowEngine:
                 # Create commit message
                 operation = result.get('operation', action.command)
                 commit_message = (
-                    f'Apply file action: {action.name} ({operation})'
+                    f'imbi-automations: {action.name} ({operation})'
                 )
 
                 if operation == 'rename':
@@ -1253,7 +1253,7 @@ class WorkflowEngine:
                 )
 
                 # Create commit message
-                commit_message = f'Apply Claude action: {action.name}'
+                commit_message = f'imbi-automations: {action.name}'
                 if len(changed_files) == 1:
                     commit_message += f'\n\nModified: {changed_files[0]}'
                 else:
@@ -1408,7 +1408,7 @@ class WorkflowEngine:
                     )
 
                     # Create commit message
-                    commit_message = f'Apply shell action: {action.name}'
+                    commit_message = f'imbi-automations: {action.name}'
                     if len(changed_files) == 1:
                         commit_message += f'\n\nModified: {changed_files[0]}'
                     else:
