@@ -1,6 +1,7 @@
 import argparse
 import pathlib
 import tempfile
+import typing
 import unittest
 import unittest.mock
 
@@ -232,7 +233,9 @@ class TestAutomationEngineImbiProjectTypes(unittest.TestCase):
         shutil.rmtree(self.temp_dir)
 
     @unittest.mock.patch('imbi_automations.imbi.Imbi')
-    def test_process_imbi_project_types_success(self, mock_imbi_class):
+    def test_process_imbi_project_types_success(
+        self, mock_imbi_class: typing.Any
+    ) -> None:
         """Test successful processing of projects by type."""
         # Create mock projects
         mock_projects = [
@@ -305,7 +308,7 @@ class TestAutomationEngineImbiProjectTypes(unittest.TestCase):
         ae._execute_workflow_run.assert_any_call(imbi_project=mock_projects[0])
         ae._execute_workflow_run.assert_any_call(imbi_project=mock_projects[1])
 
-    def test_process_imbi_project_types_no_imbi_client(self):
+    def test_process_imbi_project_types_no_imbi_client(self) -> None:
         """Test error when no Imbi client is configured."""
         # Create automation engine without Imbi configuration
         config_no_imbi = models.Configuration()
@@ -325,7 +328,9 @@ class TestAutomationEngineImbiProjectTypes(unittest.TestCase):
         self.assertIn('Imbi client is required', str(context.exception))
 
     @unittest.mock.patch('imbi_automations.imbi.Imbi')
-    def test_process_imbi_project_types_empty_results(self, mock_imbi_class):
+    def test_process_imbi_project_types_empty_results(
+        self, mock_imbi_class: typing.Any
+    ) -> None:
         """Test processing when no projects match the type."""
         # Setup mock Imbi client with empty results
         mock_imbi_instance = unittest.mock.AsyncMock()
@@ -357,7 +362,9 @@ class TestAutomationEngineImbiProjectTypes(unittest.TestCase):
         ae._execute_workflow_run.assert_not_called()
 
     @unittest.mock.patch('imbi_automations.imbi.Imbi')
-    def test_process_imbi_project_types_api_error(self, mock_imbi_class):
+    def test_process_imbi_project_types_api_error(
+        self, mock_imbi_class: typing.Any
+    ) -> None:
         """Test handling of API errors when fetching projects by type."""
         # Setup mock Imbi client to raise an exception
         mock_imbi_instance = unittest.mock.AsyncMock()

@@ -401,7 +401,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
     def test_project_matches_filter_project_ids_match(self) -> None:
         """Test project matching with project_ids filter - match."""
-        # Create workflow with project_ids filter that includes our test project
+        # Create workflow with project_ids filter that includes test project
         workflow_filter = models.WorkflowFilter(project_ids=[789, 999])
         workflow_config = models.WorkflowConfiguration(
             name='test-workflow',
@@ -425,7 +425,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
     def test_project_matches_filter_project_ids_no_match(self) -> None:
         """Test project matching with project_ids filter - no match."""
-        # Create workflow with project_ids filter that excludes our test project
+        # Create workflow with project_ids filter that excludes test project
         workflow_filter = models.WorkflowFilter(project_ids=[111, 222])
         workflow_config = models.WorkflowConfiguration(
             name='test-workflow',
@@ -449,7 +449,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
     def test_project_matches_filter_project_types_match(self) -> None:
         """Test project matching with project_types filter - match."""
-        # Create workflow with project_types filter that includes our test project type
+        # Create workflow with project_types filter including test project type
         workflow_filter = models.WorkflowFilter(project_types=['api', 'web'])
         workflow_config = models.WorkflowConfiguration(
             name='test-workflow',
@@ -473,7 +473,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
     def test_project_matches_filter_project_types_no_match(self) -> None:
         """Test project matching with project_types filter - no match."""
-        # Create workflow with project_types filter that excludes our test project type
+        # Create workflow with project_types filter excluding test project type
         workflow_filter = models.WorkflowFilter(
             project_types=['web', 'daemon']
         )

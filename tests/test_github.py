@@ -924,7 +924,7 @@ class TestGitHubClient(AsyncTestCase):
             ),  # pse team assignment fails
         ]
 
-        def side_effect(request):
+        def side_effect(request: httpx.Request) -> httpx.Response:
             return responses.pop(0)
 
         self.http_client_transport = httpx.MockTransport(side_effect)
