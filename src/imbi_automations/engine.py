@@ -1405,7 +1405,7 @@ class WorkflowEngine:
         timeout = action.timeout or 600  # Default 10 minutes
         max_retries = action.max_retries or 3  # Default 3 attempts
 
-        self.logger.info(
+        self.logger.debug(
             'Executing Claude Code action %s (timeout: %ds, max_retries: %d)',
             action.name,
             timeout,
@@ -1490,7 +1490,7 @@ class WorkflowEngine:
         self.action_results[action.name] = {'result': result}
         context['actions'] = self.action_results
 
-        self.logger.info(
+        self.logger.debug(
             'Claude Code action %s completed: status=%s, attempts=%d, '
             'time=%.2fs',
             action.name,

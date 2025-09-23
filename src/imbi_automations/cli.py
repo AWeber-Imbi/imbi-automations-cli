@@ -2,9 +2,11 @@ import argparse
 import asyncio
 import logging
 import pathlib
+import tomllib
 import typing
 
 import colorlog
+import pydantic
 
 from imbi_automations import engine, models, utils, version
 
@@ -102,13 +104,39 @@ def workflow(path: str) -> models.Workflow:
             f'Missing config.toml in workflow directory: {path}\n'
             f'Expected: {config_file}'
         )
-    with path_obj.joinpath('config.toml').open('r') as f:
-        return models.Workflow(
-            path=path_obj,
-            configuration=models.WorkflowConfiguration.model_validate(
-                utils.load_toml(f)
-            ),
+    try:
+        with path_obj.joinpath('config.toml').open('r') as f:
+            config_data = utils.load_toml(f)
+
+        configuration = models.WorkflowConfiguration.model_validate(
+            config_data
         )
+
+        return models.Workflow(path=path_obj, configuration=configuration)
+    except OSError as exc:
+        raise argparse.ArgumentTypeError(
+            f'Failed to read config.toml in workflow directory: {path}\n'
+            f'Error: {exc}'
+        ) from exc
+    except (tomllib.TOMLDecodeError, pydantic.ValidationError) as exc:
+        # Handle TOML parsing or Pydantic validation errors
+        error_msg = str(exc)
+        if 'validation error' in error_msg.lower():
+            # Extract the most relevant part of Pydantic validation errors
+            lines = error_msg.split('\n')
+            main_error = next(
+                (line for line in lines if 'Input should be' in line),
+                error_msg,
+            )
+            raise argparse.ArgumentTypeError(
+                f'Invalid workflow configuration in {path}/config.toml:\n'
+                f'{main_error}'
+            ) from exc
+        else:
+            raise argparse.ArgumentTypeError(
+                f'Failed to parse workflow config in {path}/config.toml:\n'
+                f'{error_msg}'
+            ) from exc
 
 
 def parse_args(args: list[str] | None = None) -> argparse.Namespace:
