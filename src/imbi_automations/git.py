@@ -369,3 +369,123 @@ async def push_changes(
         remote,
         branch or 'current branch',
     )
+
+
+async def create_branch(
+    working_directory: pathlib.Path, branch_name: str, checkout: bool = True
+) -> None:
+    """Create a new git branch.
+
+    Args:
+        working_directory: Git repository working directory
+        branch_name: Name of the new branch to create
+        checkout: Whether to checkout the new branch (default: True)
+
+    Raises:
+        RuntimeError: If git branch creation fails
+
+    """
+    command = (
+        ['git', 'checkout', '-b', branch_name]
+        if checkout
+        else ['git', 'branch', branch_name]
+    )
+
+    LOGGER.debug(
+        'Creating branch %s in %s (checkout: %s)',
+        branch_name,
+        working_directory,
+        checkout,
+    )
+
+    returncode, stdout, stderr = await _run_git_command(
+        command, cwd=working_directory, timeout=30
+    )
+
+    if returncode != 0:
+        raise RuntimeError(
+            f'Git branch creation failed (exit code {returncode}): {stderr or stdout}'
+        )
+
+    LOGGER.debug('Successfully created branch %s', branch_name)
+
+
+async def get_current_branch(working_directory: pathlib.Path) -> str:
+    """Get the current git branch name.
+
+    Args:
+        working_directory: Git repository working directory
+
+    Returns:
+        Current branch name
+
+    Raises:
+        RuntimeError: If git branch query fails
+
+    """
+    command = ['git', 'branch', '--show-current']
+
+    returncode, stdout, stderr = await _run_git_command(
+        command, cwd=working_directory, timeout=30
+    )
+
+    if returncode != 0:
+        raise RuntimeError(
+            f'Git branch query failed (exit code {returncode}): {stderr or stdout}'
+        )
+
+    branch_name = stdout.strip()
+    LOGGER.debug('Current branch: %s', branch_name)
+    return branch_name
+
+
+async def get_commit_messages_since_branch(
+    working_directory: pathlib.Path, base_branch: str = 'main'
+) -> list[str]:
+    """Get commit messages since branching from base branch.
+
+    Args:
+        working_directory: Git repository working directory
+        base_branch: Base branch to compare against (default: 'main')
+
+    Returns:
+        List of commit messages since branching
+
+    Raises:
+        RuntimeError: If git log fails
+
+    """
+    command = ['git', 'log', f'{base_branch}..HEAD', '--pretty=format:%s']
+
+    returncode, stdout, stderr = await _run_git_command(
+        command, cwd=working_directory, timeout=30
+    )
+
+    if returncode != 0:
+        # If base_branch doesn't exist, try origin/main
+        if 'unknown revision' in stderr.lower():
+            command = [
+                'git',
+                'log',
+                f'origin/{base_branch}..HEAD',
+                '--pretty=format:%s',
+            ]
+            returncode, stdout, stderr = await _run_git_command(
+                command, cwd=working_directory, timeout=30
+            )
+
+        if returncode != 0:
+            raise RuntimeError(
+                f'Git log failed (exit code {returncode}): {stderr or stdout}'
+            )
+
+    if not stdout.strip():
+        return []
+
+    commit_messages = [
+        msg.strip() for msg in stdout.split('\n') if msg.strip()
+    ]
+    LOGGER.debug(
+        'Found %d commit messages since %s', len(commit_messages), base_branch
+    )
+    return commit_messages

@@ -1,4 +1,5 @@
 import argparse
+import asyncio
 import enum
 import logging
 import pathlib
@@ -8,7 +9,15 @@ import typing
 
 import jinja2
 
-from imbi_automations import git, github, gitlab, imbi, models, utils
+from imbi_automations import (
+    claude_code,
+    git,
+    github,
+    gitlab,
+    imbi,
+    models,
+    utils,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -84,6 +93,7 @@ class AutomationEngine:
             github_client=self.github,
             gitlab_client=self.gitlab,
             imbi_client=self.imbi,
+            claude_code_config=configuration.claude_code,
         )
 
     async def run(self) -> None:
@@ -551,11 +561,14 @@ class WorkflowEngine:
         github_client: github.GitHub | None = None,
         gitlab_client: gitlab.GitLab | None = None,
         imbi_client: imbi.Imbi | None = None,
+        claude_code_config: models.ClaudeCodeConfiguration | None = None,
     ) -> None:
         self.github = github_client
         self.gitlab = gitlab_client
         self.imbi = imbi_client
         self.utils = utils.Utils()
+        self.claude_code: claude_code.ClaudeCode | None = None
+        self._claude_code_config = claude_code_config
 
         # Initialize Jinja2 environment
         self.jinja_env = jinja2.Environment(
@@ -688,6 +701,8 @@ class WorkflowEngine:
                 return await self._execute_templates_action(action, context)
             case models.WorkflowActionTypes.file:
                 return await self._execute_file_action(action, context)
+            case models.WorkflowActionTypes.claude:
+                return await self._execute_claude_action(action, context)
             case _:
                 raise ValueError(f'Unsupported action type: {action.type}')
 
@@ -1027,6 +1042,92 @@ class WorkflowEngine:
                 f'Failed to render template {template_file.name}: {exc}'
             ) from exc
 
+    async def _execute_claude_action(
+        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+    ) -> typing.Any:
+        """Execute a claude workflow action (AI-powered code transformation)."""
+
+        if not action.prompt_file:
+            raise ValueError(
+                f'Claude action {action.name} requires prompt_file configuration'
+            )
+
+        workflow_run = context['workflow_run']
+
+        if not workflow_run.working_directory:
+            raise RuntimeError(
+                f'Claude action {action.name} requires cloned repository '
+                f'(working_directory)'
+            )
+
+        # Get the prompt file path (relative to workflow directory)
+        prompt_file_path = workflow_run.workflow.path / action.prompt_file
+
+        if not prompt_file_path.exists():
+            raise FileNotFoundError(
+                f'Prompt file not found for action {action.name}: {prompt_file_path}'
+            )
+
+        # Read and potentially render prompt content
+        try:
+            if prompt_file_path.suffix == '.j2':
+                # Render Jinja2 template
+                template_content = prompt_file_path.read_text(encoding='utf-8')
+                template = self.jinja_env.from_string(template_content)
+                prompt_content = template.render(context)
+                LOGGER.debug(
+                    'Rendered Jinja2 prompt template for action %s',
+                    action.name,
+                )
+            else:
+                # Read plain text prompt
+                prompt_content = prompt_file_path.read_text(encoding='utf-8')
+                LOGGER.debug(
+                    'Loaded plain text prompt for action %s', action.name
+                )
+
+        except (OSError, UnicodeDecodeError) as exc:
+            raise RuntimeError(
+                f'Failed to read prompt file for action {action.name}: {exc}'
+            ) from exc
+
+        # Get Claude Code configuration
+        if not self.claude_code:
+            raise RuntimeError(
+                f'Claude action {action.name} requires Claude Code configuration'
+            )
+
+        # Execute Claude Code with configured timeout and retries
+        timeout = action.timeout or 600  # Default 10 minutes
+        max_retries = action.max_retries or 3  # Default 3 attempts
+
+        LOGGER.info(
+            'Executing Claude Code action %s (timeout: %ds, max_retries: %d)',
+            action.name,
+            timeout,
+            max_retries,
+        )
+
+        result = await self.claude_code.execute_prompt(
+            prompt_content=prompt_content,
+            timeout_seconds=timeout,
+            max_retries=max_retries,
+        )
+
+        # Store result for future template references
+        self.action_results[action.name] = {'result': result}
+        context['actions'] = self.action_results
+
+        LOGGER.info(
+            'Claude Code action %s completed: status=%s, attempts=%d, time=%.2fs',
+            action.name,
+            result['status'],
+            result['attempts'],
+            result['execution_time'],
+        )
+
+        return result
+
     async def _evaluate_condition(
         self,
         condition: models.WorkflowCondition,
@@ -1058,6 +1159,39 @@ class WorkflowEngine:
                 result,
             )
             return result
+
+        if condition.file_contains:
+            # Use condition.file if specified, otherwise use file_contains as filename
+            file_path = working_directory / (
+                condition.file or condition.file_contains
+            )
+
+            try:
+                if file_path.exists() and file_path.is_file():
+                    content = file_path.read_text(encoding='utf-8')
+                    result = condition.file_contains in content
+                    LOGGER.debug(
+                        'Condition file_contains "%s" in "%s": %s',
+                        condition.file_contains,
+                        condition.file or condition.file_contains,
+                        result,
+                    )
+                    return result
+                else:
+                    LOGGER.debug(
+                        'Condition file_contains "%s" - file "%s" not found: False',
+                        condition.file_contains,
+                        condition.file or condition.file_contains,
+                    )
+                    return False
+            except (OSError, UnicodeDecodeError) as exc:
+                LOGGER.debug(
+                    'Condition file_contains "%s" - error reading file "%s": %s',
+                    condition.file_contains,
+                    condition.file or condition.file_contains,
+                    exc,
+                )
+                return False
 
         # If no conditions are specified, consider it as True
         LOGGER.debug('Empty condition evaluated as True')
@@ -1266,6 +1400,10 @@ class WorkflowEngine:
                         'Successfully pushed workflow changes for project %s',
                         project_info,
                     )
+
+                    # Create pull request if requested
+                    if run.workflow.configuration.create_pull_request:
+                        await self._create_pull_request(run, project_info)
                 except (OSError, subprocess.CalledProcessError) as exc:
                     LOGGER.error(
                         'Failed to push workflow changes for project %s: %s',
@@ -1287,6 +1425,97 @@ class WorkflowEngine:
                 exc,
             )
             # Don't re-raise - workflow should complete even if commit fails
+
+    async def _create_pull_request(
+        self, run: models.WorkflowRun, project_info: str
+    ) -> None:
+        """Create a pull request for workflow changes.
+
+        Args:
+            run: Workflow run containing repository and workflow information
+            project_info: Project information string for logging
+
+        """
+        try:
+            if not run.github_repository:
+                LOGGER.warning(
+                    'Cannot create pull request for project %s - no GitHub repository',
+                    project_info,
+                )
+                return
+
+            # Get current branch name
+            current_branch = await git.get_current_branch(
+                run.working_directory
+            )
+
+            # Get commit messages for PR description
+            commit_messages = await git.get_commit_messages_since_branch(
+                run.working_directory, 'main'
+            )
+
+            # Build PR description
+            pr_title = run.workflow.configuration.name
+            pr_description = (
+                run.workflow.configuration.description
+                or 'Automated workflow execution'
+            )
+
+            if commit_messages:
+                pr_description += '\n\n## Changes Made:\n'
+                for msg in commit_messages:
+                    pr_description += f'- {msg}\n'
+
+            pr_description += '\n🤖 Generated by imbi-automations'
+
+            # Create pull request using gh CLI
+            command = [
+                'gh',
+                'pr',
+                'create',
+                '--title',
+                pr_title,
+                '--body',
+                pr_description,
+                '--base',
+                'main',
+                '--head',
+                current_branch,
+            ]
+
+            process = await asyncio.create_subprocess_exec(
+                *command,
+                cwd=run.working_directory,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+
+            stdout, stderr = await process.communicate()
+            stdout_str = stdout.decode('utf-8') if stdout else ''
+            stderr_str = stderr.decode('utf-8') if stderr else ''
+
+            if process.returncode == 0:
+                # Extract PR URL from gh output
+                pr_url = stdout_str.strip()
+                LOGGER.info(
+                    'Successfully created pull request for project %s: %s',
+                    project_info,
+                    pr_url,
+                )
+            else:
+                LOGGER.error(
+                    'Failed to create pull request for project %s: %s',
+                    project_info,
+                    stderr_str or stdout_str,
+                )
+
+        except (TimeoutError, OSError, subprocess.CalledProcessError) as exc:
+            LOGGER.error(
+                'Error creating pull request for project %s: %s',
+                project_info,
+                exc,
+            )
+            # Don't re-raise - workflow should complete even if PR creation fails
 
     async def execute(self, run: models.WorkflowRun) -> None:
         """Execute a complete workflow run."""
@@ -1316,6 +1545,16 @@ class WorkflowEngine:
                 )
                 return
 
+        # Initialize Claude Code client if configuration available and working directory exists
+        if self._claude_code_config and run.working_directory:
+            self.claude_code = claude_code.ClaudeCode(
+                config=self._claude_code_config,
+                working_directory=run.working_directory,
+            )
+            LOGGER.debug(
+                'Initialized Claude Code client for workflow execution'
+            )
+
         # Evaluate workflow conditions
         if not await self._evaluate_conditions(run):
             LOGGER.info(
@@ -1324,6 +1563,18 @@ class WorkflowEngine:
                 project_info,
             )
             return
+
+        # Create feature branch if pull request is requested
+        if (
+            run.workflow.configuration.create_pull_request
+            and run.working_directory
+        ):
+            branch_name = f'imbi-automations/{run.workflow.configuration.name}'
+            await git.create_branch(run.working_directory, branch_name)
+            LOGGER.info(
+                'Created feature branch %s for pull request workflow',
+                branch_name,
+            )
 
         # Create template context
         context = self._create_template_context(run)

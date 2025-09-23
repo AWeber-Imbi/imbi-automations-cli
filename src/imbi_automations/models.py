@@ -39,6 +39,7 @@ class ImbiConfiguration(pydantic.BaseModel):
 
 class ClaudeCodeConfiguration(pydantic.BaseModel):
     executable: str = 'claude'  # Claude Code executable path
+    base_prompt: pathlib.Path | None = None
 
 
 class Configuration(pydantic.BaseModel):
@@ -457,6 +458,7 @@ class WorkflowActionTypes(enum.StrEnum):
     callable = 'callable'
     templates = 'templates'
     file = 'file'
+    claude = 'claude'
 
 
 class WorkflowConditionType(enum.StrEnum):
@@ -485,12 +487,19 @@ class WorkflowAction(pydantic.BaseModel):
     pattern: str | None = None
     replacement: str | None = None
 
+    # Claude action fields
+    prompt_file: str | None = None
+    timeout: int = 3600
+    max_retries: int | None = None
+
 
 class WorkflowCondition(pydantic.BaseModel):
     """A single condition in a workflow."""
 
     file_exists: str | None = None
     file_not_exists: str | None = None
+    file_contains: str | None = None
+    file: str | None = None
 
 
 class WorkflowFilter(pydantic.BaseModel):
