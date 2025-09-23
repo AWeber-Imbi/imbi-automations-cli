@@ -40,6 +40,7 @@ dependencies = [
   "jinja2",
   "pydantic",
   "rich",
+  "semver",
   "truststore",
   "yarl"
 ]

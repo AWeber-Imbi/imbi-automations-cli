@@ -232,6 +232,49 @@ remote_file_exists = ".github/workflows"  # Has GitHub Actions
 - `pytest`: Test framework
 - `ruff`: Fast Python linter and formatter
 
+## Available Workflows
+
+### Environment Synchronization (`sync-project-environments`)
+
+Synchronizes environments between an Imbi project and its corresponding GitHub repository.
+
+**Purpose**: Ensures that GitHub repository environments match the environments defined in the Imbi project. This workflow:
+- Removes GitHub environments that don't exist in the Imbi project's environment list
+- Creates missing GitHub environments that are defined in the Imbi project
+
+**Configuration**: `workflows/sync-project-environments/config.toml`
+- **Type**: Action-based workflow (no repository cloning required)
+- **Conditions**: Automatically runs on all projects; skips projects without environments defined
+- **Source of Truth**: Imbi project's `environments` field
+
+**Implementation Details**:
+- **Models**: `GitHubEnvironment` in `models.py`
+- **Client Methods**: `get_repository_environments()`, `create_environment()`, `delete_environment()`, `sync_project_environments()` in `github.py`
+- **Sync Logic**: `environment_sync.py` module with comprehensive error handling and logging
+- **Template Handling**: Supports both list and string input with HTML entity decoding for Jinja2 compatibility
+
+**API Endpoints Used**:
+- GitHub: `GET /repos/{owner}/{repo}/environments` - List repository environments
+- GitHub: `PUT /repos/{owner}/{repo}/environments/{environment_name}` - Create environment
+- GitHub: `DELETE /repos/{owner}/{repo}/environments/{environment_name}` - Delete environment
+
+**Testing**: Comprehensive unit tests in `tests/test_environment_sync.py` covering success scenarios, error handling, and edge cases.
+
+**Usage Example**:
+```toml
+[[actions]]
+name = "sync-environments"
+
+[actions.value]
+client = "github"
+method = "sync_project_environments"
+
+[actions.value.kwargs]
+org = "{{ github_repository.owner.login }}"
+repo = "{{ github_repository.name }}"
+imbi_environments = "{{ imbi_project.environments }}"
+```
+
 ## Future Implementation Areas
 
 Based on the PRD, these areas are planned but not yet implemented:

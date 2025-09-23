@@ -13,6 +13,7 @@ import jinja2
 
 from imbi_automations import (
     claude_code,
+    environment_sync,
     git,
     github,
     gitlab,
@@ -847,6 +848,7 @@ class WorkflowEngine:
             'gitlab': self.gitlab,
             'imbi': self.imbi,
             'utils': self.utils,
+            'environment_sync': environment_sync,
         }
 
         client = clients.get(client_name)
@@ -2304,6 +2306,84 @@ class WorkflowEngine:
 
         return final_result
 
+    async def _evaluate_action_conditions(
+        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+    ) -> bool:
+        """Evaluate action-level rich conditions.
+
+        Args:
+            action: Workflow action with conditions
+            context: Template context containing workflow run data
+
+        Returns:
+            True if all conditions are met according to condition_type logic
+        """
+        if not action.conditions:
+            return True
+
+        workflow_run = context['workflow_run']
+
+        self.logger.debug(
+            'Evaluating %d action conditions for %s with %s logic',
+            len(action.conditions),
+            action.name,
+            action.condition_type,
+        )
+
+        condition_results = []
+        for condition in action.conditions:
+            try:
+                # Check if it's a remote condition
+                if any(
+                    [
+                        condition.remote_file_exists,
+                        condition.remote_file_not_exists,
+                        condition.remote_file_contains,
+                    ]
+                ):
+                    result = await self._evaluate_remote_condition(
+                        condition, workflow_run.github_repository
+                    )
+                else:
+                    # Local condition - requires working directory
+                    if not workflow_run.working_directory:
+                        self.logger.warning(
+                            'Cannot evaluate local condition for action %s '
+                            'without working directory',
+                            action.name,
+                        )
+                        result = True  # Allow action to proceed
+                    else:
+                        result = await self._evaluate_condition(
+                            condition, workflow_run.working_directory
+                        )
+
+                condition_results.append(result)
+
+            except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
+                self.logger.warning(
+                    'Action condition evaluation failed for %s: %s',
+                    action.name,
+                    exc,
+                )
+                condition_results.append(True)  # Graceful degradation
+
+        # Apply condition type logic
+        if action.condition_type == models.WorkflowConditionType.all:
+            final_result = all(condition_results)
+        else:  # any
+            final_result = any(condition_results)
+
+        self.logger.debug(
+            'Action conditions for %s: %s (passed: %d/%d)',
+            action.name,
+            final_result,
+            sum(condition_results),
+            len(condition_results),
+        )
+
+        return final_result
+
     async def _create_pull_request(
         self, run: models.WorkflowRun, project_info: str
     ) -> None:
@@ -2463,16 +2543,26 @@ class WorkflowEngine:
         # Execute each action sequentially
         for action in run.workflow.configuration.actions:
             try:
-                # Check action condition if specified
+                # Check legacy string condition if specified
                 if action.condition and not self._evaluate_action_condition(
                     action.condition, context
                 ):
                     self.logger.debug(
                         'Skipping action %s for project %s - '
-                        'condition not met: %s',
+                        'string condition not met: %s',
                         action.name,
                         project_info,
                         action.condition,
+                    )
+                    continue
+
+                # Check rich conditions if specified
+                if not await self._evaluate_action_conditions(action, context):
+                    self.logger.debug(
+                        'Skipping action %s for project %s - '
+                        'rich conditions not met',
+                        action.name,
+                        project_info,
                     )
                     continue
 

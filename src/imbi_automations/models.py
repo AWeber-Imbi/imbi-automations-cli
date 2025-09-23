@@ -262,6 +262,19 @@ class GitHubTeamPermission(pydantic.BaseModel):
     permission: str  # pull, triage, push, maintain, admin
 
 
+class GitHubEnvironment(pydantic.BaseModel):
+    """GitHub repository environment."""
+
+    id: int | None = None
+    name: str
+    url: str | None = None
+    html_url: str | None = None
+    created_at: datetime.datetime | None = None
+    updated_at: datetime.datetime | None = None
+    protection_rules: list[dict[str, typing.Any]] | None = None
+    deployment_branch_policy: dict[str, typing.Any] | None = None
+
+
 # GitLab Related Models
 
 
@@ -504,6 +517,12 @@ class WorkflowAction(pydantic.BaseModel):
 
     # Conditional execution - action only runs if condition is met
     condition: str | None = None
+
+    # Rich conditions - same options as top-level conditions
+    conditions: list['WorkflowCondition'] = pydantic.Field(
+        default_factory=list
+    )
+    condition_type: WorkflowConditionType = WorkflowConditionType.all
 
     # File action fields
     command: str | None = None

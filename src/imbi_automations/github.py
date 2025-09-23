@@ -921,3 +921,387 @@ class GitHub(http.BaseURLClient):
             return str(programming_language)
 
         return None
+
+    async def analyze_container_image_versions(
+        self,
+        org: str,
+        repo_name: str,
+        image_family: str,
+        image_types: list[str],
+        major_minor_version: str,
+        target_version: str,
+        ci_workflow_file: str,
+    ) -> dict[str, typing.Any]:
+        """Analyze container image versions for updates (generic).
+
+        Args:
+            org: GitHub organization name
+            repo_name: Repository name
+            image_family: Image family name (e.g., "python3", "node", "golang")
+            image_types: List of image type suffixes (e.g., ["service"])
+            major_minor_version: Major.minor version (e.g., "3.9", "18.20")
+            target_version: Full target version (e.g., "3.9.18-4", "18.20.4")
+            ci_workflow_file: CI workflow file path
+
+        Returns:
+            Analysis results with version information and update requirements
+        """
+        try:
+            import semver
+
+            # Extract current version from Dockerfile using dynamic pattern
+            dockerfile_version = await self._extract_container_image_version(
+                org, repo_name, image_family, image_types, major_minor_version
+            )
+
+            # Check if CI workflow exists
+            has_ci_workflow = await self._check_workflow_file_exists(
+                org, repo_name, ci_workflow_file
+            )
+
+            LOGGER.debug(
+                'Container image analysis for %s/%s: '
+                'Family=%s, Dockerfile=%s, CI=%s, Target=%s',
+                org,
+                repo_name,
+                image_family,
+                dockerfile_version,
+                has_ci_workflow,
+                target_version,
+            )
+
+            requires_dockerfile_update = False
+            if dockerfile_version:
+                try:
+                    # Parse versions for comparison (remove build number)
+                    current_base = dockerfile_version.rsplit('-', 1)[0]
+                    target_base = target_version.rsplit('-', 1)[0]
+
+                    if semver.compare(current_base, target_base) < 0:
+                        requires_dockerfile_update = True
+                        LOGGER.debug(
+                            'Version %s older than target %s, update needed',
+                            dockerfile_version,
+                            target_version,
+                        )
+                    else:
+                        LOGGER.debug(
+                            'Version %s is current or newer than target %s',
+                            dockerfile_version,
+                            target_version,
+                        )
+                except (ValueError, semver.VersionError) as exc:
+                    LOGGER.warning(
+                        'Failed to parse version %s: %s',
+                        dockerfile_version,
+                        exc,
+                    )
+
+            return {
+                'image_family': image_family,
+                'current_dockerfile_version': dockerfile_version,
+                'target_version': target_version,
+                'major_minor_version': major_minor_version,
+                'ci_workflow_file': ci_workflow_file,
+                'has_ci_workflow': has_ci_workflow,
+                'requires_dockerfile_update': requires_dockerfile_update,
+                'analysis_successful': True,
+            }
+
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            LOGGER.error(
+                'Failed to analyze container image versions for %s/%s: %s',
+                org,
+                repo_name,
+                exc,
+            )
+            return {
+                'image_family': image_family,
+                'current_dockerfile_version': None,
+                'target_version': target_version,
+                'major_minor_version': major_minor_version,
+                'ci_workflow_file': ci_workflow_file,
+                'has_ci_workflow': False,
+                'requires_dockerfile_update': False,
+                'analysis_successful': False,
+                'error': str(exc),
+            }
+
+    async def _extract_container_image_version(
+        self,
+        org: str,
+        repo_name: str,
+        image_family: str,
+        image_types: list[str],
+        major_minor_version: str,
+    ) -> str | None:
+        """Extract container image version from Dockerfile FROM line.
+
+        Args:
+            org: GitHub organization name
+            repo_name: Repository name
+            image_family: Image family (e.g., "python3", "node")
+            image_types: Image type suffixes (e.g., ["service", "consumer"])
+            major_minor_version: Version prefix (e.g., "3.9", "18.20")
+
+        Returns:
+            Version string (e.g., "3.9.16-14") or None if not found
+        """
+        try:
+            response = await self.get(
+                f'/repos/{org}/{repo_name}/contents/Dockerfile'
+            )
+            if response.status_code == http.HTTPStatus.NOT_FOUND:
+                LOGGER.debug('Dockerfile not found in %s/%s', org, repo_name)
+                return None
+
+            response.raise_for_status()
+            content_data = response.json()
+
+            # Decode base64 content
+            import base64
+
+            content = base64.b64decode(content_data['content']).decode('utf-8')
+
+            # Build dynamic regex pattern
+            import re
+
+            types_pattern = '|'.join(image_types)
+            escaped_version = re.escape(major_minor_version)
+            version_pattern = f'{escaped_version}\\.\\d+(?:-\\d+)?'
+            regex_pattern = (
+                f'FROM.*{image_family}-({types_pattern}):({version_pattern})'
+            )
+
+            match = re.search(regex_pattern, content)
+
+            if match:
+                version = match.group(2)
+                image_type = match.group(1)
+                LOGGER.debug(
+                    'Found %s-%s version %s in Dockerfile for %s/%s',
+                    image_family,
+                    image_type,
+                    version,
+                    org,
+                    repo_name,
+                )
+                return version
+            else:
+                LOGGER.debug(
+                    'No %s %s image found in Dockerfile for %s/%s',
+                    image_family,
+                    major_minor_version,
+                    org,
+                    repo_name,
+                )
+                return None
+
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            LOGGER.warning(
+                'Failed to extract %s version for %s/%s: %s',
+                image_family,
+                org,
+                repo_name,
+                exc,
+            )
+            return None
+
+    async def _check_workflow_file_exists(
+        self, org: str, repo_name: str, workflow_file: str
+    ) -> bool:
+        """Check if specific workflow file exists.
+
+        Args:
+            org: GitHub organization name
+            repo_name: Repository name
+            workflow_file: Workflow file path (e.g., "ci.yml")
+
+        Returns:
+            True if workflow file exists, False otherwise
+        """
+        try:
+            response = await self.get(
+                f'/repos/{org}/{repo_name}/contents/{workflow_file}'
+            )
+            return response.status_code == 200
+        except (httpx.HTTPError, ValueError, KeyError):
+            return False
+
+    async def get_repository_environments(
+        self, org: str, repo: str
+    ) -> list[models.GitHubEnvironment]:
+        """Get all environments for a repository.
+
+        Args:
+            org: Organization name
+            repo: Repository name
+
+        Returns:
+            List of GitHubEnvironment objects
+
+        Raises:
+            httpx.HTTPError: If API request fails
+
+        """
+        try:
+            response = await self.get(f'/repos/{org}/{repo}/environments')
+            response.raise_for_status()
+
+            data = response.json()
+            environments = []
+
+            if 'environments' in data:
+                for env_data in data['environments']:
+                    environments.append(
+                        models.GitHubEnvironment.model_validate(env_data)
+                    )
+
+            LOGGER.debug(
+                'Found %d environments for repository %s/%s: %s',
+                len(environments),
+                org,
+                repo,
+                [env.name for env in environments],
+            )
+
+            return environments
+
+        except httpx.HTTPError as exc:
+            if exc.response.status_code == http.HTTPStatus.NOT_FOUND:
+                LOGGER.debug('Repository %s/%s not found (404)', org, repo)
+                raise models.GitHubNotFoundError(
+                    f'Repository {org}/{repo} not found'
+                ) from exc
+            else:
+                LOGGER.error(
+                    'Failed to get environments for %s/%s: %s', org, repo, exc
+                )
+                raise
+
+    async def create_environment(
+        self, org: str, repo: str, environment_name: str
+    ) -> models.GitHubEnvironment:
+        """Create a new environment for a repository.
+
+        Args:
+            org: Organization name
+            repo: Repository name
+            environment_name: Name of the environment to create
+
+        Returns:
+            Created GitHubEnvironment object
+
+        Raises:
+            httpx.HTTPError: If API request fails
+
+        """
+        try:
+            response = await self.put(
+                f'/repos/{org}/{repo}/environments/{environment_name}'
+            )
+            response.raise_for_status()
+
+            env_data = response.json()
+            environment = models.GitHubEnvironment.model_validate(env_data)
+
+            LOGGER.info(
+                'Created environment "%s" for repository %s/%s',
+                environment_name,
+                org,
+                repo,
+            )
+
+            return environment
+
+        except httpx.HTTPError as exc:
+            LOGGER.error(
+                'Failed to create environment "%s" for %s/%s: %s',
+                environment_name,
+                org,
+                repo,
+                exc,
+            )
+            raise
+
+    async def delete_environment(
+        self, org: str, repo: str, environment_name: str
+    ) -> bool:
+        """Delete an environment from a repository.
+
+        Args:
+            org: Organization name
+            repo: Repository name
+            environment_name: Name of the environment to delete
+
+        Returns:
+            True if environment was deleted successfully
+
+        Raises:
+            httpx.HTTPError: If API request fails
+
+        """
+        try:
+            response = await self.delete(
+                f'/repos/{org}/{repo}/environments/{environment_name}'
+            )
+            response.raise_for_status()
+
+            LOGGER.info(
+                'Deleted environment "%s" from repository %s/%s',
+                environment_name,
+                org,
+                repo,
+            )
+
+            return True
+
+        except httpx.HTTPError as exc:
+            if exc.response.status_code == http.HTTPStatus.NOT_FOUND:
+                LOGGER.warning(
+                    'Environment "%s" not found in %s/%s (already deleted?)',
+                    environment_name,
+                    org,
+                    repo,
+                )
+                return True  # Consider it successful if already gone
+            else:
+                LOGGER.error(
+                    'Failed to delete environment "%s" from %s/%s: %s',
+                    environment_name,
+                    org,
+                    repo,
+                    exc,
+                )
+                raise
+
+    async def sync_project_environments(
+        self, org: str, repo: str, imbi_environments: list[str]
+    ) -> dict[str, typing.Any]:
+        """Synchronize environments between Imbi project and GitHub repository.
+
+        This function ensures that the GitHub repository environments match the
+        environments defined in the Imbi project. It will:
+        1. Remove GitHub environments that don't exist in Imbi
+        2. Create GitHub environments that exist in Imbi but not in GitHub
+
+        Args:
+            org: GitHub organization name
+            repo: GitHub repository name
+            imbi_environments: List of environment names from Imbi project
+
+        Returns:
+            Dictionary with sync results including:
+            - success: bool - Whether sync completed successfully
+            - created: list[str] - Environments created in GitHub
+            - deleted: list[str] - Environments deleted from GitHub
+            - errors: list[str] - Any errors encountered
+            - total_operations: int - Total number of operations performed
+
+        """
+        # Import here to avoid circular imports
+        from imbi_automations import environment_sync
+
+        return await environment_sync.sync_project_environments(
+            org, repo, imbi_environments, self
+        )
