@@ -498,7 +498,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self.assertFalse(result)
 
     def test_project_matches_filter_combined_filters_match(self) -> None:
-        """Test project matching with both project_ids and project_types filters - match."""
+        """Test project matching with both filters - match."""
         # Create workflow with both filters that include our test project
         workflow_filter = models.WorkflowFilter(
             project_ids=[789, 999], project_types=['api', 'web']
@@ -524,8 +524,8 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self.assertTrue(result)
 
     def test_project_matches_filter_combined_filters_no_match_id(self) -> None:
-        """Test project matching with combined filters - no match on project_ids."""
-        # Create workflow with filters where project_ids excludes our test project
+        """Test combined filters - no match on project_ids."""
+        # Create workflow with filters where project_ids excludes test project
         workflow_filter = models.WorkflowFilter(
             project_ids=[111, 222], project_types=['api', 'web']
         )
@@ -545,15 +545,15 @@ class TestWorkflowEngine(base.AsyncTestCase):
             workflow=workflow,
         )
 
-        # Should not match because project ID is not in filter (even though type matches)
+        # Should not match - project ID not in filter despite type match
         result = automation_engine._project_matches_filter(self.imbi_project)
         self.assertFalse(result)
 
     def test_project_matches_filter_combined_filters_no_match_type(
         self,
     ) -> None:
-        """Test project matching with combined filters - no match on project_types."""
-        # Create workflow with filters where project_types excludes our test project
+        """Test combined filters - no match on project_types."""
+        # Create workflow with filters excluding test project
         workflow_filter = models.WorkflowFilter(
             project_ids=[789, 999], project_types=['web', 'daemon']
         )
@@ -573,7 +573,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
             workflow=workflow,
         )
 
-        # Should not match because project type is not in filter (even though ID matches)
+        # Should not match - project type not in filter despite ID match
         result = automation_engine._project_matches_filter(self.imbi_project)
         self.assertFalse(result)
 
@@ -582,7 +582,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_clone: mock.Mock
     ) -> None:
         """Test repository cloning setup with GitHub repository."""
-        mock_working_dir = pathlib.Path('/tmp/test-clone/repository')
+        mock_working_dir = pathlib.Path('/tmp/test-clone/repository')  # noqa: S108
         mock_clone.return_value = mock_working_dir
 
         # Create workflow run with GitHub repository
@@ -609,7 +609,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_clone: mock.Mock
     ) -> None:
         """Test repository cloning setup with GitLab project."""
-        mock_working_dir = pathlib.Path('/tmp/test-clone/repository')
+        mock_working_dir = pathlib.Path('/tmp/test-clone/repository')  # noqa: S108
         mock_clone.return_value = mock_working_dir
 
         # Create GitLab project
@@ -619,7 +619,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
             path='test-project',
             path_with_namespace='group/test-project',
             name_with_namespace='Group / Test Project',
-            created_at=datetime.datetime.now(),
+            created_at=datetime.datetime.now(datetime.UTC),
             default_branch='develop',
             ssh_url_to_repo='git@gitlab.com:group/test-project.git',
             http_url_to_repo='https://gitlab.com/group/test-project.git',
@@ -673,7 +673,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self, mock_clone: mock.Mock
     ) -> None:
         """Test complete workflow execution with repository cloning."""
-        mock_working_dir = pathlib.Path('/tmp/test-clone/repository')
+        mock_working_dir = pathlib.Path('/tmp/test-clone/repository')  # noqa: S108
         mock_clone.return_value = mock_working_dir
 
         # Create workflow configuration with cloning enabled
@@ -793,7 +793,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
             'actions': {},
         }
 
-        # Since the templates directory doesn't exist, expect 'no_templates' result
+        # Templates directory doesn't exist, expect 'no_templates' result
         result = await self.workflow_engine._execute_action(action, context)
 
         self.assertEqual(result, 'no_templates')
@@ -922,7 +922,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         ]
 
         # Mock template file content
-        mock_read_text.return_value = 'Project: {{ imbi_project.name }}\nRepo: {{ github_repository.name }}'
+        mock_read_text.return_value = 'Project: {{ imbi_project.name }}\nRepo: {{ github_repository.name }}'  # noqa: E501
 
         # Mock file stats for permission copying
         mock_file_stat = mock.Mock()
@@ -1213,7 +1213,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         # Mock the templates action to store results properly
-        async def mock_templates_action(action, context):
+        async def mock_templates_action(
+            action: models.WorkflowAction, context: dict[str, typing.Any]
+        ) -> dict[str, typing.Any]:
             result = {
                 'status': 'success',
                 'copied_files': ['.gitignore'],
@@ -1276,7 +1278,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
     async def test_evaluate_condition_file_exists_false(
         self, mock_exists: mock.Mock
     ) -> None:
-        """Test condition evaluation for file_exists when file doesn't exist."""
+        """Test file_exists condition when file doesn't exist."""
         mock_working_dir = pathlib.Path('/mock/working/dir')
         mock_exists.return_value = False
 
@@ -1291,7 +1293,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
     async def test_evaluate_condition_file_not_exists_true(
         self, mock_exists: mock.Mock
     ) -> None:
-        """Test condition evaluation for file_not_exists when file doesn't exist."""
+        """Test file_not_exists condition when file doesn't exist."""
         mock_working_dir = pathlib.Path('/mock/working/dir')
         mock_exists.return_value = False
 
@@ -1355,7 +1357,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
         result = await self.workflow_engine._evaluate_conditions(workflow_run)
 
-        # Should return True (allow workflow to proceed) when no working directory
+        # Should return True when no working directory
         self.assertTrue(result)
 
     @mock.patch('pathlib.Path.exists')
@@ -1395,9 +1397,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         mock_working_dir = pathlib.Path('/mock/working/dir')
 
         # Mock different return values for different files
-        def side_effect():
-            # This is a simplified approach - in reality we'd need to track which path is being checked
-            # For the test, we'll just make the first call return True and second False
+        def side_effect() -> bool:
+            # Simplified approach - track which path is being checked
+            # Make first call return True, second False
             if not hasattr(side_effect, 'call_count'):
                 side_effect.call_count = 0
             side_effect.call_count += 1
@@ -1434,11 +1436,11 @@ class TestWorkflowEngine(base.AsyncTestCase):
     async def test_evaluate_conditions_any_type_pass(
         self, mock_exists: mock.Mock
     ) -> None:
-        """Test conditions evaluation with 'any' type - one condition passes."""
+        """Test 'any' type conditions - one condition passes."""
         mock_working_dir = pathlib.Path('/mock/working/dir')
 
         # Mock different return values for different files
-        def side_effect():
+        def side_effect() -> bool:
             # For any test, we want first call to fail, second to pass
             if not hasattr(side_effect, 'call_count'):
                 side_effect.call_count = 0
@@ -1507,7 +1509,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
     async def test_execute_workflow_with_conditions_skip(
         self, mock_clone: mock.Mock
     ) -> None:
-        """Test complete workflow execution that gets skipped due to conditions."""
+        """Test workflow execution skipped due to conditions."""
         mock_working_dir = pathlib.Path('/mock/working/dir')
         mock_clone.return_value = mock_working_dir
 
@@ -1546,7 +1548,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
             # Verify clone was called (conditions evaluated after cloning)
             mock_clone.assert_called_once()
 
-            # Verify no actions were executed (GitHub method should not be called)
+            # Verify no actions were executed
             self.mock_github.get_latest_workflow_status.assert_not_called()
 
     async def test_execute_file_action_rename_success(self) -> None:
@@ -1575,7 +1577,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         # Mock source file exists, destination doesn't exist
         with mock.patch('pathlib.Path.exists') as mock_exists:
             # Set up exists behavior: source=True, destination=False
-            def exists_side_effect(path_obj: typing.Any) -> bool:
+            def exists_side_effect(path_obj: pathlib.Path) -> bool:
                 if str(path_obj).endswith('compose.yml'):
                     return True
                 elif str(path_obj).endswith('compose.yaml'):
