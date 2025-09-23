@@ -52,14 +52,21 @@ class GitHub(http.BaseURLClient):
         if response.status_code == 403:
             error_data = response.json() if response.content else {}
             error_message = error_data.get('message', 'Access forbidden')
-            LOGGER.error(
-                'GitHub API returned 403 Forbidden when getting repository '
-                '%s/%s: %s',
-                org,
-                repo_name,
-                error_message,
-            )
-            raise RuntimeError(f'GitHub API access denied: {error_message}')
+
+            # Check if it's specifically a rate limit error
+            if 'rate limit exceeded' in error_message.lower():
+                raise models.GitHubRateLimitError(error_message)
+            else:
+                LOGGER.error(
+                    'GitHub API returned 403 Forbidden for repository '
+                    '%s/%s: %s',
+                    org,
+                    repo_name,
+                    error_message,
+                )
+                raise models.GitHubNotFoundError(
+                    f'Access denied for repository {org}/{repo_name}'
+                )
         elif not response.is_success:
             LOGGER.error(
                 'GitHub API error for repository %s/%s (%s): %s',
@@ -92,12 +99,21 @@ class GitHub(http.BaseURLClient):
             LOGGER.debug('Repository not found for ID %s (404)', repo_id)
             return None
         elif response.status_code == http.HTTPStatus.FORBIDDEN:
-            LOGGER.warning(
-                'Access forbidden for repository ID %s (403): %s',
-                repo_id,
-                response.text,
-            )
-            return None
+            response_data = response.json() if response.content else {}
+            message = response_data.get('message', response.text)
+
+            # Check if it's specifically a rate limit error
+            if 'rate limit exceeded' in message.lower():
+                raise models.GitHubRateLimitError(message)
+            else:
+                LOGGER.warning(
+                    'Access forbidden for repository ID %s (403): %s',
+                    repo_id,
+                    message,
+                )
+                raise models.GitHubNotFoundError(
+                    f'Access denied for repository ID {repo_id}'
+                )
         elif not response.is_success:
             LOGGER.error(
                 'GitHub API error for repository ID %s (%s): %s',

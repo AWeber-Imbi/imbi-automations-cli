@@ -391,6 +391,17 @@ class AutomationEngine:
                             'Found GitHub repository: %s',
                             github_repository.full_name,
                         )
+                except models.GitHubRateLimitError as exc:
+                    LOGGER.warning(
+                        'GitHub API rate limited for Imbi project %d (%s): %s',
+                        imbi_project.id,
+                        imbi_project.name,
+                        exc,
+                    )
+                    return 'skipped_rate_limited'
+                except models.GitHubNotFoundError:
+                    # Repository access denied or other auth issues
+                    pass  # Handled by "no GitHub repository" check below
                 except (
                     httpx.HTTPError,
                     httpx.RequestError,
@@ -398,12 +409,12 @@ class AutomationEngine:
                     RuntimeError,
                 ) as exc:
                     LOGGER.warning(
-                        'Failed to lookup GitHub repository for '
-                        'Imbi project %d (%s): %s',
+                        'GitHub API error for Imbi project %d (%s): %s',
                         imbi_project.id,
                         imbi_project.name,
                         exc,
                     )
+                    return 'skipped_github_api_error'
             elif self.gitlab and not gitlab_project:
                 try:
                     gitlab_project = await self._get_gitlab_project(
@@ -448,7 +459,7 @@ class AutomationEngine:
                 imbi_project.id,
                 imbi_project.name,
             )
-            return
+            return 'skipped_filter_mismatch'
 
         # Check if workflow requires GitHub repository but we don't have one
         if self._workflow_requires_github() and not github_repository:
@@ -458,7 +469,7 @@ class AutomationEngine:
                 imbi_project.name,
                 imbi_project.project_type_slug,
             )
-            return
+            return 'skipped_no_github_repository'
 
         # Check if workflow requires GitLab project but we don't have one
         if self._workflow_requires_gitlab() and not gitlab_project:
@@ -467,7 +478,7 @@ class AutomationEngine:
                 imbi_project.id,
                 imbi_project.name,
             )
-            return
+            return 'skipped_no_gitlab_project'
 
         run = models.WorkflowRun(
             workflow=self.workflow,
@@ -489,13 +500,30 @@ class AutomationEngine:
             execution_result = await self.workflow_engine.execute(run)
 
             # Track based on execution result
-            if execution_result == 'skipped_remote_conditions':
+            if execution_result == 'skipped_filter_mismatch':
+                self.workflow_stats['skipped_filter_mismatch'] += 1
+            elif execution_result == 'skipped_rate_limited':
+                self.workflow_stats['skipped_rate_limited'] += 1
+            elif execution_result == 'skipped_github_api_error':
+                self.workflow_stats['skipped_github_api_error'] += 1
+            elif execution_result == 'skipped_no_github_repository':
+                self.workflow_stats['skipped_no_github_repository'] += 1
+            elif execution_result == 'skipped_no_gitlab_project':
+                self.workflow_stats['skipped_no_gitlab_project'] += 1
+            elif execution_result == 'skipped_remote_conditions':
                 self.workflow_stats['skipped_remote_conditions'] += 1
             elif execution_result == 'skipped_conditions':
                 self.workflow_stats['skipped_conditions'] += 1
             elif execution_result == 'skipped_no_repository':
                 self.workflow_stats['skipped_no_repository'] += 1
+            elif execution_result == 'successful_no_changes':
+                self.workflow_stats['successful_no_changes'] += 1
+            elif execution_result == 'successful_changes_pushed':
+                self.workflow_stats['successful_changes_pushed'] += 1
+            elif execution_result == 'successful_pr_created':
+                self.workflow_stats['successful_pr_created'] += 1
             else:
+                # Fallback for any other 'successful' variants
                 self.workflow_stats['successful'] += 1
 
         except (RuntimeError, httpx.HTTPError, ValueError) as exc:
@@ -642,10 +670,21 @@ class AutomationEngine:
         LOGGER.info('Total workflows processed: %d', total_workflows)
         LOGGER.info('')
 
-        # Output each stat category
+        # Output each stat category in logical order
         stat_types = [
-            'successful',
+            # Successful outcomes
+            'successful_pr_created',
+            'successful_changes_pushed',
+            'successful_no_changes',
+            'successful',  # Fallback category
+            # Error outcomes
             'errored',
+            # Skip reasons - API issues first
+            'skipped_rate_limited',
+            'skipped_github_api_error',
+            'skipped_filter_mismatch',
+            'skipped_no_github_repository',
+            'skipped_no_gitlab_project',
             'skipped_remote_conditions',
             'skipped_conditions',
             'skipped_no_repository',
@@ -661,14 +700,19 @@ class AutomationEngine:
 
         LOGGER.info('')
 
-        # Show success rate
-        successful = self.workflow_stats['successful']
+        # Show success rate (sum all successful variants)
+        successful_total = (
+            self.workflow_stats['successful_pr_created']
+            + self.workflow_stats['successful_changes_pushed']
+            + self.workflow_stats['successful_no_changes']
+            + self.workflow_stats['successful']
+        )
         if total_workflows > 0:
-            success_rate = (successful / total_workflows) * 100
+            success_rate = (successful_total / total_workflows) * 100
             LOGGER.info(
                 'Success rate: %.1f%% (%d/%d)',
                 success_rate,
-                successful,
+                successful_total,
                 total_workflows,
             )
 
@@ -704,6 +748,19 @@ class WorkflowEngine:
         # Store action results for templating
         self.action_results = ActionResults()
 
+        # Initialize logging - start with base logger
+        self._base_logger = LOGGER
+        self.logger = self._base_logger
+
+    def set_workflow_logger(self, workflow_path: pathlib.Path) -> None:
+        """Set logger name to workflow directory name.
+
+        Args:
+            workflow_path: Path to the workflow directory
+        """
+        workflow_dir_name = workflow_path.name
+        self.logger = logging.getLogger(workflow_dir_name)
+
     def _create_template_context(
         self, run: models.WorkflowRun
     ) -> dict[str, typing.Any]:
@@ -735,12 +792,12 @@ class WorkflowEngine:
 
         for key, value in kwargs.model_dump().items():
             if isinstance(value, str) and '{{' in value:
-                LOGGER.debug('Rendering template for %s: %s', key, value)
-                LOGGER.debug(
+                self.logger.debug('Rendering template for %s: %s', key, value)
+                self.logger.debug(
                     'Available context keys: %s', list(context.keys())
                 )
                 if 'actions' in context:
-                    LOGGER.debug(
+                    self.logger.debug(
                         'Available actions: %s',
                         list(context['actions'].keys()),
                     )
@@ -761,7 +818,7 @@ class WorkflowEngine:
                             rendered[key] = context['actions'][action_name][
                                 'result'
                             ]
-                            LOGGER.debug(
+                            self.logger.debug(
                                 'Rendered %s: direct action result → %s',
                                 key,
                                 type(rendered[key]),
@@ -777,7 +834,7 @@ class WorkflowEngine:
                     rendered[key] = float(rendered_value)
                 else:
                     rendered[key] = rendered_value
-                LOGGER.debug('Rendered %s: %s → %s', key, value, rendered[key])
+                self.logger.debug('Rendered %s → %s', key, rendered[key])
             else:
                 rendered[key] = value
 
@@ -811,7 +868,7 @@ class WorkflowEngine:
         self, action: models.WorkflowAction, context: dict[str, typing.Any]
     ) -> typing.Any:
         """Execute a single workflow action based on its type."""
-        LOGGER.debug(
+        self.logger.debug(
             'Executing action %s of type %s', action.name, action.type
         )
 
@@ -849,7 +906,7 @@ class WorkflowEngine:
             action.value.kwargs, context
         )
 
-        LOGGER.debug(
+        self.logger.debug(
             'Calling %s.%s with kwargs: %s',
             action.value.client,
             action.value.method,
@@ -861,7 +918,7 @@ class WorkflowEngine:
         # Apply value mapping if configured
         mapped_result = self._apply_value_mapping(result, action.value_mapping)
 
-        LOGGER.debug(
+        self.logger.debug(
             'Action %s result: %s (mapped: %s)',
             action.name,
             result,
@@ -884,7 +941,7 @@ class WorkflowEngine:
                 action.target.kwargs, context
             )
 
-            LOGGER.debug(
+            self.logger.debug(
                 'Calling %s.%s with kwargs: %s',
                 action.target.client,
                 action.target.method,
@@ -894,7 +951,7 @@ class WorkflowEngine:
             try:
                 await target_method(**target_kwargs)
             except (RuntimeError, httpx.HTTPError, ValueError) as e:
-                LOGGER.error(
+                self.logger.error(
                     'Failed to execute action %s: %s - %s',
                     action.name,
                     type(e).__name__,
@@ -924,7 +981,7 @@ class WorkflowEngine:
         templates_dir = workflow_run.workflow.path / 'templates'
 
         if not templates_dir.exists() or not templates_dir.is_dir():
-            LOGGER.warning(
+            self.logger.warning(
                 'Templates directory not found for action %s: %s',
                 action.name,
                 templates_dir,
@@ -933,7 +990,7 @@ class WorkflowEngine:
             context['actions'] = self.action_results
             return 'no_templates'
 
-        LOGGER.info(
+        self.logger.info(
             'Copying templates from %s to %s',
             templates_dir,
             workflow_run.working_directory,
@@ -986,7 +1043,7 @@ class WorkflowEngine:
                         shutil.copy2(template_file, target_file)
 
                     copied_files.append(str(target_rel_path))
-                    LOGGER.debug(
+                    self.logger.debug(
                         'Copied template file: %s → %s',
                         rel_path,
                         target_rel_path,
@@ -995,7 +1052,7 @@ class WorkflowEngine:
                 except (OSError, PermissionError, FileNotFoundError) as exc:
                     error_msg = f'Failed to copy {rel_path}: {exc}'
                     errors.append(error_msg)
-                    LOGGER.error(error_msg)
+                    self.logger.error(error_msg)
 
         # Commit changes if files were copied
         from . import git
@@ -1007,13 +1064,17 @@ class WorkflowEngine:
                     workflow_run.working_directory, copied_files
                 )
 
-                # Create commit message
+                # Create commit message with proper formatting
                 commit_message = f'imbi-automations: {action.name}'
                 if len(copied_files) == 1:
                     commit_message += f'\n\nAdded: {copied_files[0]}'
                 else:
                     commit_message += '\n\nAdded files:\n'
                     commit_message += '\n'.join(f'- {f}' for f in copied_files)
+
+                # Add ci skip if configured
+                if workflow_run.workflow.configuration.ci_skip_checks:
+                    commit_message += '\n\n[ci skip]'
 
                 commit_message += (
                     '\n\nCo-Authored-By: Imbi Automations <noreply@aweber.com>'
@@ -1027,7 +1088,7 @@ class WorkflowEngine:
                     author_email='noreply@aweber.com',
                 )
 
-                LOGGER.info(
+                self.logger.info(
                     'Templates action %s committed %d files: %s',
                     action.name,
                     len(copied_files),
@@ -1035,7 +1096,7 @@ class WorkflowEngine:
                 )
 
             except (OSError, subprocess.CalledProcessError) as exc:
-                LOGGER.warning(
+                self.logger.warning(
                     'Failed to commit templates for action %s: %s',
                     action.name,
                     exc,
@@ -1045,7 +1106,7 @@ class WorkflowEngine:
         if errors:
             if copied_files:
                 status = 'partial'
-                LOGGER.warning(
+                self.logger.warning(
                     'Templates action %s completed with errors: '
                     '%d copied, %d failed',
                     action.name,
@@ -1054,14 +1115,14 @@ class WorkflowEngine:
                 )
             else:
                 status = 'failed'
-                LOGGER.error(
+                self.logger.error(
                     'Templates action %s failed: %s',
                     action.name,
                     '; '.join(errors),
                 )
         else:
             status = 'success'
-            LOGGER.info(
+            self.logger.info(
                 'Templates action %s completed successfully: %d files copied',
                 action.name,
                 len(copied_files),
@@ -1103,7 +1164,7 @@ class WorkflowEngine:
         working_directory = workflow_run.working_directory
         source_path = working_directory / action.source
 
-        LOGGER.debug(
+        self.logger.debug(
             'Executing file action %s: %s on %s',
             action.name,
             action.command,
@@ -1137,7 +1198,7 @@ class WorkflowEngine:
                 # Perform rename
                 source_path.rename(destination_path)
 
-                LOGGER.info(
+                self.logger.info(
                     'Renamed file %s to %s', action.source, action.destination
                 )
 
@@ -1158,7 +1219,7 @@ class WorkflowEngine:
                 # Perform remove
                 source_path.unlink()
 
-                LOGGER.info('Removed file %s', action.source)
+                self.logger.info('Removed file %s', action.source)
 
                 result = {
                     'operation': 'remove',
@@ -1202,6 +1263,10 @@ class WorkflowEngine:
                         f'- {f}' for f in changed_files
                     )
 
+                # Add ci skip if configured
+                if workflow_run.workflow.configuration.ci_skip_checks:
+                    commit_message += '\n\n[ci skip]'
+
                 commit_message += (
                     '\n\nCo-Authored-By: Imbi Automations <noreply@aweber.com>'
                 )
@@ -1214,7 +1279,7 @@ class WorkflowEngine:
                     author_email='noreply@aweber.com',
                 )
 
-                LOGGER.info(
+                self.logger.info(
                     'File action %s committed changes: %s',
                     action.name,
                     commit_sha[:8] if commit_sha else 'unknown',
@@ -1227,7 +1292,7 @@ class WorkflowEngine:
                 result['committed'] = False
 
         except (OSError, subprocess.CalledProcessError, RuntimeError) as exc:
-            LOGGER.warning(
+            self.logger.warning(
                 'Failed to commit changes for file action %s: %s',
                 action.name,
                 exc,
@@ -1271,7 +1336,7 @@ class WorkflowEngine:
             template_stat = template_file.stat()
             target_file.chmod(template_stat.st_mode)
 
-            LOGGER.debug(
+            self.logger.debug(
                 'Rendered template %s to %s', template_file.name, target_file
             )
 
@@ -1314,14 +1379,14 @@ class WorkflowEngine:
                 template_content = prompt_file_path.read_text(encoding='utf-8')
                 template = self.jinja_env.from_string(template_content)
                 prompt_content = template.render(context)
-                LOGGER.debug(
+                self.logger.debug(
                     'Rendered Jinja2 prompt template for action %s',
                     action.name,
                 )
             else:
                 # Read plain text prompt
                 prompt_content = prompt_file_path.read_text(encoding='utf-8')
-                LOGGER.debug(
+                self.logger.debug(
                     'Loaded plain text prompt for action %s', action.name
                 )
 
@@ -1340,7 +1405,7 @@ class WorkflowEngine:
         timeout = action.timeout or 600  # Default 10 minutes
         max_retries = action.max_retries or 3  # Default 3 attempts
 
-        LOGGER.info(
+        self.logger.info(
             'Executing Claude Code action %s (timeout: %ds, max_retries: %d)',
             action.name,
             timeout,
@@ -1361,7 +1426,7 @@ class WorkflowEngine:
                 workflow_run.working_directory
             )
             if changed_files:
-                LOGGER.info(
+                self.logger.info(
                     'Claude action %s modified %d files: %s',
                     action.name,
                     len(changed_files),
@@ -1373,7 +1438,7 @@ class WorkflowEngine:
                     workflow_run.working_directory, changed_files
                 )
 
-                # Create commit message
+                # Create commit message with proper formatting
                 commit_message = f'imbi-automations: {action.name}'
                 if len(changed_files) == 1:
                     commit_message += f'\n\nModified: {changed_files[0]}'
@@ -1382,6 +1447,10 @@ class WorkflowEngine:
                     commit_message += '\n'.join(
                         f'- {f}' for f in changed_files
                     )
+
+                # Add ci skip if configured
+                if workflow_run.workflow.configuration.ci_skip_checks:
+                    commit_message += '\n\n[ci skip]'
 
                 commit_message += (
                     '\n\nCo-Authored-By: Imbi Automations <noreply@aweber.com>'
@@ -1395,7 +1464,7 @@ class WorkflowEngine:
                     author_email='noreply@aweber.com',
                 )
 
-                LOGGER.info(
+                self.logger.info(
                     'Claude action %s committed changes: %s',
                     action.name,
                     commit_sha[:8] if commit_sha else 'unknown',
@@ -1409,7 +1478,7 @@ class WorkflowEngine:
                 result['committed'] = False
 
         except (OSError, subprocess.CalledProcessError, RuntimeError) as exc:
-            LOGGER.warning(
+            self.logger.warning(
                 'Failed to commit changes for Claude action %s: %s',
                 action.name,
                 exc,
@@ -1421,7 +1490,7 @@ class WorkflowEngine:
         self.action_results[action.name] = {'result': result}
         context['actions'] = self.action_results
 
-        LOGGER.info(
+        self.logger.info(
             'Claude Code action %s completed: status=%s, attempts=%d, '
             'time=%.2fs',
             action.name,
@@ -1454,14 +1523,14 @@ class WorkflowEngine:
         # Render the command as a Jinja2 template if it contains templates
         command = action.command
         if '{{' in command:
-            LOGGER.debug(
+            self.logger.debug(
                 'Rendering shell command template for action %s', action.name
             )
             template = self.jinja_env.from_string(command)
             command = template.render(context)
-            LOGGER.debug('Rendered command: %s', command)
+            self.logger.debug('Rendered command: %s', command)
 
-        LOGGER.debug(
+        self.logger.debug(
             'Executing shell command for action %s: %s', action.name, command
         )
 
@@ -1487,25 +1556,25 @@ class WorkflowEngine:
 
             # Log output for debugging
             if result.stdout:
-                LOGGER.debug('Shell command stdout: %s', result.stdout.strip())
+                self.logger.debug('Shell stdout: %s', result.stdout.strip())
             if result.stderr:
                 if result.returncode == 0:
-                    LOGGER.debug(
+                    self.logger.debug(
                         'Shell command stderr: %s', result.stderr.strip()
                     )
                 else:
-                    LOGGER.warning(
+                    self.logger.warning(
                         'Shell command stderr: %s', result.stderr.strip()
                     )
 
             if result.returncode != 0:
-                LOGGER.warning(
+                self.logger.warning(
                     'Shell command failed with exit code %d: %s',
                     result.returncode,
                     command,
                 )
             else:
-                LOGGER.debug(
+                self.logger.debug(
                     'Shell command completed successfully: %s', command
                 )
 
@@ -1515,7 +1584,7 @@ class WorkflowEngine:
                     workflow_run.working_directory
                 )
                 if changed_files:
-                    LOGGER.debug(
+                    self.logger.debug(
                         'Shell action %s modified %d files: %s',
                         action.name,
                         len(changed_files),
@@ -1527,8 +1596,9 @@ class WorkflowEngine:
                         workflow_run.working_directory, changed_files
                     )
 
-                    # Create commit message
+                    # Create commit message with proper formatting
                     commit_message = f'imbi-automations: {action.name}'
+
                     if len(changed_files) == 1:
                         commit_message += f'\n\nModified: {changed_files[0]}'
                     else:
@@ -1537,9 +1607,13 @@ class WorkflowEngine:
                             f'- {f}' for f in changed_files
                         )
 
+                    # Add ci skip if configured
+                    if workflow_run.workflow.configuration.ci_skip_checks:
+                        commit_message += '\n\n[ci skip]'
+
                     commit_message += (
-                        '\n\n🤖 Generated with Imbi Automations\n'
-                        'Co-Authored-By: Imbi Automations <noreply@aweber.com>'
+                        '\n\nCo-Authored-By: Imbi Automations '
+                        '<noreply@aweber.com>'
                     )
 
                     # Commit the changes
@@ -1550,7 +1624,7 @@ class WorkflowEngine:
                         author_email='noreply@aweber.com',
                     )
 
-                    LOGGER.debug(
+                    self.logger.debug(
                         'Shell action %s committed changes: %s',
                         action.name,
                         commit_sha[:8] if commit_sha else 'unknown',
@@ -1561,13 +1635,13 @@ class WorkflowEngine:
                     shell_result['commit_sha'] = commit_sha
                     shell_result['changed_files'] = changed_files
                 else:
-                    LOGGER.debug(
+                    self.logger.debug(
                         'Shell action %s made no git changes', action.name
                     )
                     shell_result['committed'] = False
 
             except (OSError, subprocess.CalledProcessError) as exc:
-                LOGGER.warning(
+                self.logger.warning(
                     'Failed to commit changes for shell action %s: %s',
                     action.name,
                     exc,
@@ -1583,11 +1657,11 @@ class WorkflowEngine:
 
         except subprocess.TimeoutExpired as exc:
             error_msg = f'Shell command timed out after 300 seconds: {command}'
-            LOGGER.error(error_msg)
+            self.logger.error(error_msg)
             raise RuntimeError(error_msg) from exc
         except (OSError, subprocess.CalledProcessError) as exc:
             error_msg = f'Failed to execute shell command {command}: {exc}'
-            LOGGER.error(error_msg)
+            self.logger.error(error_msg)
             raise RuntimeError(error_msg) from exc
 
     async def _execute_ai_editor_action(
@@ -1629,14 +1703,14 @@ class WorkflowEngine:
                 template_content = prompt_file_path.read_text(encoding='utf-8')
                 template = self.jinja_env.from_string(template_content)
                 prompt_content = template.render(context)
-                LOGGER.debug(
+                self.logger.debug(
                     'Rendered Jinja2 prompt template for AI Editor action %s',
                     action.name,
                 )
             else:
                 # Read plain text prompt
                 prompt_content = prompt_file_path.read_text(encoding='utf-8')
-                LOGGER.debug(
+                self.logger.debug(
                     'Loaded plain text prompt for AI Editor action %s',
                     action.name,
                 )
@@ -1664,7 +1738,7 @@ class WorkflowEngine:
         timeout = action.timeout or 300  # Default 5 minutes
         max_retries = action.max_retries or 3  # Default 3 attempts
 
-        LOGGER.info(
+        self.logger.debug(
             'Executing AI Editor action %s on %s (timeout: %ds, retries: %d)',
             action.name,
             action.target_file,
@@ -1687,7 +1761,7 @@ class WorkflowEngine:
                 workflow_run.working_directory
             )
             if changed_files and result.get('changed'):
-                LOGGER.debug(
+                self.logger.debug(
                     'AI Editor action %s modified %d files: %s',
                     action.name,
                     len(changed_files),
@@ -1699,7 +1773,7 @@ class WorkflowEngine:
                     workflow_run.working_directory, changed_files
                 )
 
-                # Create commit message
+                # Create commit message with proper formatting
                 commit_message = f'imbi-automations: {action.name}'
                 if len(changed_files) == 1:
                     commit_message += f'\n\nModified: {changed_files[0]}'
@@ -1708,6 +1782,10 @@ class WorkflowEngine:
                     commit_message += '\n'.join(
                         f'- {f}' for f in changed_files
                     )
+
+                # Add ci skip if configured
+                if workflow_run.workflow.configuration.ci_skip_checks:
+                    commit_message += '\n\n[ci skip]'
 
                 commit_message += (
                     '\n\nCo-Authored-By: Imbi Automations <noreply@aweber.com>'
@@ -1721,7 +1799,7 @@ class WorkflowEngine:
                     author_email='noreply@aweber.com',
                 )
 
-                LOGGER.debug(
+                self.logger.debug(
                     'AI Editor action %s committed changes: %s',
                     action.name,
                     commit_sha[:8] if commit_sha else 'unknown',
@@ -1735,7 +1813,7 @@ class WorkflowEngine:
                 result['committed'] = False
 
         except (OSError, subprocess.CalledProcessError, RuntimeError) as exc:
-            LOGGER.warning(
+            self.logger.warning(
                 'Failed to commit changes for AI Editor action %s: %s',
                 action.name,
                 exc,
@@ -1747,7 +1825,7 @@ class WorkflowEngine:
         self.action_results[action.name] = {'result': result}
         context['actions'] = self.action_results
 
-        LOGGER.info(
+        self.logger.debug(
             'AI Editor action %s completed: status=%s, attempts=%d',
             action.name,
             result['status'],
@@ -1773,7 +1851,7 @@ class WorkflowEngine:
         if condition.file_exists:
             file_path = working_directory / condition.file_exists
             result = file_path.exists()
-            LOGGER.debug(
+            self.logger.debug(
                 'Condition file_exists "%s": %s', condition.file_exists, result
             )
             return result
@@ -1781,7 +1859,7 @@ class WorkflowEngine:
         if condition.file_not_exists:
             file_path = working_directory / condition.file_not_exists
             result = not file_path.exists()
-            LOGGER.debug(
+            self.logger.debug(
                 'Condition file_not_exists "%s": %s',
                 condition.file_not_exists,
                 result,
@@ -1800,7 +1878,7 @@ class WorkflowEngine:
 
                     # Try string containment first (faster)
                     if condition.file_contains in content:
-                        LOGGER.debug(
+                        self.logger.debug(
                             'Condition file_contains string "%s" in "%s": %s',
                             condition.file_contains,
                             condition.file or condition.file_contains,
@@ -1811,7 +1889,7 @@ class WorkflowEngine:
                     # If string search fails, try regex
                     try:
                         if re.search(condition.file_contains, content):
-                            LOGGER.debug(
+                            self.logger.debug(
                                 'file_contains regex "%s" in "%s": %s',
                                 condition.file_contains,
                                 condition.file or condition.file_contains,
@@ -1822,21 +1900,21 @@ class WorkflowEngine:
                         # Regex is invalid, string search already failed
                         pass
 
-                    LOGGER.debug(
+                    self.logger.debug(
                         'Condition file_contains "%s" in "%s": False',
                         condition.file_contains,
                         condition.file or condition.file_contains,
                     )
                     return False
                 else:
-                    LOGGER.debug(
+                    self.logger.debug(
                         'Condition file_contains "%s" - file "%s" not found',
                         condition.file_contains,
                         condition.file or condition.file_contains,
                     )
                     return False
             except (OSError, UnicodeDecodeError) as exc:
-                LOGGER.debug(
+                self.logger.debug(
                     'Condition file_contains "%s" - error reading "%s": %s',
                     condition.file_contains,
                     condition.file or condition.file_contains,
@@ -1845,7 +1923,7 @@ class WorkflowEngine:
                 return False
 
         # If no conditions are specified, consider it as True
-        LOGGER.debug('Empty condition evaluated as True')
+        self.logger.debug('Empty condition evaluated as True')
         return True
 
     async def _evaluate_conditions(self, run: models.WorkflowRun) -> bool:
@@ -1858,17 +1936,17 @@ class WorkflowEngine:
             True if all conditions are met according to condition_type logic
         """
         if not run.workflow.configuration.conditions:
-            LOGGER.debug('No conditions specified, proceeding with workflow')
+            self.logger.debug('No conditions specified, proceeding')
             return True
 
         if not run.working_directory:
-            LOGGER.warning(
+            self.logger.warning(
                 'Cannot evaluate conditions without working directory '
                 '(clone_repository=true required)'
             )
             return True  # Allow workflow to proceed if no working directory
 
-        LOGGER.debug(
+        self.logger.debug(
             'Evaluating %d conditions with %s logic',
             len(run.workflow.configuration.conditions),
             run.workflow.configuration.condition_type,
@@ -1880,7 +1958,7 @@ class WorkflowEngine:
                 condition, run.working_directory
             )
             condition_results.append(result)
-            LOGGER.debug('Condition %d result: %s', i + 1, result)
+            self.logger.debug('Condition %d result: %s', i + 1, result)
 
         # Apply condition_type logic
         if (
@@ -1888,10 +1966,10 @@ class WorkflowEngine:
             == models.WorkflowConditionType.all
         ):
             overall_result = all(condition_results)
-            LOGGER.debug('All conditions must pass: %s', overall_result)
+            self.logger.debug('All conditions must pass: %s', overall_result)
         else:  # any
             overall_result = any(condition_results)
-            LOGGER.debug('Any condition must pass: %s', overall_result)
+            self.logger.debug('Any condition must pass: %s', overall_result)
 
         return overall_result
 
@@ -1918,13 +1996,13 @@ class WorkflowEngine:
 
             # Evaluate the condition
             result = eval(condition, safe_globals)  # noqa: S307
-            LOGGER.debug(
+            self.logger.debug(
                 'Action condition "%s" evaluated to: %s', condition, result
             )
             return bool(result)
 
         except (ValueError, KeyError, AttributeError) as exc:
-            LOGGER.error(
+            self.logger.error(
                 'Failed to evaluate action condition "%s": %s', condition, exc
             )
             return False
@@ -1944,7 +2022,7 @@ class WorkflowEngine:
             True if condition is met, False otherwise
         """
         if not github_repository:
-            LOGGER.debug(
+            self.logger.debug(
                 'No GitHub repository available for remote conditions'
             )
             return True
@@ -1959,7 +2037,7 @@ class WorkflowEngine:
                 result = await self._check_remote_file_exists(
                     owner, repo, condition.remote_file_exists
                 )
-                LOGGER.debug(
+                self.logger.debug(
                     'Remote condition remote_file_exists "%s": %s',
                     condition.remote_file_exists,
                     result,
@@ -1968,7 +2046,7 @@ class WorkflowEngine:
             except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
                 # Don't warn about 404s, they're expected
                 if 'Not Found (HTTP 404)' not in str(exc):
-                    LOGGER.warning(
+                    self.logger.warning(
                         'Failed to check remote_file_exists "%s": %s',
                         condition.remote_file_exists,
                         exc,
@@ -1982,7 +2060,7 @@ class WorkflowEngine:
                     owner, repo, condition.remote_file_not_exists
                 )
                 result = not exists
-                LOGGER.debug(
+                self.logger.debug(
                     'Remote condition remote_file_not_exists "%s": %s',
                     condition.remote_file_not_exists,
                     result,
@@ -1991,7 +2069,7 @@ class WorkflowEngine:
             except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
                 # Don't warn about 404s, they're expected
                 if 'Not Found (HTTP 404)' not in str(exc):
-                    LOGGER.warning(
+                    self.logger.warning(
                         'Failed to check remote_file_not_exists "%s": %s',
                         condition.remote_file_not_exists,
                         exc,
@@ -2006,7 +2084,7 @@ class WorkflowEngine:
                     owner, repo, file_path
                 )
                 if content is None:
-                    LOGGER.debug(
+                    self.logger.debug(
                         'Remote file "%s" not found for remote_file_contains',
                         file_path,
                     )
@@ -2014,7 +2092,7 @@ class WorkflowEngine:
 
                 # Use same string/regex logic as local file_contains
                 if condition.remote_file_contains in content:
-                    LOGGER.debug(
+                    self.logger.debug(
                         'Remote file_contains string "%s" in "%s": True',
                         condition.remote_file_contains,
                         file_path,
@@ -2024,7 +2102,7 @@ class WorkflowEngine:
                 # Try regex if string search fails
                 try:
                     if re.search(condition.remote_file_contains, content):
-                        LOGGER.debug(
+                        self.logger.debug(
                             'Remote file_contains regex "%s" in "%s": True',
                             condition.remote_file_contains,
                             file_path,
@@ -2034,7 +2112,7 @@ class WorkflowEngine:
                     # Invalid regex, string search already failed
                     pass
 
-                LOGGER.debug(
+                self.logger.debug(
                     'Remote file_contains "%s" in "%s": False',
                     condition.remote_file_contains,
                     file_path,
@@ -2044,7 +2122,7 @@ class WorkflowEngine:
             except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
                 # Don't warn about 404s, they're expected
                 if 'Not Found (HTTP 404)' not in str(exc):
-                    LOGGER.warning(
+                    self.logger.warning(
                         'Failed to check remote_file_contains "%s": %s',
                         condition.remote_file_contains,
                         file_path,
@@ -2086,7 +2164,7 @@ class WorkflowEngine:
             return process.returncode == 0
 
         except (RuntimeError, httpx.HTTPError, ValueError) as exc:
-            LOGGER.debug(
+            self.logger.debug(
                 'Error checking remote file existence for %s: %s',
                 file_path,
                 exc,
@@ -2152,7 +2230,7 @@ class WorkflowEngine:
                 ) from exc
 
         except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
-            LOGGER.debug(
+            self.logger.debug(
                 'Error getting remote file content for %s: %s', file_path, exc
             )
             raise
@@ -2169,7 +2247,7 @@ class WorkflowEngine:
             True if all remote conditions are met according to condition_type
         """
         if not run.workflow.configuration.conditions:
-            LOGGER.debug('No conditions specified, proceeding with workflow')
+            self.logger.debug('No conditions specified, proceeding')
             return True
 
         # Filter for remote conditions only
@@ -2185,12 +2263,12 @@ class WorkflowEngine:
                 remote_conditions.append(condition)
 
         if not remote_conditions:
-            LOGGER.debug(
+            self.logger.debug(
                 'No remote conditions specified, proceeding with workflow'
             )
             return True
 
-        LOGGER.debug(
+        self.logger.debug(
             'Evaluating %d remote conditions with %s logic',
             len(remote_conditions),
             run.workflow.configuration.condition_type,
@@ -2204,7 +2282,7 @@ class WorkflowEngine:
                 )
                 condition_results.append(result)
             except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
-                LOGGER.warning(
+                self.logger.warning(
                     'Remote condition evaluation failed: %s, treating as True',
                     exc,
                 )
@@ -2217,7 +2295,7 @@ class WorkflowEngine:
         else:  # any
             final_result = any(condition_results)
 
-        LOGGER.debug(
+        self.logger.debug(
             'Remote conditions evaluation result: %s (passed: %d/%d)',
             final_result,
             sum(condition_results),
@@ -2225,161 +2303,6 @@ class WorkflowEngine:
         )
 
         return final_result
-
-    async def _commit_workflow_changes(
-        self, run: models.WorkflowRun, project_info: str
-    ) -> None:
-        """Commit all changes made during workflow execution.
-
-        Args:
-            run: Workflow run containing working directory and action results
-            project_info: Project information string for logging
-        """
-        try:
-            # Collect all files to commit from actions
-            all_copied_files = []
-            file_operations = []
-            template_actions = []
-
-            for action_name in self.action_results:
-                action_data = self.action_results[action_name]
-                result = action_data.get('result', {})
-
-                if isinstance(result, dict):
-                    # Handle template actions (copied files)
-                    if 'copied_files' in result:
-                        copied_files = result['copied_files']
-                        if copied_files:
-                            all_copied_files.extend(copied_files)
-                            template_actions.append(action_name)
-
-                    # Handle file operations (renames, removes)
-                    if 'operation' in result:
-                        file_operations.append(result)
-
-                        # For renames, track the new file for git add
-                        if (
-                            result['operation'] == 'rename'
-                            and 'destination' in result
-                        ):
-                            all_copied_files.append(result['destination'])
-
-            if not all_copied_files and not file_operations:
-                LOGGER.debug('No files to commit for project %s', project_info)
-                return
-
-            operation_summary = []
-            if template_actions:
-                operation_summary.append(
-                    f'{len(template_actions)} template actions'
-                )
-            if file_operations:
-                operation_summary.append(
-                    f'{len(file_operations)} file operations'
-                )
-
-            LOGGER.debug(
-                'Committing changes from %s for project %s',
-                ' and '.join(operation_summary),
-                project_info,
-            )
-
-            # Handle file operations that need special git handling
-            for operation in file_operations:
-                if operation['operation'] == 'rename':
-                    # For renames, remove old file from git tracking
-                    source_file = operation['source']
-                    LOGGER.debug('Removing old file from git: %s', source_file)
-                    await git.remove_files(
-                        run.working_directory, [source_file]
-                    )
-
-                elif operation['operation'] == 'remove':
-                    # For removes, we need to remove the file from git tracking
-                    source_file = operation['source']
-                    LOGGER.debug('Removing file from git: %s', source_file)
-                    await git.remove_files(
-                        run.working_directory, [source_file]
-                    )
-
-            # Add files to git staging area (new files and renamed files)
-            if all_copied_files:
-                await git.add_files(run.working_directory, all_copied_files)
-
-            # Create commit message in specified format
-            workflow_name = run.workflow.configuration.name
-            workflow_description = (
-                run.workflow.configuration.description
-                or 'No description provided'
-            )
-
-            commit_message = (
-                f'imbi-automations: {workflow_name}\n\n{workflow_description}'
-            )
-
-            # Add skip-checks trailer if ci_skip_checks is enabled
-            if run.workflow.configuration.ci_skip_checks:
-                commit_message += '\n[ci skip]\n'
-
-            # Commit changes
-            commit_sha = await git.commit_changes(
-                working_directory=run.working_directory,
-                message=commit_message,
-                author_name='Imbi Automations',
-                author_email='noreply@aweber.com',
-            )
-
-            if commit_sha:
-                LOGGER.info(
-                    'Successfully committed workflow changes for '
-                    'project %s: %s',
-                    project_info,
-                    commit_sha,
-                )
-
-                # Push changes to remote repository
-                try:
-                    if run.workflow.configuration.create_pull_request:
-                        # Get current branch name for upstream tracking
-                        current_branch = await git.get_current_branch(
-                            run.working_directory
-                        )
-                        await git.push_changes(
-                            working_directory=run.working_directory,
-                            remote='origin',
-                            branch=current_branch,
-                            set_upstream=True,
-                        )
-                    else:
-                        await git.push_changes(
-                            working_directory=run.working_directory,
-                            remote='origin',
-                        )
-                    LOGGER.info(
-                        'Successfully pushed workflow changes for project %s',
-                        project_info,
-                    )
-                except (OSError, subprocess.CalledProcessError) as exc:
-                    LOGGER.error(
-                        'Failed to push workflow changes for project %s: %s',
-                        project_info,
-                        exc,
-                    )
-                    # Don't re-raise - commit succeeded, push failure secondary
-            else:
-                LOGGER.info(
-                    'No changes to commit for project %s '
-                    '(files already up-to-date)',
-                    project_info,
-                )
-
-        except (OSError, subprocess.CalledProcessError) as exc:
-            LOGGER.error(
-                'Failed to commit workflow changes for project %s: %s',
-                project_info,
-                exc,
-            )
-            # Don't re-raise - workflow should complete even if commit fails
 
     async def _create_pull_request(
         self, run: models.WorkflowRun, project_info: str
@@ -2393,7 +2316,7 @@ class WorkflowEngine:
         """
         try:
             if not run.github_repository:
-                LOGGER.warning(
+                self.logger.warning(
                     'Cannot create pull request for %s - no GitHub repo',
                     project_info,
                 )
@@ -2452,20 +2375,20 @@ class WorkflowEngine:
             if process.returncode == 0:
                 # Extract PR URL from gh output
                 pr_url = stdout_str.strip()
-                LOGGER.info(
+                self.logger.info(
                     'Successfully created pull request for project %s: %s',
                     project_info,
                     pr_url,
                 )
             else:
-                LOGGER.error(
+                self.logger.error(
                     'Failed to create pull request for project %s: %s',
                     project_info,
                     stderr_str or stdout_str,
                 )
 
         except (TimeoutError, OSError, subprocess.CalledProcessError) as exc:
-            LOGGER.error(
+            self.logger.error(
                 'Error creating pull request for project %s: %s',
                 project_info,
                 exc,
@@ -2474,12 +2397,15 @@ class WorkflowEngine:
 
     async def execute(self, run: models.WorkflowRun) -> str:
         """Execute a complete workflow run."""
+        # Set logger to workflow directory name for this execution
+        self.set_workflow_logger(run.workflow.path)
+
         project_info = (
             f'{run.imbi_project.name} ({run.imbi_project.project_type})'
             if run.imbi_project
             else 'Unknown Project'
         )
-        LOGGER.debug(
+        self.logger.debug(
             'Executing workflow: %s for project %s',
             run.workflow.configuration.name,
             project_info,
@@ -2490,7 +2416,7 @@ class WorkflowEngine:
 
         # Evaluate remote conditions before cloning
         if not await self._evaluate_remote_conditions(run):
-            LOGGER.info(
+            self.logger.info(
                 'Skipping workflow execution for project %s - '
                 'remote conditions not met',
                 project_info,
@@ -2502,7 +2428,7 @@ class WorkflowEngine:
             try:
                 await self._setup_repository_clone(run)
             except RuntimeError as exc:
-                LOGGER.warning(
+                self.logger.warning(
                     'Skipping workflow execution for project %s - %s',
                     project_info,
                     exc,
@@ -2515,13 +2441,13 @@ class WorkflowEngine:
                 config=self._claude_code_config,
                 working_directory=run.working_directory,
             )
-            LOGGER.debug(
+            self.logger.debug(
                 'Initialized Claude Code client for workflow execution'
             )
 
         # Evaluate workflow conditions
         if not await self._evaluate_conditions(run):
-            LOGGER.info(
+            self.logger.info(
                 'Skipping workflow execution for project %s - '
                 'conditions not met',
                 project_info,
@@ -2541,7 +2467,7 @@ class WorkflowEngine:
                 if action.condition and not self._evaluate_action_condition(
                     action.condition, context
                 ):
-                    LOGGER.debug(
+                    self.logger.debug(
                         'Skipping action %s for project %s - '
                         'condition not met: %s',
                         action.name,
@@ -2550,14 +2476,14 @@ class WorkflowEngine:
                     )
                     continue
 
-                LOGGER.debug(
+                self.logger.debug(
                     'Executing action: %s for project %s',
                     action.name,
                     project_info,
                 )
                 await self._execute_action(action, context)
             except (OSError, subprocess.CalledProcessError) as exc:
-                LOGGER.error(
+                self.logger.error(
                     'Action %s failed for project %s: %s',
                     action.name,
                     project_info,
@@ -2565,7 +2491,7 @@ class WorkflowEngine:
                 )
                 raise
 
-        # Check if any changes were made and handle git operations
+        # Check if any changes were made during workflow execution
         changes_made = False
         pr_created = False
 
@@ -2573,17 +2499,31 @@ class WorkflowEngine:
             try:
                 from . import git
 
-                # Check if there are any changes to commit
+                # Check if any actions created commits during execution
+                # Actions like shell, ai-editor, etc. create their own commits
+                commits_made = any(
+                    result.get('result', {}).get('committed', False)
+                    for result in self.action_results._results.values()
+                    if isinstance(result.get('result'), dict)
+                )
+
+                # Also check for any remaining uncommitted changes
                 changed_files = await git.get_git_status(run.working_directory)
 
-                if changed_files:
+                if commits_made or changed_files:
                     changes_made = True
-                    LOGGER.debug(
-                        'Found %d changed files for project %s: %s',
-                        len(changed_files),
-                        project_info,
-                        ', '.join(changed_files[:5]),  # Show first 5 files
-                    )
+                    if commits_made and not changed_files:
+                        self.logger.debug(
+                            'Actions created commits for project %s',
+                            project_info,
+                        )
+                    else:
+                        self.logger.debug(
+                            'Found %d changed files for project %s: %s',
+                            len(changed_files),
+                            project_info,
+                            ', '.join(changed_files[:5]),  # Show first 5 files
+                        )
 
                     # Create feature branch if pull request is requested
                     if run.workflow.configuration.create_pull_request:
@@ -2594,7 +2534,7 @@ class WorkflowEngine:
                         await git.create_branch(
                             run.working_directory, branch_name
                         )
-                        LOGGER.info(
+                        self.logger.info(
                             'Created feature branch %s for PR workflow',
                             branch_name,
                         )
@@ -2613,7 +2553,7 @@ class WorkflowEngine:
                     else:
                         await git.push_changes(run.working_directory)
 
-                    LOGGER.debug(
+                    self.logger.debug(
                         'Pushed all workflow changes to remote for project %s',
                         project_info,
                     )
@@ -2623,13 +2563,13 @@ class WorkflowEngine:
                         await self._create_pull_request(run, project_info)
                         pr_created = True
                 else:
-                    LOGGER.debug(
+                    self.logger.debug(
                         'No changes detected for project %s, skipping git ops',
                         project_info,
                     )
 
             except (OSError, subprocess.CalledProcessError) as exc:
-                LOGGER.warning(
+                self.logger.warning(
                     'Failed to push workflow changes for project %s: %s',
                     project_info,
                     exc,
@@ -2639,24 +2579,26 @@ class WorkflowEngine:
         # Enhanced completion messaging based on what actually happened
         if changes_made:
             if pr_created:
-                LOGGER.info(
+                self.logger.info(
                     'Workflow completed successfully for project %s - '
                     'changes pushed and pull request created',
                     project_info,
                 )
+                return 'successful_pr_created'
             else:
-                LOGGER.info(
+                self.logger.info(
                     'Workflow completed successfully for project %s - '
                     'changes pushed to main branch',
                     project_info,
                 )
+                return 'successful_changes_pushed'
         else:
-            LOGGER.info(
+            self.logger.info(
                 'Workflow completed successfully for project %s - '
                 'no changes needed',
                 project_info,
             )
-        return 'successful'
+            return 'successful_no_changes'
 
     async def _setup_repository_clone(self, run: models.WorkflowRun) -> None:
         """Set up repository cloning for workflows that require it.
@@ -2692,7 +2634,7 @@ class WorkflowEngine:
                 'GitHub repository or GitLab project to be available.'
             )
 
-        LOGGER.debug('Cloning repository %s for workflow execution', repo_name)
+        self.logger.debug('Cloning repository %s', repo_name)
 
         try:
             working_directory = await git.clone_repository(
@@ -2704,10 +2646,10 @@ class WorkflowEngine:
             # Update the WorkflowRun with the working directory
             run.working_directory = working_directory
 
-            LOGGER.debug(
+            self.logger.debug(
                 'Repository cloned to working directory: %s', working_directory
             )
 
         except (OSError, subprocess.CalledProcessError, RuntimeError) as exc:
-            LOGGER.error('Failed to clone repository %s: %s', repo_name, exc)
+            self.logger.error('Failed to clone %s: %s', repo_name, exc)
             raise

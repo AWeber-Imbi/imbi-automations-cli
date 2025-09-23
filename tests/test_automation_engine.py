@@ -216,7 +216,7 @@ class TestAutomationEngineImbiProjectTypes(unittest.TestCase):
             config=['config.toml'],
             workflow=self.workflow_dir,
             verbose=False,
-            imbi_project_type='frontend-applications',
+            project_type='frontend-applications',
         )
 
         # Mock configuration with Imbi client

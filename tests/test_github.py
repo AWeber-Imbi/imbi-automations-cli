@@ -193,11 +193,10 @@ class TestGitHubClient(AsyncTestCase):
             ),
         )
 
-        with self.assertRaises(RuntimeError) as cm:
+        with self.assertRaises(models.GitHubNotFoundError) as cm:
             await self.instance.get_repository('testorg', 'private-repo')
 
-        self.assertIn('GitHub API access denied', str(cm.exception))
-        self.assertIn('Repository access blocked', str(cm.exception))
+        self.assertIn('Access denied for repository', str(cm.exception))
 
     async def test_get_repository_forbidden_no_content(self) -> None:
         """Test repository retrieval with 403 Forbidden and no content."""
@@ -208,11 +207,10 @@ class TestGitHubClient(AsyncTestCase):
             ),
         )
 
-        with self.assertRaises(RuntimeError) as cm:
+        with self.assertRaises(models.GitHubNotFoundError) as cm:
             await self.instance.get_repository('testorg', 'private-repo')
 
-        self.assertIn('GitHub API access denied', str(cm.exception))
-        self.assertIn('Access forbidden', str(cm.exception))
+        self.assertIn('Access denied for repository', str(cm.exception))
 
     async def test_get_repository_other_http_error(self) -> None:
         """Test repository retrieval with other HTTP errors."""
@@ -286,15 +284,14 @@ class TestGitHubClient(AsyncTestCase):
         """Test repository retrieval by ID with 403 Forbidden."""
         self.http_client_side_effect = httpx.Response(
             http.HTTPStatus.FORBIDDEN,
-            content=b'Access denied',
+            json={'message': 'Access denied'},
             request=httpx.Request(
                 'GET', 'https://api.github.com/repositories/12345'
             ),
         )
 
-        result = await self.instance.get_repository_by_id(12345)
-
-        self.assertIsNone(result)
+        with self.assertRaises(models.GitHubNotFoundError):
+            await self.instance.get_repository_by_id(12345)
 
     async def test_get_repository_by_id_server_error(self) -> None:
         """Test repository retrieval by ID with server error."""

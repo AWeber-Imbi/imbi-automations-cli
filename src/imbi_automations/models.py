@@ -6,6 +6,23 @@ import typing
 
 import pydantic
 
+# Exception Classes
+
+
+class GitHubRateLimitError(Exception):
+    """Raised when GitHub API rate limit is exceeded."""
+
+    def __init__(self, message: str, reset_time: str | None = None) -> None:
+        super().__init__(message)
+        self.reset_time = reset_time
+
+
+class GitHubNotFoundError(Exception):
+    """Raised when GitHub repository is not found (404)."""
+
+    pass
+
+
 # Configuration Models
 
 

@@ -32,7 +32,7 @@ class TestWorkflowFunction(unittest.TestCase):
         with self.assertRaises(argparse.ArgumentTypeError) as cm:
             cli.workflow('/nonexistent/path')
 
-        self.assertIn('Invalid workflow path', str(cm.exception))
+        self.assertIn('Workflow path is not a directory', str(cm.exception))
 
     def test_workflow_missing_config_toml(self) -> None:
         """Test workflow function with directory missing config.toml."""
@@ -40,7 +40,9 @@ class TestWorkflowFunction(unittest.TestCase):
             with self.assertRaises(argparse.ArgumentTypeError) as cm:
                 cli.workflow(tmp_dir)
 
-            self.assertIn('Invalid workflow path', str(cm.exception))
+            self.assertIn(
+                'Missing config.toml in workflow directory', str(cm.exception)
+            )
 
     def test_workflow_file_instead_of_directory(self) -> None:
         """Test workflow function with file instead of directory."""
@@ -48,7 +50,9 @@ class TestWorkflowFunction(unittest.TestCase):
             with self.assertRaises(argparse.ArgumentTypeError) as cm:
                 cli.workflow(tmp_file.name)
 
-            self.assertIn('Invalid workflow path', str(cm.exception))
+            self.assertIn(
+                'Workflow path is not a directory', str(cm.exception)
+            )
 
 
 class TestParseArgs(unittest.TestCase):

@@ -91,8 +91,17 @@ def load_configuration(config_file: typing.TextIO) -> models.Configuration:
 def workflow(path: str) -> models.Workflow:
     """Argument type for parsing a workflow and its configuration."""
     path_obj = pathlib.Path(path)
-    if not path_obj.is_dir() or not (path_obj / 'config.toml').is_file():
-        raise argparse.ArgumentTypeError(f'Invalid workflow path: {path}')
+    if not path_obj.is_dir():
+        raise argparse.ArgumentTypeError(
+            f'Workflow path is not a directory: {path}'
+        )
+
+    config_file = path_obj / 'config.toml'
+    if not config_file.is_file():
+        raise argparse.ArgumentTypeError(
+            f'Missing config.toml in workflow directory: {path}\n'
+            f'Expected: {config_file}'
+        )
     with path_obj.joinpath('config.toml').open('r') as f:
         return models.Workflow(
             path=path_obj,
