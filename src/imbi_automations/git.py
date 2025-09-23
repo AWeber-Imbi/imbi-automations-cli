@@ -12,9 +12,7 @@ LOGGER = logging.getLogger(__name__)
 
 
 async def _run_git_command(
-    command: list[str],
-    cwd: pathlib.Path,
-    timeout: int = 3600,  # noqa: ASYNC109
+    command: list[str], cwd: pathlib.Path, timeout_seconds: int = 3600
 ) -> tuple[int, str, str]:
     """
     Run a git command and return return code, stdout, stderr.
@@ -22,7 +20,7 @@ async def _run_git_command(
     Args:
         command: Git command and arguments
         cwd: Working directory
-        timeout: Timeout in seconds (None for no timeout)
+        timeout_seconds: Timeout in seconds (None for no timeout)
 
     """
     LOGGER.debug('Running git command: %s', ' '.join(command))
@@ -36,12 +34,12 @@ async def _run_git_command(
 
     try:
         stdout, stderr = await asyncio.wait_for(
-            process.communicate(), timeout=timeout
+            process.communicate(), timeout=timeout_seconds
         )
     except TimeoutError:
         LOGGER.warning(
             'Git command timed out after %d seconds: %s',
-            timeout,
+            timeout_seconds,
             ' '.join(command),
         )
         try:
@@ -50,7 +48,7 @@ async def _run_git_command(
         except TimeoutError:
             process.kill()
             await process.wait()
-        return -1, '', f'Command timed out after {timeout} seconds'
+        return -1, '', f'Command timed out after {timeout_seconds} seconds'
     else:
         stdout_str = stdout.decode('utf-8')
         stderr_str = stderr.decode('utf-8')
@@ -100,7 +98,7 @@ async def clone_repository(
         returncode, stdout, stderr = await _run_git_command(
             command,
             cwd=temp_dir,
-            timeout=600,  # 10 minute timeout
+            timeout_seconds=600,  # 10 minute timeout
         )
 
         if returncode != 0:
@@ -183,7 +181,7 @@ async def add_files(working_directory: pathlib.Path, files: list[str]) -> None:
     command = ['git', 'add'] + files
 
     returncode, stdout, stderr = await _run_git_command(
-        command, cwd=working_directory, timeout=60
+        command, cwd=working_directory, timeout_seconds=60
     )
 
     if returncode != 0:
@@ -217,7 +215,7 @@ async def remove_files(
     command = ['git', 'rm'] + files
 
     returncode, stdout, stderr = await _run_git_command(
-        command, cwd=working_directory, timeout=60
+        command, cwd=working_directory, timeout_seconds=60
     )
 
     if returncode != 0:
@@ -258,7 +256,7 @@ async def commit_changes(
         command.extend(['--author', f'{author_name} <{author_email}>'])
 
     returncode, stdout, stderr = await _run_git_command(
-        command, cwd=working_directory, timeout=60
+        command, cwd=working_directory, timeout_seconds=60
     )
 
     if returncode != 0:
@@ -300,7 +298,7 @@ async def get_git_status(working_directory: pathlib.Path) -> list[str]:
     command = ['git', 'status', '--porcelain']
 
     returncode, stdout, stderr = await _run_git_command(
-        command, cwd=working_directory, timeout=30
+        command, cwd=working_directory, timeout_seconds=30
     )
 
     if returncode != 0:
@@ -356,7 +354,7 @@ async def push_changes(
     returncode, stdout, stderr = await _run_git_command(
         command,
         cwd=working_directory,
-        timeout=300,  # 5 minute timeout
+        timeout_seconds=300,  # 5 minute timeout
     )
 
     if returncode != 0:
@@ -399,7 +397,7 @@ async def create_branch(
     )
 
     returncode, stdout, stderr = await _run_git_command(
-        command, cwd=working_directory, timeout=30
+        command, cwd=working_directory, timeout_seconds=30
     )
 
     if returncode != 0:
@@ -427,7 +425,7 @@ async def get_current_branch(working_directory: pathlib.Path) -> str:
     command = ['git', 'branch', '--show-current']
 
     returncode, stdout, stderr = await _run_git_command(
-        command, cwd=working_directory, timeout=30
+        command, cwd=working_directory, timeout_seconds=30
     )
 
     if returncode != 0:
@@ -460,7 +458,7 @@ async def get_commit_messages_since_branch(
     command = ['git', 'log', f'{base_branch}..HEAD', '--pretty=format:%s']
 
     returncode, stdout, stderr = await _run_git_command(
-        command, cwd=working_directory, timeout=30
+        command, cwd=working_directory, timeout_seconds=30
     )
 
     if returncode != 0:

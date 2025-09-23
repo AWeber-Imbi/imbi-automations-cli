@@ -36,7 +36,7 @@ class Utils:
             LOGGER.debug('Successfully appended to file: %s', file)
             return 'success'
 
-        except Exception as exc:  # noqa: BLE001
+        except (OSError, UnicodeDecodeError) as exc:
             LOGGER.error('Failed to append to file %s: %s', file, exc)
             return 'failed'
 

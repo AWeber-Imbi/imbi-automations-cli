@@ -7,6 +7,7 @@ import re
 import subprocess
 import typing
 
+import httpx
 import jinja2
 
 from imbi_automations import (
@@ -352,7 +353,12 @@ class AutomationEngine:
                             'Found GitHub repository: %s',
                             github_repository.full_name,
                         )
-                except Exception as exc:  # noqa: BLE001
+                except (
+                    httpx.HTTPError,
+                    httpx.RequestError,
+                    ValueError,
+                    RuntimeError,
+                ) as exc:
                     LOGGER.warning(
                         'Failed to lookup GitHub repository for '
                         'Imbi project %d (%s): %s',
@@ -365,7 +371,12 @@ class AutomationEngine:
                     gitlab_project = await self._get_gitlab_project(
                         imbi_project
                     )
-                except Exception as exc:  # noqa: BLE001
+                except (
+                    httpx.HTTPError,
+                    httpx.RequestError,
+                    ValueError,
+                    RuntimeError,
+                ) as exc:
                     LOGGER.warning(
                         'Failed to lookup GitLab project for '
                         'Imbi project %d (%s): %s',
@@ -1274,7 +1285,7 @@ class WorkflowEngine:
             )
             return bool(result)
 
-        except Exception as exc:  # noqa: BLE001
+        except (ValueError, KeyError, AttributeError) as exc:
             LOGGER.error(
                 'Failed to evaluate action condition "%s": %s', condition, exc
             )

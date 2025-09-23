@@ -94,7 +94,7 @@ class TestGitModule(base.AsyncTestCase):
         mock_wait_for.side_effect = [TimeoutError(), None]
 
         result = await git._run_git_command(
-            ['git', 'clone', 'large-repo'], self.git_dir, timeout=1
+            ['git', 'clone', 'large-repo'], self.git_dir, timeout_seconds=1
         )
 
         self.assertEqual(result, (-1, '', 'Command timed out after 1 seconds'))
@@ -119,7 +119,7 @@ class TestGitModule(base.AsyncTestCase):
         mock_wait_for.side_effect = [TimeoutError(), TimeoutError(), None]
 
         result = await git._run_git_command(
-            ['git', 'clone', 'large-repo'], self.git_dir, timeout=1
+            ['git', 'clone', 'large-repo'], self.git_dir, timeout_seconds=1
         )
 
         self.assertEqual(result, (-1, '', 'Command timed out after 1 seconds'))
@@ -239,7 +239,7 @@ class TestGitModule(base.AsyncTestCase):
                 str(expected_path),
             ],
             cwd=pathlib.Path(mock_temp_dir),
-            timeout=600,
+            timeout_seconds=600,
         )
 
     @mock.patch('imbi_automations.git._run_git_command')
@@ -268,7 +268,7 @@ class TestGitModule(base.AsyncTestCase):
                 str(expected_path),
             ],
             cwd=pathlib.Path(mock_temp_dir),
-            timeout=600,
+            timeout_seconds=600,
         )
 
     @mock.patch('pathlib.Path.exists')
@@ -348,7 +348,7 @@ class TestGitModule(base.AsyncTestCase):
         mock_run_git.assert_called_once_with(
             ['git', 'add', '.gitignore', 'config.json', 'subdir/script.sh'],
             cwd=self.git_dir,
-            timeout=60,
+            timeout_seconds=60,
         )
 
     @mock.patch('imbi_automations.git._run_git_command')
@@ -401,7 +401,7 @@ class TestGitModule(base.AsyncTestCase):
                 'Test Author <test@example.com>',
             ],
             cwd=self.git_dir,
-            timeout=60,
+            timeout_seconds=60,
         )
 
     @mock.patch('imbi_automations.git._run_git_command')
@@ -419,7 +419,7 @@ class TestGitModule(base.AsyncTestCase):
         mock_run_git.assert_called_once_with(
             ['git', 'commit', '-m', 'Simple commit'],
             cwd=self.git_dir,
-            timeout=60,
+            timeout_seconds=60,
         )
 
     @mock.patch('imbi_automations.git._run_git_command')
@@ -468,7 +468,9 @@ class TestGitModule(base.AsyncTestCase):
 
         # Verify git status command
         mock_run_git.assert_called_once_with(
-            ['git', 'status', '--porcelain'], cwd=self.git_dir, timeout=30
+            ['git', 'status', '--porcelain'],
+            cwd=self.git_dir,
+            timeout_seconds=30,
         )
 
     @mock.patch('imbi_automations.git._run_git_command')
@@ -504,7 +506,9 @@ class TestGitModule(base.AsyncTestCase):
 
         # Verify git push command
         mock_run_git.assert_called_once_with(
-            ['git', 'push', 'origin', 'main'], cwd=self.git_dir, timeout=300
+            ['git', 'push', 'origin', 'main'],
+            cwd=self.git_dir,
+            timeout_seconds=300,
         )
 
     @mock.patch('imbi_automations.git._run_git_command')
@@ -518,7 +522,7 @@ class TestGitModule(base.AsyncTestCase):
 
         # Verify git push command without branch
         mock_run_git.assert_called_once_with(
-            ['git', 'push', 'origin'], cwd=self.git_dir, timeout=300
+            ['git', 'push', 'origin'], cwd=self.git_dir, timeout_seconds=300
         )
 
     @mock.patch('imbi_automations.git._run_git_command')
@@ -532,7 +536,7 @@ class TestGitModule(base.AsyncTestCase):
         mock_run_git.assert_called_once_with(
             ['git', 'push', '--force', 'origin', 'main'],
             cwd=self.git_dir,
-            timeout=300,
+            timeout_seconds=300,
         )
 
     @mock.patch('imbi_automations.git._run_git_command')
@@ -557,7 +561,7 @@ class TestGitModule(base.AsyncTestCase):
         mock_run_git.assert_called_once_with(
             ['git', 'rm', 'old-file.txt', 'another.txt'],
             cwd=self.git_dir,
-            timeout=60,
+            timeout_seconds=60,
         )
 
     @mock.patch('imbi_automations.git._run_git_command')
