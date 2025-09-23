@@ -445,17 +445,33 @@ class Imbi(http.BaseURLClient):
             return
 
         LOGGER.debug(
-            'Updating fact %s to %s for project %d',
+            'Updating fact %s to %s for project %d (fact_type_id=%s)',
             fact_name or fact_type_id,
             value,
             project_id,
+            fact_type_id,
         )
 
         payload = [{'fact_type_id': fact_type_id, 'value': value}]
+        LOGGER.debug('Sending payload: %s', payload)
         response = await self.post(
             f'/projects/{project_id}/facts', json=payload
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError:
+            try:
+                error_body = response.text
+            except (AttributeError, UnicodeDecodeError):
+                error_body = '<unable to read response body>'
+            LOGGER.error(
+                'Failed to update fact %s for project %d: HTTP %d - %s',
+                fact_name or fact_type_id,
+                project_id,
+                response.status_code,
+                error_body,
+            )
+            raise
 
     async def update_project_facts(
         self,
@@ -476,10 +492,26 @@ class Imbi(http.BaseURLClient):
             {'fact_type_id': fact_type_id, 'value': value}
             for fact_type_id, value in facts
         ]
+        LOGGER.debug(
+            'Sending facts payload for project %d: %s', project_id, payload
+        )
         response = await self.post(
             f'/projects/{project_id}/facts', json=payload
         )
-        response.raise_for_status()
+        try:
+            response.raise_for_status()
+        except httpx.HTTPStatusError:
+            try:
+                error_body = response.text
+            except (AttributeError, UnicodeDecodeError):
+                error_body = '<unable to read response body>'
+            LOGGER.error(
+                'Failed to update facts for project %d: HTTP %d - %s',
+                project_id,
+                response.status_code,
+                error_body,
+            )
+            raise
 
     async def update_github_identifier(
         self, project_id: int, identifier_name: str, value: int | str | None

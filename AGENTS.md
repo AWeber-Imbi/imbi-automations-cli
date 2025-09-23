@@ -104,34 +104,89 @@ workflows/
 
 ### Workflow Conditions
 
-Workflows support conditional execution based on repository state. Conditions are evaluated after cloning but before action execution:
+Workflows support conditional execution based on repository state. There are two types of conditions:
 
+#### Local Conditions (Post-Clone)
+Evaluated after cloning the repository:
 - **`file_exists`**: Check if a file exists at the specified path
 - **`file_not_exists`**: Check if a file does not exist at the specified path
 - **`file_contains`**: Check if a file contains specified text or matches a regex pattern
 
-#### File Contains Condition
+#### Remote Conditions (Pre-Clone)
+Evaluated before cloning using GitHub API, providing performance benefits:
+- **`remote_file_exists`**: Check if a file exists in the remote repository
+- **`remote_file_not_exists`**: Check if a file does not exist in the remote repository
+- **`remote_file_contains`**: Check if a remote file contains specified text or regex pattern
 
-The `file_contains` condition supports both string literals and regular expressions:
+#### File Contains Conditions (Local and Remote)
+
+Both `file_contains` and `remote_file_contains` support string literals and regular expressions:
 
 ```toml
-# String literal matching
+# Local conditions (require git clone)
+[[conditions]]
+file_exists = "package.json"
+
 [[conditions]]
 file_contains = "compose.yml"
 file = "bootstrap"
 
-# Regex pattern matching (version numbers)
+# Remote conditions (checked before cloning - more efficient)
 [[conditions]]
-file_contains = "version:\\s+\\d+\\.\\d+\\.\\d+"
-file = "package.json"
+remote_file_exists = "README.md"
 
-# Regex pattern matching (multiline)
 [[conditions]]
-file_contains = "FROM python:\\d+\\.\\d+"
-file = "Dockerfile"
+remote_file_not_exists = "legacy-config.json"
+
+[[conditions]]
+remote_file_contains = "node.*18"
+remote_file = ".nvmrc"
+
+# Mixed local and remote conditions
+[[conditions]]
+remote_file_exists = "package.json"  # Check remotely first
+
+[[conditions]]
+file_contains = "test.*script"       # Then check locally after clone
+file = "package.json"
 ```
 
-**Performance**: String search is performed first (fast), with regex fallback only when string search fails. Invalid regex patterns gracefully fall back to string search behavior.
+#### Advanced Pattern Examples
+
+```toml
+# Version checking with regex
+[[conditions]]
+remote_file_contains = "\"version\":\\s*\"\\d+\\.\\d+\\.\\d+\""
+remote_file = "package.json"
+
+# Docker base image checking
+[[conditions]]
+remote_file_contains = "FROM python:[3-4]\\.[0-9]+"
+remote_file = "Dockerfile"
+
+# GitHub Actions workflow detection
+[[conditions]]
+remote_file_exists = ".github/workflows/ci.yml"
+
+# Legacy file cleanup detection
+[[conditions]]
+remote_file_not_exists = ".travis.yml"  # No Travis CI
+[[conditions]]
+remote_file_exists = ".github/workflows"  # Has GitHub Actions
+```
+
+#### Performance Benefits
+
+**Remote Conditions:**
+- ⚡ **Faster**: GitHub API calls are faster than git clone
+- 💾 **Bandwidth efficient**: Skip clone entirely for non-matching repos
+- 🔄 **Early filtering**: Fail fast before expensive operations
+
+**Best Practices:**
+- Use remote conditions for initial filtering (file existence, basic content checks)
+- Use local conditions for complex file analysis requiring full repository access
+- String search is performed first (fast), with regex fallback only when string search fails
+- Invalid regex patterns gracefully fall back to string search behavior
 
 ## Code Style and Standards
 

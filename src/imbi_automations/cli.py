@@ -49,11 +49,11 @@ def determine_iterator_type(
         AutomationIterator enum value corresponding to the target type
 
     """
-    if args.imbi_project_id:
+    if args.project_id:
         return engine.AutomationIterator.imbi_project
-    elif args.imbi_project_type:
+    elif args.project_type:
         return engine.AutomationIterator.imbi_project_types
-    elif args.all_imbi_projects:
+    elif args.all_projects:
         return engine.AutomationIterator.imbi_projects
     elif args.github_repository:
         return engine.AutomationIterator.github_project
@@ -125,20 +125,18 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     # Target argument group - specify how to target repositories
     target_group = parser.add_mutually_exclusive_group(required=True)
     target_group.add_argument(
-        '--imbi-project-id',
+        '--project-id',
         type=int,
         metavar='ID',
-        help='Process a single project by Imbi Project ID',
+        help='Process a single project by Project ID',
     )
     target_group.add_argument(
-        '--imbi-project-type',
+        '--project-type',
         metavar='SLUG',
-        help='Process all Imbi projects of a specific type slug',
+        help='Process all projects of a specific type slug',
     )
     target_group.add_argument(
-        '--all-imbi-projects',
-        action='store_true',
-        help='Process all Imbi projects',
+        '--all-projects', action='store_true', help='Process all projects'
     )
     target_group.add_argument(
         '--github-repository',

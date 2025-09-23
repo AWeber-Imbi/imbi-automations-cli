@@ -1,5 +1,6 @@
 import http
 import unittest
+from unittest import mock
 
 import httpx
 
@@ -985,6 +986,232 @@ class TestGitHubClient(AsyncTestCase):
         await self.instance._remove_team_from_repository(
             'testorg', 'cc', 'test-repo'
         )
+
+    async def test_analyze_python_versions_version_mismatch(self) -> None:
+        """Test Python version analysis when versions don't match."""
+        # Test data for version mismatch scenario
+
+        # Mock the helper methods to return different versions
+        with (
+            mock.patch.object(
+                self.instance,
+                '_extract_dockerfile_python_version',
+                return_value='3.12',
+            ),
+            mock.patch.object(
+                self.instance,
+                '_extract_workflow_python_versions',
+                return_value={'python-api-ci.yml': '3.9'},
+            ),
+        ):
+            result = await self.instance.analyze_python_versions(
+                org='test-org',
+                repo_name='test-repo',
+                imbi_project_id=123,
+                imbi_project_facts={'Programming Language': 'Python 3.9'},
+                imbi_project_name='test-project',
+            )
+
+        # Verify analysis results
+        self.assertTrue(result['analysis_successful'])
+        self.assertEqual(result['dockerfile_version'], '3.12')
+        expected_workflows = {'python-api-ci.yml': '3.9'}
+        self.assertEqual(result['workflow_versions'], expected_workflows)
+        self.assertEqual(result['imbi_version'], 'Python 3.9')
+        self.assertEqual(result['source_of_truth'], '3.12')
+        self.assertTrue(result['requires_workflow_update'])
+        self.assertTrue(result['requires_imbi_update'])
+        self.assertEqual(result['correct_language_version'], 'Python 3.12')
+
+    async def test_analyze_python_versions_versions_match(self) -> None:
+        """Test Python version analysis when all versions match."""
+        # Test data for matching versions scenario
+
+        # Mock all versions to match
+        with (
+            mock.patch.object(
+                self.instance,
+                '_extract_dockerfile_python_version',
+                return_value='3.12',
+            ),
+            mock.patch.object(
+                self.instance,
+                '_extract_workflow_python_versions',
+                return_value={'python-api-ci.yml': '3.12'},
+            ),
+        ):
+            result = await self.instance.analyze_python_versions(
+                org='test-org',
+                repo_name='test-repo',
+                imbi_project_id=123,
+                imbi_project_facts={'Programming Language': 'Python 3.12'},
+                imbi_project_name='test-project',
+            )
+
+        # Verify no updates needed
+        self.assertTrue(result['analysis_successful'])
+        self.assertFalse(result['requires_workflow_update'])
+        self.assertFalse(result['requires_imbi_update'])
+
+    async def test_extract_dockerfile_python_version_success(self) -> None:
+        """Test extracting Python version from Dockerfile successfully."""
+        # Mock Dockerfile content
+        dockerfile_content = (
+            'FROM 522478560142.dkr.ecr.us-east-1.amazonaws.com/common/'
+            'python3-consumer:3.12.4-1\n'
+            'ENV SERVICE=test-service\n'
+            'EXPOSE 8000\n'
+        )
+
+        import base64
+
+        encoded_content = base64.b64encode(
+            dockerfile_content.encode()
+        ).decode()
+
+        self.http_client_side_effect = httpx.Response(
+            200,
+            json={'content': encoded_content},
+            request=httpx.Request(
+                'GET',
+                'https://api.github.com/repos/test-org/test-repo/contents/Dockerfile',
+            ),
+        )
+
+        result = await self.instance._extract_dockerfile_python_version(
+            'test-org', 'test-repo'
+        )
+
+        self.assertEqual(result, '3.12')
+
+    async def test_extract_dockerfile_python_version_not_found(self) -> None:
+        """Test extracting Python version when Dockerfile doesn't exist."""
+        self.http_client_side_effect = httpx.Response(
+            404,
+            request=httpx.Request(
+                'GET',
+                'https://api.github.com/repos/test-org/test-repo/contents/Dockerfile',
+            ),
+        )
+
+        result = await self.instance._extract_dockerfile_python_version(
+            'test-org', 'test-repo'
+        )
+
+        self.assertIsNone(result)
+
+    async def test_extract_workflow_python_versions_success(self) -> None:
+        """Test extracting Python versions from workflow files."""
+        # Mock workflows directory listing
+        workflows_listing = [
+            {'name': 'python-api-ci.yml', 'type': 'file'},
+            {'name': 'python-api-deploy.yml', 'type': 'file'},
+            {'name': 'other-workflow.yml', 'type': 'file'},
+        ]
+
+        self.http_client_side_effect = httpx.Response(
+            200,
+            json=workflows_listing,
+            request=httpx.Request(
+                'GET',
+                'https://api.github.com/repos/test-org/test-repo/contents/.github/workflows',
+            ),
+        )
+
+        # Mock individual workflow file content extraction
+        with mock.patch.object(
+            self.instance,
+            '_extract_workflow_file_python_version',
+            side_effect=['3.9', '3.9', None],  # CI and deploy have 3.9
+        ) as mock_extract:
+            result = await self.instance._extract_workflow_python_versions(
+                'test-org', 'test-repo'
+            )
+
+        expected_result = {
+            'python-api-ci.yml': '3.9',
+            'python-api-deploy.yml': '3.9',
+        }
+        self.assertEqual(result, expected_result)
+        self.assertEqual(mock_extract.call_count, 3)
+
+    async def test_extract_workflow_file_python_version_success(self) -> None:
+        """Test extracting Python version from specific workflow file."""
+        # Mock workflow file content with python3-testing image
+        workflow_content = """
+name: CI
+jobs:
+  test:
+    container:
+      image: "python3-testing:3.9"
+"""
+
+        import base64
+
+        encoded_content = base64.b64encode(workflow_content.encode()).decode()
+
+        self.http_client_side_effect = httpx.Response(
+            200,
+            json={'content': encoded_content},
+            request=httpx.Request(
+                'GET',
+                'https://api.github.com/repos/test-org/test-repo/contents/.github/workflows/ci.yml',
+            ),
+        )
+
+        result = await self.instance._extract_workflow_file_python_version(
+            'test-org', 'test-repo', 'ci.yml'
+        )
+
+        self.assertEqual(result, '3.9')
+
+    def test_extract_imbi_python_version_success(self) -> None:
+        """Test extracting Python version from Imbi facts."""
+        imbi_project = models.ImbiProject(
+            id=123,
+            dependencies=None,
+            description='Test project',
+            environments=None,
+            facts={'Programming Language': 'Python 3.11'},
+            identifiers=None,
+            links=None,
+            name='test-project',
+            namespace='test-namespace',
+            namespace_slug='test-namespace',
+            project_score=None,
+            project_type='API',
+            project_type_slug='api',
+            slug='test-project',
+            urls=None,
+            imbi_url='https://imbi.example.com/projects/123',
+        )
+
+        result = self.instance._extract_imbi_python_version(imbi_project)
+        self.assertEqual(result, 'Python 3.11')
+
+    def test_extract_imbi_python_version_no_facts(self) -> None:
+        """Test extracting Python version when no facts exist."""
+        imbi_project = models.ImbiProject(
+            id=123,
+            dependencies=None,
+            description='Test project',
+            environments=None,
+            facts=None,
+            identifiers=None,
+            links=None,
+            name='test-project',
+            namespace='test-namespace',
+            namespace_slug='test-namespace',
+            project_score=None,
+            project_type='API',
+            project_type_slug='api',
+            slug='test-project',
+            urls=None,
+            imbi_url='https://imbi.example.com/projects/123',
+        )
+
+        result = self.instance._extract_imbi_python_version(imbi_project)
+        self.assertIsNone(result)
 
 
 if __name__ == '__main__':

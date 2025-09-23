@@ -6,6 +6,7 @@ import pathlib
 import re
 import subprocess
 import typing
+from collections import Counter
 
 import httpx
 import jinja2
@@ -98,6 +99,9 @@ class AutomationEngine:
             anthropic_config=configuration.anthropic,
         )
 
+        # Initialize workflow execution counter
+        self.workflow_stats = Counter()
+
     async def run(self) -> None:
         match self.iterator:
             case AutomationIterator.github_repositories:
@@ -119,6 +123,9 @@ class AutomationEngine:
             case AutomationIterator.imbi_projects:
                 await self._process_imbi_projects()
 
+        # Output workflow execution statistics
+        self._output_workflow_stats()
+
     async def _process_github_repositories(self) -> None: ...
 
     async def _process_github_organization(self) -> None: ...
@@ -138,7 +145,7 @@ class AutomationEngine:
                 'Imbi client is required for project type iteration'
             )
 
-        project_type_slug = self.args.imbi_project_type
+        project_type_slug = self.args.project_type
         LOGGER.info(
             'Processing Imbi projects for project type: %s', project_type_slug
         )
@@ -151,19 +158,49 @@ class AutomationEngine:
         )
 
         for project in projects:
-            await self._execute_workflow_run(imbi_project=project)
+            try:
+                await self._execute_workflow_run(imbi_project=project)
+            except (RuntimeError, httpx.HTTPError, ValueError) as e:
+                LOGGER.error(
+                    'Failed to process project %d (%s): %s - %s',
+                    project.id,
+                    project.name,
+                    type(e).__name__,
+                    str(e),
+                )
+                # Continue processing other projects
 
     async def _process_imbi_project(self) -> None:
         """Process a single Imbi project."""
-        project = await self.imbi.get_project(self.args.imbi_project_id)
-        await self._execute_workflow_run(imbi_project=project)
+        project = await self.imbi.get_project(self.args.project_id)
+        try:
+            await self._execute_workflow_run(imbi_project=project)
+        except (RuntimeError, httpx.HTTPError, ValueError) as e:
+            LOGGER.error(
+                'Failed to process project %d (%s): %s - %s',
+                project.id,
+                project.name,
+                type(e).__name__,
+                str(e),
+            )
+            raise  # Re-raise for single project processing
 
     async def _process_imbi_projects(self) -> None:
         """Iterate over all Imbi projects and execute workflow runs."""
         projects = await self.imbi.get_all_projects()
         LOGGER.info('Processing %d Imbi projects', len(projects))
         for project in projects:
-            await self._execute_workflow_run(imbi_project=project)
+            try:
+                await self._execute_workflow_run(imbi_project=project)
+            except (RuntimeError, httpx.HTTPError, ValueError) as e:
+                LOGGER.error(
+                    'Failed to process project %d (%s): %s - %s',
+                    project.id,
+                    project.name,
+                    type(e).__name__,
+                    str(e),
+                )
+                # Continue processing other projects
 
     async def _get_github_repository(
         self, imbi_project: models.ImbiProject
@@ -447,7 +484,33 @@ class AutomationEngine:
             gitlab_project.path_with_namespace if gitlab_project else None,
         )
 
-        await self.workflow_engine.execute(run)
+        # Execute workflow and track results
+        try:
+            execution_result = await self.workflow_engine.execute(run)
+
+            # Track based on execution result
+            if execution_result == 'skipped_remote_conditions':
+                self.workflow_stats['skipped_remote_conditions'] += 1
+            elif execution_result == 'skipped_conditions':
+                self.workflow_stats['skipped_conditions'] += 1
+            elif execution_result == 'skipped_no_repository':
+                self.workflow_stats['skipped_no_repository'] += 1
+            else:
+                self.workflow_stats['successful'] += 1
+
+        except (RuntimeError, httpx.HTTPError, ValueError) as exc:
+            self.workflow_stats['errored'] += 1
+            project_info = (
+                f'{imbi_project.name} ({imbi_project.project_type})'
+                if imbi_project
+                else 'Unknown Project'
+            )
+            LOGGER.error(
+                'Workflow execution failed for project %s: %s - %s',
+                project_info,
+                type(exc).__name__,
+                str(exc),
+            )
 
     def _workflow_requires_github(self) -> bool:
         """Check if workflow requires GitHub repository context."""
@@ -565,6 +628,51 @@ class AutomationEngine:
             imbi_project.name,
         )
         return True
+
+    def _output_workflow_stats(self) -> None:
+        """Output workflow execution statistics."""
+        total_workflows = sum(self.workflow_stats.values())
+
+        if total_workflows == 0:
+            LOGGER.info('No workflows were processed')
+            return
+
+        LOGGER.info('')
+        LOGGER.info('=== Workflow Execution Statistics ===')
+        LOGGER.info('Total workflows processed: %d', total_workflows)
+        LOGGER.info('')
+
+        # Output each stat category
+        stat_types = [
+            'successful',
+            'errored',
+            'skipped_remote_conditions',
+            'skipped_conditions',
+            'skipped_no_repository',
+        ]
+        for stat_type in stat_types:
+            count = self.workflow_stats[stat_type]
+            if count > 0:
+                percentage = (count / total_workflows) * 100
+                display_name = stat_type.replace('_', ' ').title()
+                LOGGER.info(
+                    '  %s: %d (%.1f%%)', display_name, count, percentage
+                )
+
+        LOGGER.info('')
+
+        # Show success rate
+        successful = self.workflow_stats['successful']
+        if total_workflows > 0:
+            success_rate = (successful / total_workflows) * 100
+            LOGGER.info(
+                'Success rate: %.1f%% (%d/%d)',
+                success_rate,
+                successful,
+                total_workflows,
+            )
+
+        LOGGER.info('=====================================')
 
 
 class WorkflowEngine:
@@ -783,7 +891,17 @@ class WorkflowEngine:
                 target_kwargs,
             )
 
-            await target_method(**target_kwargs)
+            try:
+                await target_method(**target_kwargs)
+            except (RuntimeError, httpx.HTTPError, ValueError) as e:
+                LOGGER.error(
+                    'Failed to execute action %s: %s - %s',
+                    action.name,
+                    type(e).__name__,
+                    str(e),
+                )
+                # Log the error but don't re-raise to continue processing
+                return None
 
         return mapped_result
 
@@ -1811,6 +1929,303 @@ class WorkflowEngine:
             )
             return False
 
+    async def _evaluate_remote_condition(
+        self,
+        condition: models.WorkflowCondition,
+        github_repository: models.GitHubRepository | None,
+    ) -> bool:
+        """Evaluate a remote condition using GitHub API before cloning.
+
+        Args:
+            condition: Workflow condition to evaluate
+            github_repository: GitHub repository information
+
+        Returns:
+            True if condition is met, False otherwise
+        """
+        if not github_repository:
+            LOGGER.debug(
+                'No GitHub repository available for remote conditions'
+            )
+            return True
+
+        # Extract owner and repo from repository
+        owner = github_repository.owner.login
+        repo = github_repository.name
+
+        # Check remote_file_exists condition
+        if condition.remote_file_exists:
+            try:
+                result = await self._check_remote_file_exists(
+                    owner, repo, condition.remote_file_exists
+                )
+                LOGGER.debug(
+                    'Remote condition remote_file_exists "%s": %s',
+                    condition.remote_file_exists,
+                    result,
+                )
+                return result
+            except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
+                # Don't warn about 404s, they're expected
+                if 'Not Found (HTTP 404)' not in str(exc):
+                    LOGGER.warning(
+                        'Failed to check remote_file_exists "%s": %s',
+                        condition.remote_file_exists,
+                        exc,
+                    )
+                return True  # Graceful degradation
+
+        # Check remote_file_not_exists condition
+        if condition.remote_file_not_exists:
+            try:
+                exists = await self._check_remote_file_exists(
+                    owner, repo, condition.remote_file_not_exists
+                )
+                result = not exists
+                LOGGER.debug(
+                    'Remote condition remote_file_not_exists "%s": %s',
+                    condition.remote_file_not_exists,
+                    result,
+                )
+                return result
+            except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
+                # Don't warn about 404s, they're expected
+                if 'Not Found (HTTP 404)' not in str(exc):
+                    LOGGER.warning(
+                        'Failed to check remote_file_not_exists "%s": %s',
+                        condition.remote_file_not_exists,
+                        exc,
+                    )
+                return True  # Graceful degradation
+
+        # Check remote_file_contains condition
+        if condition.remote_file_contains:
+            file_path = condition.remote_file or condition.remote_file_contains
+            try:
+                content = await self._get_remote_file_content(
+                    owner, repo, file_path
+                )
+                if content is None:
+                    LOGGER.debug(
+                        'Remote file "%s" not found for remote_file_contains',
+                        file_path,
+                    )
+                    return False
+
+                # Use same string/regex logic as local file_contains
+                if condition.remote_file_contains in content:
+                    LOGGER.debug(
+                        'Remote file_contains string "%s" in "%s": True',
+                        condition.remote_file_contains,
+                        file_path,
+                    )
+                    return True
+
+                # Try regex if string search fails
+                try:
+                    if re.search(condition.remote_file_contains, content):
+                        LOGGER.debug(
+                            'Remote file_contains regex "%s" in "%s": True',
+                            condition.remote_file_contains,
+                            file_path,
+                        )
+                        return True
+                except re.error:
+                    # Invalid regex, string search already failed
+                    pass
+
+                LOGGER.debug(
+                    'Remote file_contains "%s" in "%s": False',
+                    condition.remote_file_contains,
+                    file_path,
+                )
+                return False
+
+            except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
+                # Don't warn about 404s, they're expected
+                if 'Not Found (HTTP 404)' not in str(exc):
+                    LOGGER.warning(
+                        'Failed to check remote_file_contains "%s": %s',
+                        condition.remote_file_contains,
+                        file_path,
+                        exc,
+                    )
+                return True  # Graceful degradation
+
+        # If no remote conditions are specified, return True
+        return True
+
+    async def _check_remote_file_exists(
+        self, owner: str, repo: str, file_path: str
+    ) -> bool:
+        """Check if a file exists in the remote repository using GitHub API.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            file_path: Path to check
+
+        Returns:
+            True if file exists, False otherwise
+        """
+        try:
+            # Use gh CLI to check file existence
+            cmd = [
+                'gh',
+                'api',
+                f'repos/{owner}/{repo}/contents/{file_path}',
+                '--silent',
+            ]
+
+            process = await asyncio.create_subprocess_exec(
+                *cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL
+            )
+            await process.wait()
+
+            # File exists if command succeeds (exit code 0)
+            return process.returncode == 0
+
+        except (RuntimeError, httpx.HTTPError, ValueError) as exc:
+            LOGGER.debug(
+                'Error checking remote file existence for %s: %s',
+                file_path,
+                exc,
+            )
+            raise
+
+    async def _get_remote_file_content(
+        self, owner: str, repo: str, file_path: str
+    ) -> str | None:
+        """Get content of a file from the remote repository using GitHub API.
+
+        Args:
+            owner: Repository owner
+            repo: Repository name
+            file_path: Path to the file
+
+        Returns:
+            File content as string, or None if file doesn't exist
+        """
+        try:
+            # Use gh CLI to get file content
+            cmd = [
+                'gh',
+                'api',
+                f'repos/{owner}/{repo}/contents/{file_path}',
+                '--jq',
+                '.content',
+            ]
+
+            process = await asyncio.create_subprocess_exec(
+                *cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
+
+            if process.returncode != 0:
+                error_msg = stderr.decode()
+                # Check if it's a 404 Not Found error
+                is_404 = (
+                    'Not Found (HTTP 404)' in error_msg
+                    or process.returncode == 22
+                )
+                if is_404:
+                    return None
+                raise RuntimeError(
+                    f'gh CLI failed with exit code {process.returncode}: '
+                    f'{error_msg}'
+                )
+
+            # Decode base64 content
+            import base64
+
+            encoded_content = stdout.decode().strip()
+            if not encoded_content:
+                return ''
+
+            # GitHub API returns base64-encoded content
+            try:
+                content = base64.b64decode(encoded_content).decode('utf-8')
+                return content
+            except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
+                raise RuntimeError(
+                    f'Failed to decode file content: {exc}'
+                ) from exc
+
+        except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
+            LOGGER.debug(
+                'Error getting remote file content for %s: %s', file_path, exc
+            )
+            raise
+
+    async def _evaluate_remote_conditions(
+        self, run: models.WorkflowRun
+    ) -> bool:
+        """Evaluate all remote workflow conditions before cloning.
+
+        Args:
+            run: Workflow run containing configuration
+
+        Returns:
+            True if all remote conditions are met according to condition_type
+        """
+        if not run.workflow.configuration.conditions:
+            LOGGER.debug('No conditions specified, proceeding with workflow')
+            return True
+
+        # Filter for remote conditions only
+        remote_conditions = []
+        for condition in run.workflow.configuration.conditions:
+            if any(
+                [
+                    condition.remote_file_exists,
+                    condition.remote_file_not_exists,
+                    condition.remote_file_contains,
+                ]
+            ):
+                remote_conditions.append(condition)
+
+        if not remote_conditions:
+            LOGGER.debug(
+                'No remote conditions specified, proceeding with workflow'
+            )
+            return True
+
+        LOGGER.debug(
+            'Evaluating %d remote conditions with %s logic',
+            len(remote_conditions),
+            run.workflow.configuration.condition_type,
+        )
+
+        condition_results = []
+        for condition in remote_conditions:
+            try:
+                result = await self._evaluate_remote_condition(
+                    condition, run.github_repository
+                )
+                condition_results.append(result)
+            except (RuntimeError, OSError, subprocess.SubprocessError) as exc:
+                LOGGER.warning(
+                    'Remote condition evaluation failed: %s, treating as True',
+                    exc,
+                )
+                condition_results.append(True)  # Graceful degradation
+
+        # Apply condition type logic
+        condition_type = run.workflow.configuration.condition_type
+        if condition_type == models.WorkflowConditionType.all:
+            final_result = all(condition_results)
+        else:  # any
+            final_result = any(condition_results)
+
+        LOGGER.debug(
+            'Remote conditions evaluation result: %s (passed: %d/%d)',
+            final_result,
+            sum(condition_results),
+            len(condition_results),
+        )
+
+        return final_result
+
     async def _commit_workflow_changes(
         self, run: models.WorkflowRun, project_info: str
     ) -> None:
@@ -1924,19 +2339,26 @@ class WorkflowEngine:
 
                 # Push changes to remote repository
                 try:
-                    await git.push_changes(
-                        working_directory=run.working_directory,
-                        remote='origin',
-                        branch=None,  # Push current branch
-                    )
+                    if run.workflow.configuration.create_pull_request:
+                        # Get current branch name for upstream tracking
+                        current_branch = await git.get_current_branch(
+                            run.working_directory
+                        )
+                        await git.push_changes(
+                            working_directory=run.working_directory,
+                            remote='origin',
+                            branch=current_branch,
+                            set_upstream=True,
+                        )
+                    else:
+                        await git.push_changes(
+                            working_directory=run.working_directory,
+                            remote='origin',
+                        )
                     LOGGER.info(
                         'Successfully pushed workflow changes for project %s',
                         project_info,
                     )
-
-                    # Create pull request if requested
-                    if run.workflow.configuration.create_pull_request:
-                        await self._create_pull_request(run, project_info)
                 except (OSError, subprocess.CalledProcessError) as exc:
                     LOGGER.error(
                         'Failed to push workflow changes for project %s: %s',
@@ -2050,7 +2472,7 @@ class WorkflowEngine:
             )
             # Don't re-raise - workflow completes even if PR creation fails
 
-    async def execute(self, run: models.WorkflowRun) -> None:
+    async def execute(self, run: models.WorkflowRun) -> str:
         """Execute a complete workflow run."""
         project_info = (
             f'{run.imbi_project.name} ({run.imbi_project.project_type})'
@@ -2066,6 +2488,15 @@ class WorkflowEngine:
         # Clear previous action results
         self.action_results = ActionResults()
 
+        # Evaluate remote conditions before cloning
+        if not await self._evaluate_remote_conditions(run):
+            LOGGER.info(
+                'Skipping workflow execution for project %s - '
+                'remote conditions not met',
+                project_info,
+            )
+            return 'skipped_remote_conditions'
+
         # Handle repository cloning if required
         if run.workflow.configuration.clone_repository:
             try:
@@ -2076,7 +2507,7 @@ class WorkflowEngine:
                     project_info,
                     exc,
                 )
-                return
+                return 'skipped_no_repository'
 
         # Initialize Claude Code client if config and working directory exist
         if self._claude_code_config and run.working_directory:
@@ -2095,21 +2526,10 @@ class WorkflowEngine:
                 'conditions not met',
                 project_info,
             )
-            return
+            return 'skipped_conditions'
 
-        # Create feature branch if pull request is requested
-        if (
-            run.workflow.configuration.create_pull_request
-            and run.working_directory
-        ):
-            from . import git
-
-            branch_name = f'imbi-automations/{run.workflow.configuration.name}'
-            await git.create_branch(run.working_directory, branch_name)
-            LOGGER.info(
-                'Created feature branch %s for pull request workflow',
-                branch_name,
-            )
+        # Note: Feature branch creation moved to after actions execute
+        # Only create branch if there are actual changes to commit
 
         # Create template context
         context = self._create_template_context(run)
@@ -2145,16 +2565,69 @@ class WorkflowEngine:
                 )
                 raise
 
-        # Push all commits to remote repository at the end of workflow
+        # Check if any changes were made and handle git operations
+        changes_made = False
+        pr_created = False
+
         if run.working_directory:
             try:
                 from . import git
 
-                await git.push_changes(run.working_directory)
-                LOGGER.debug(
-                    'Pushed all workflow changes to remote for project %s',
-                    project_info,
-                )
+                # Check if there are any changes to commit
+                changed_files = await git.get_git_status(run.working_directory)
+
+                if changed_files:
+                    changes_made = True
+                    LOGGER.debug(
+                        'Found %d changed files for project %s: %s',
+                        len(changed_files),
+                        project_info,
+                        ', '.join(changed_files[:5]),  # Show first 5 files
+                    )
+
+                    # Create feature branch if pull request is requested
+                    if run.workflow.configuration.create_pull_request:
+                        # Convert workflow name to kebab-case
+                        workflow_name = run.workflow.configuration.name
+                        kebab_name = workflow_name.lower().replace(' ', '-')
+                        branch_name = f'ia-{kebab_name}'
+                        await git.create_branch(
+                            run.working_directory, branch_name
+                        )
+                        LOGGER.info(
+                            'Created feature branch %s for PR workflow',
+                            branch_name,
+                        )
+
+                    # Push changes to remote repository
+                    if run.workflow.configuration.create_pull_request:
+                        # Get current branch name for upstream tracking
+                        current_branch = await git.get_current_branch(
+                            run.working_directory
+                        )
+                        await git.push_changes(
+                            run.working_directory,
+                            branch=current_branch,
+                            set_upstream=True,
+                        )
+                    else:
+                        await git.push_changes(run.working_directory)
+
+                    LOGGER.debug(
+                        'Pushed all workflow changes to remote for project %s',
+                        project_info,
+                    )
+
+                    # Create pull request if requested
+                    if run.workflow.configuration.create_pull_request:
+                        await self._create_pull_request(run, project_info)
+                        pr_created = True
+                else:
+                    LOGGER.debug(
+                        'No changes detected for project %s, skipping git ops',
+                        project_info,
+                    )
+
             except (OSError, subprocess.CalledProcessError) as exc:
                 LOGGER.warning(
                     'Failed to push workflow changes for project %s: %s',
@@ -2163,9 +2636,27 @@ class WorkflowEngine:
                 )
                 # Don't re-raise - workflow completes even if push fails
 
-        LOGGER.info(
-            'Workflow completed successfully for project %s', project_info
-        )
+        # Enhanced completion messaging based on what actually happened
+        if changes_made:
+            if pr_created:
+                LOGGER.info(
+                    'Workflow completed successfully for project %s - '
+                    'changes pushed and pull request created',
+                    project_info,
+                )
+            else:
+                LOGGER.info(
+                    'Workflow completed successfully for project %s - '
+                    'changes pushed to main branch',
+                    project_info,
+                )
+        else:
+            LOGGER.info(
+                'Workflow completed successfully for project %s - '
+                'no changes needed',
+                project_info,
+            )
+        return 'successful'
 
     async def _setup_repository_clone(self, run: models.WorkflowRun) -> None:
         """Set up repository cloning for workflows that require it.

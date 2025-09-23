@@ -107,7 +107,7 @@ CRITICAL REQUIREMENTS:
 
                 response = self.client.messages.create(
                     model='claude-3-haiku-20240307',
-                    max_tokens=8192,
+                    max_tokens=4096,
                     system=(
                         'You are an expert code editor. You MUST follow the '
                         'exact response format specified in the user message. '

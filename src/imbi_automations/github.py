@@ -1,4 +1,5 @@
 import logging
+import typing
 
 import httpx
 
@@ -108,7 +109,7 @@ class GitHub(http.BaseURLClient):
 
         try:
             return models.GitHubRepository(**response.json())
-        except Exception as exc:
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
             LOGGER.error(
                 'Failed to parse repository data for ID %s: %s', repo_id, exc
             )
@@ -587,3 +588,320 @@ class GitHub(http.BaseURLClient):
             f'/orgs/{org}/teams/{team_slug}/repos/{org}/{repo_name}'
         )
         response.raise_for_status()
+
+    async def analyze_python_versions(
+        self,
+        org: str,
+        repo_name: str,
+        imbi_project_id: int,
+        imbi_project_facts: dict[str, typing.Any] | None = None,
+        imbi_project_name: str | None = None,
+    ) -> dict[str, typing.Any]:
+        """Analyze Python version consistency across Dockerfile, CI, and Imbi.
+
+        Args:
+            org: GitHub organization name
+            repo_name: Repository name
+            imbi_project_id: Imbi project ID
+            imbi_project_facts: Imbi project facts dictionary
+            imbi_project_name: Imbi project name for logging
+
+        Returns:
+            Analysis results with version information and update requirements
+        """
+        try:
+            # Extract Python version from Dockerfile
+            dockerfile_version = await self._extract_dockerfile_python_version(
+                org, repo_name
+            )
+
+            # Extract Python versions from GitHub Actions workflows
+            workflow_versions = await self._extract_workflow_python_versions(
+                org, repo_name
+            )
+
+            # Extract Python version from Imbi Programming Language fact
+            imbi_version = self._extract_imbi_python_version_from_facts(
+                imbi_project_facts
+            )
+
+            LOGGER.debug(
+                'Python version analysis for %s/%s: '
+                'Dockerfile=%s, Workflows=%s, Imbi=%s',
+                org,
+                repo_name,
+                dockerfile_version,
+                workflow_versions,
+                imbi_version,
+            )
+
+            # Determine what needs updating (Dockerfile is source of truth)
+            requires_workflow_update = False
+            requires_imbi_update = False
+
+            if dockerfile_version and workflow_versions:
+                # Check if any workflow version differs from Dockerfile
+                for _workflow_file, version in workflow_versions.items():
+                    if version and version != dockerfile_version:
+                        requires_workflow_update = True
+                        break
+
+            if dockerfile_version and imbi_version:
+                # Extract just the version number from "Python X.Y" format
+                imbi_version_num = (
+                    imbi_version.replace('Python ', '')
+                    if imbi_version
+                    else None
+                )
+                requires_imbi_update = imbi_version_num != dockerfile_version
+
+            return {
+                'dockerfile_version': dockerfile_version,
+                'workflow_versions': workflow_versions,
+                'imbi_version': imbi_version,
+                'source_of_truth': dockerfile_version,
+                'requires_workflow_update': requires_workflow_update,
+                'requires_imbi_update': requires_imbi_update,
+                'correct_language_version': (
+                    f'Python {dockerfile_version}'
+                    if dockerfile_version
+                    else None
+                ),
+                'analysis_successful': True,
+            }
+
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            LOGGER.error(
+                'Failed to analyze Python versions for %s/%s: %s',
+                org,
+                repo_name,
+                exc,
+            )
+            return {
+                'dockerfile_version': None,
+                'workflow_versions': {},
+                'imbi_version': None,
+                'source_of_truth': None,
+                'requires_workflow_update': False,
+                'requires_imbi_update': False,
+                'correct_language_version': None,
+                'analysis_successful': False,
+                'error': str(exc),
+            }
+
+    async def _extract_dockerfile_python_version(
+        self, org: str, repo_name: str
+    ) -> str | None:
+        """Extract Python version from Dockerfile FROM line.
+
+        Args:
+            org: GitHub organization name
+            repo_name: Repository name
+
+        Returns:
+            Python version string (e.g., "3.12") or None if not found
+        """
+        try:
+            response = await self.get(
+                f'/repos/{org}/{repo_name}/contents/Dockerfile'
+            )
+            if response.status_code == http.HTTPStatus.NOT_FOUND:
+                LOGGER.debug('Dockerfile not found in %s/%s', org, repo_name)
+                return None
+
+            response.raise_for_status()
+            content_data = response.json()
+
+            # Decode base64 content
+            import base64
+
+            content = base64.b64decode(content_data['content']).decode('utf-8')
+
+            # Look for python3-consumer image version in FROM line
+            import re
+
+            pattern = r'FROM.*python3-consumer:(\d+\.\d+)'
+            match = re.search(pattern, content)
+
+            if match:
+                version = match.group(1)
+                LOGGER.debug(
+                    'Found Python version %s in Dockerfile for %s/%s',
+                    version,
+                    org,
+                    repo_name,
+                )
+                return version
+            else:
+                LOGGER.debug(
+                    'No python3-consumer version found in %s/%s Dockerfile',
+                    org,
+                    repo_name,
+                )
+                return None
+
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            LOGGER.warning(
+                'Failed to extract Dockerfile Python version for %s/%s: %s',
+                org,
+                repo_name,
+                exc,
+            )
+            return None
+
+    async def _extract_workflow_python_versions(
+        self, org: str, repo_name: str
+    ) -> dict[str, str]:
+        """Extract Python versions from GitHub Actions workflow files.
+
+        Args:
+            org: GitHub organization name
+            repo_name: Repository name
+
+        Returns:
+            Dictionary mapping workflow filename to Python version
+        """
+        workflow_versions = {}
+
+        try:
+            # Get all workflow files
+            response = await self.get(
+                f'/repos/{org}/{repo_name}/contents/.github/workflows'
+            )
+            if response.status_code == http.HTTPStatus.NOT_FOUND:
+                LOGGER.debug(
+                    'No .github/workflows directory found in %s/%s',
+                    org,
+                    repo_name,
+                )
+                return {}
+
+            response.raise_for_status()
+            workflow_files = response.json()
+
+            # Process each .yml/.yaml file
+            for file_info in workflow_files:
+                if file_info['name'].endswith(('.yml', '.yaml')):
+                    version = await self._extract_workflow_file_python_version(
+                        org, repo_name, file_info['name']
+                    )
+                    if version:
+                        workflow_versions[file_info['name']] = version
+
+            return workflow_versions
+
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            LOGGER.warning(
+                'Failed to extract workflow Python versions for %s/%s: %s',
+                org,
+                repo_name,
+                exc,
+            )
+            return {}
+
+    async def _extract_workflow_file_python_version(
+        self, org: str, repo_name: str, filename: str
+    ) -> str | None:
+        """Extract Python version from a specific workflow file.
+
+        Args:
+            org: GitHub organization name
+            repo_name: Repository name
+            filename: Workflow filename
+
+        Returns:
+            Python version string or None if not found
+        """
+        try:
+            response = await self.get(
+                f'/repos/{org}/{repo_name}/contents/.github/workflows/{filename}'
+            )
+            response.raise_for_status()
+            content_data = response.json()
+
+            # Decode base64 content
+            import base64
+
+            content = base64.b64decode(content_data['content']).decode('utf-8')
+
+            # Look for python3-testing image versions
+            import re
+
+            pattern = r'python3-testing:(\d+\.\d+)'
+            match = re.search(pattern, content)
+
+            if match:
+                version = match.group(1)
+                LOGGER.debug(
+                    'Found Python version %s in workflow %s for %s/%s',
+                    version,
+                    filename,
+                    org,
+                    repo_name,
+                )
+                return version
+
+            return None
+
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            LOGGER.debug(
+                'Failed to extract Python version from workflow %s: %s',
+                filename,
+                exc,
+            )
+            return None
+
+    def _extract_imbi_python_version(
+        self, imbi_project: models.ImbiProject
+    ) -> str | None:
+        """Extract Python version from Imbi Programming Language fact.
+
+        Args:
+            imbi_project: Imbi project with facts
+
+        Returns:
+            Programming Language fact value or None if not found
+        """
+        return self._extract_imbi_python_version_from_facts(imbi_project.facts)
+
+    def _extract_imbi_python_version_from_facts(
+        self, facts: dict[str, typing.Any] | str | None
+    ) -> str | None:
+        """Extract Python version from Imbi facts dictionary.
+
+        Args:
+            facts: Imbi project facts dictionary or string representation
+
+        Returns:
+            Programming Language fact value or None if not found
+        """
+        if not facts:
+            return None
+
+        # Handle string representation from template rendering
+        if isinstance(facts, str):
+            try:
+                import ast
+                import html
+
+                # Decode HTML entities that Jinja2 might have added
+                decoded_facts = html.unescape(facts)
+                facts = ast.literal_eval(decoded_facts)
+            except (ValueError, SyntaxError):
+                LOGGER.warning('Failed to parse facts string: %s', facts[:100])
+                return None
+
+        if not isinstance(facts, dict):
+            return None
+
+        # Look for Programming Language fact (check multiple possible keys)
+        programming_language = facts.get('Programming Language') or facts.get(
+            'programming_language'
+        )
+        if programming_language:
+            LOGGER.debug(
+                'Found Programming Language fact: %s', programming_language
+            )
+            return str(programming_language)
+
+        return None

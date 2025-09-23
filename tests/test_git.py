@@ -589,6 +589,43 @@ class TestGitModule(base.AsyncTestCase):
         self.assertIn('Git rm failed', str(context.exception))
         self.assertIn('did not match any files', str(context.exception))
 
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_push_changes_set_upstream(
+        self, mock_run_git: mock.Mock
+    ) -> None:
+        """Test git push with upstream tracking for new branches."""
+        mock_run_git.return_value = (0, '', '')
+
+        await git.push_changes(
+            self.git_dir, remote='origin', set_upstream=True
+        )
+
+        mock_run_git.assert_called_once_with(
+            ['git', 'push', '--set-upstream', 'origin'],
+            cwd=self.git_dir,
+            timeout_seconds=300,
+        )
+
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_push_changes_set_upstream_with_branch(
+        self, mock_run_git: mock.Mock
+    ) -> None:
+        """Test git push with upstream tracking and specific branch."""
+        mock_run_git.return_value = (0, '', '')
+
+        await git.push_changes(
+            self.git_dir,
+            remote='origin',
+            branch='feature-branch',
+            set_upstream=True,
+        )
+
+        mock_run_git.assert_called_once_with(
+            ['git', 'push', '--set-upstream', 'origin', 'feature-branch'],
+            cwd=self.git_dir,
+            timeout_seconds=300,
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

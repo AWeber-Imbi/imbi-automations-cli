@@ -1,5 +1,6 @@
 import datetime
 import pathlib
+import subprocess
 import tempfile
 import typing
 import unittest
@@ -2147,6 +2148,630 @@ class TestWorkflowEngine(base.AsyncTestCase):
         # Should commit the changes
         mock_commit.assert_called_once()
         mock_push.assert_called_once()
+
+    @mock.patch('asyncio.create_subprocess_exec')
+    async def test_check_remote_file_exists_success(
+        self, mock_subprocess: mock.AsyncMock
+    ) -> None:
+        """Test remote file existence check when file exists."""
+        # Mock subprocess that succeeds (exit code 0)
+        mock_process = mock.MagicMock()
+        mock_process.returncode = 0
+        mock_process.wait = mock.AsyncMock(return_value=None)
+        mock_subprocess.return_value = mock_process
+
+        result = await self.workflow_engine._check_remote_file_exists(
+            'owner', 'repo', 'README.md'
+        )
+
+        self.assertTrue(result)
+        mock_subprocess.assert_called_once_with(
+            'gh',
+            'api',
+            'repos/owner/repo/contents/README.md',
+            '--silent',
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+    @mock.patch('asyncio.create_subprocess_exec')
+    async def test_check_remote_file_exists_not_found(
+        self, mock_subprocess: mock.AsyncMock
+    ) -> None:
+        """Test remote file existence check when file doesn't exist."""
+        # Mock subprocess that fails (exit code 22 for 404)
+        mock_process = mock.MagicMock()
+        mock_process.returncode = 22
+        mock_process.wait = mock.AsyncMock(return_value=None)
+        mock_subprocess.return_value = mock_process
+
+        result = await self.workflow_engine._check_remote_file_exists(
+            'owner', 'repo', 'nonexistent.md'
+        )
+
+        self.assertFalse(result)
+
+    @mock.patch('asyncio.create_subprocess_exec')
+    async def test_get_remote_file_content_success(
+        self, mock_subprocess: mock.AsyncMock
+    ) -> None:
+        """Test getting remote file content successfully."""
+        # Mock subprocess that returns base64-encoded content
+        import base64
+
+        content = 'hello world\nthis is a test'
+        encoded_content = base64.b64encode(content.encode()).decode()
+
+        mock_process = mock.MagicMock()
+        mock_process.returncode = 0
+        mock_process.communicate = mock.AsyncMock(
+            return_value=(encoded_content.encode(), b'')
+        )
+        mock_subprocess.return_value = mock_process
+
+        result = await self.workflow_engine._get_remote_file_content(
+            'owner', 'repo', 'test.txt'
+        )
+
+        self.assertEqual(result, content)
+        mock_subprocess.assert_called_once_with(
+            'gh',
+            'api',
+            'repos/owner/repo/contents/test.txt',
+            '--jq',
+            '.content',
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+
+    @mock.patch('asyncio.create_subprocess_exec')
+    async def test_get_remote_file_content_not_found(
+        self, mock_subprocess: mock.AsyncMock
+    ) -> None:
+        """Test getting remote file content when file doesn't exist."""
+        # Mock subprocess that fails with 404
+        mock_process = mock.MagicMock()
+        mock_process.returncode = 22  # HTTP 404
+        mock_process.communicate = mock.AsyncMock(
+            return_value=(b'', b'Not found')
+        )
+        mock_subprocess.return_value = mock_process
+
+        result = await self.workflow_engine._get_remote_file_content(
+            'owner', 'repo', 'nonexistent.txt'
+        )
+
+        self.assertIsNone(result)
+
+    async def test_evaluate_remote_condition_remote_file_exists_true(
+        self,
+    ) -> None:
+        """Test remote_file_exists condition when file exists."""
+        github_repo = models.GitHubRepository(
+            id=1,
+            node_id='test',
+            name='test-repo',
+            full_name='owner/test-repo',
+            owner=models.GitHubUser(
+                login='owner',
+                id=1,
+                node_id='test',
+                avatar_url='',
+                url='',
+                html_url='',
+                type='User',
+                site_admin=False,
+            ),
+            private=False,
+            html_url='',
+            description='',
+            fork=False,
+            url='',
+            default_branch='main',
+            clone_url='',
+            ssh_url='',
+            git_url='',
+        )
+
+        condition = models.WorkflowCondition(remote_file_exists='README.md')
+
+        with mock.patch.object(
+            self.workflow_engine,
+            '_check_remote_file_exists',
+            return_value=True,
+        ) as mock_check:
+            result = await self.workflow_engine._evaluate_remote_condition(
+                condition, github_repo
+            )
+
+            self.assertTrue(result)
+            mock_check.assert_called_once_with(
+                'owner', 'test-repo', 'README.md'
+            )
+
+    async def test_evaluate_remote_condition_remote_file_not_exists_true(
+        self,
+    ) -> None:
+        """Test remote_file_not_exists condition when file doesn't exist."""
+        github_repo = models.GitHubRepository(
+            id=1,
+            node_id='test',
+            name='test-repo',
+            full_name='owner/test-repo',
+            owner=models.GitHubUser(
+                login='owner',
+                id=1,
+                node_id='test',
+                avatar_url='',
+                url='',
+                html_url='',
+                type='User',
+                site_admin=False,
+            ),
+            private=False,
+            html_url='',
+            description='',
+            fork=False,
+            url='',
+            default_branch='main',
+            clone_url='',
+            ssh_url='',
+            git_url='',
+        )
+
+        condition = models.WorkflowCondition(
+            remote_file_not_exists='config.json'
+        )
+
+        with mock.patch.object(
+            self.workflow_engine,
+            '_check_remote_file_exists',
+            return_value=False,
+        ) as mock_check:
+            result = await self.workflow_engine._evaluate_remote_condition(
+                condition, github_repo
+            )
+
+            self.assertTrue(result)
+            mock_check.assert_called_once_with(
+                'owner', 'test-repo', 'config.json'
+            )
+
+    async def test_evaluate_remote_condition_remote_file_contains_string_match(
+        self,
+    ) -> None:
+        """Test remote_file_contains condition with string match."""
+        github_repo = models.GitHubRepository(
+            id=1,
+            node_id='test',
+            name='test-repo',
+            full_name='owner/test-repo',
+            owner=models.GitHubUser(
+                login='owner',
+                id=1,
+                node_id='test',
+                avatar_url='',
+                url='',
+                html_url='',
+                type='User',
+                site_admin=False,
+            ),
+            private=False,
+            html_url='',
+            description='',
+            fork=False,
+            url='',
+            default_branch='main',
+            clone_url='',
+            ssh_url='',
+            git_url='',
+        )
+
+        condition = models.WorkflowCondition(
+            remote_file_contains='hello', remote_file='test.txt'
+        )
+
+        with mock.patch.object(
+            self.workflow_engine,
+            '_get_remote_file_content',
+            return_value='hello world\nthis is a test',
+        ) as mock_get_content:
+            result = await self.workflow_engine._evaluate_remote_condition(
+                condition, github_repo
+            )
+
+            self.assertTrue(result)
+            mock_get_content.assert_called_once_with(
+                'owner', 'test-repo', 'test.txt'
+            )
+
+    async def test_evaluate_remote_condition_remote_file_contains_regex_match(
+        self,
+    ) -> None:
+        """Test remote_file_contains condition with regex match."""
+        github_repo = models.GitHubRepository(
+            id=1,
+            node_id='test',
+            name='test-repo',
+            full_name='owner/test-repo',
+            owner=models.GitHubUser(
+                login='owner',
+                id=1,
+                node_id='test',
+                avatar_url='',
+                url='',
+                html_url='',
+                type='User',
+                site_admin=False,
+            ),
+            private=False,
+            html_url='',
+            description='',
+            fork=False,
+            url='',
+            default_branch='main',
+            clone_url='',
+            ssh_url='',
+            git_url='',
+        )
+
+        condition = models.WorkflowCondition(
+            remote_file_contains=r'"version":\s*"\d+\.\d+\.\d+"',
+            remote_file='package.json',
+        )
+
+        with mock.patch.object(
+            self.workflow_engine,
+            '_get_remote_file_content',
+            return_value='{\n  "version": "1.2.3",\n  "name": "test"\n}',
+        ) as mock_get_content:
+            result = await self.workflow_engine._evaluate_remote_condition(
+                condition, github_repo
+            )
+
+            self.assertTrue(result)
+            mock_get_content.assert_called_once_with(
+                'owner', 'test-repo', 'package.json'
+            )
+
+    async def test_evaluate_remote_condition_no_github_repo(self) -> None:
+        """Test remote condition evaluation without GitHub repository."""
+        condition = models.WorkflowCondition(remote_file_exists='README.md')
+
+        result = await self.workflow_engine._evaluate_remote_condition(
+            condition, None
+        )
+
+        self.assertTrue(result)  # Should gracefully default to True
+
+    async def test_evaluate_remote_conditions_no_remote_conditions(
+        self,
+    ) -> None:
+        """Test remote conditions with no remote conditions."""
+        workflow_config = models.WorkflowConfiguration(
+            name='test-no-remote-conditions',
+            conditions=[
+                models.WorkflowCondition(file_exists='local.txt')  # Local only
+            ],
+            actions=[],
+        )
+
+        workflow = models.Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        workflow_run = models.WorkflowRun(
+            workflow=workflow, imbi_project=self.imbi_project
+        )
+
+        result = await self.workflow_engine._evaluate_remote_conditions(
+            workflow_run
+        )
+
+        self.assertTrue(result)  # Should pass with no remote conditions
+
+    async def test_evaluate_remote_conditions_all_type_pass(self) -> None:
+        """Test remote conditions with 'all' logic when all pass."""
+        workflow_config = models.WorkflowConfiguration(
+            name='test-remote-conditions-all-pass',
+            condition_type=models.WorkflowConditionType.all,
+            conditions=[
+                models.WorkflowCondition(remote_file_exists='README.md'),
+                models.WorkflowCondition(remote_file_not_exists='config.json'),
+            ],
+            actions=[],
+        )
+
+        workflow = models.Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        github_repo = models.GitHubRepository(
+            id=1,
+            node_id='test',
+            name='test-repo',
+            full_name='owner/test-repo',
+            owner=models.GitHubUser(
+                login='owner',
+                id=1,
+                node_id='test',
+                avatar_url='',
+                url='',
+                html_url='',
+                type='User',
+                site_admin=False,
+            ),
+            private=False,
+            html_url='',
+            description='',
+            fork=False,
+            url='',
+            default_branch='main',
+            clone_url='',
+            ssh_url='',
+            git_url='',
+        )
+
+        workflow_run = models.WorkflowRun(
+            workflow=workflow,
+            imbi_project=self.imbi_project,
+            github_repository=github_repo,
+        )
+
+        with mock.patch.object(
+            self.workflow_engine,
+            '_evaluate_remote_condition',
+            side_effect=[True, True],
+        ) as mock_evaluate:
+            result = await self.workflow_engine._evaluate_remote_conditions(
+                workflow_run
+            )
+
+            self.assertTrue(result)
+            self.assertEqual(mock_evaluate.call_count, 2)
+
+    async def test_evaluate_remote_conditions_any_type_pass(self) -> None:
+        """Test remote conditions with 'any' logic when one passes."""
+        workflow_config = models.WorkflowConfiguration(
+            name='test-remote-conditions-any-pass',
+            condition_type=models.WorkflowConditionType.any,
+            conditions=[
+                models.WorkflowCondition(remote_file_exists='README.md'),
+                models.WorkflowCondition(remote_file_exists='missing.txt'),
+            ],
+            actions=[],
+        )
+
+        workflow = models.Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        github_repo = models.GitHubRepository(
+            id=1,
+            node_id='test',
+            name='test-repo',
+            full_name='owner/test-repo',
+            owner=models.GitHubUser(
+                login='owner',
+                id=1,
+                node_id='test',
+                avatar_url='',
+                url='',
+                html_url='',
+                type='User',
+                site_admin=False,
+            ),
+            private=False,
+            html_url='',
+            description='',
+            fork=False,
+            url='',
+            default_branch='main',
+            clone_url='',
+            ssh_url='',
+            git_url='',
+        )
+
+        workflow_run = models.WorkflowRun(
+            workflow=workflow,
+            imbi_project=self.imbi_project,
+            github_repository=github_repo,
+        )
+
+        with mock.patch.object(
+            self.workflow_engine,
+            '_evaluate_remote_condition',
+            side_effect=[True, False],
+        ) as mock_evaluate:
+            result = await self.workflow_engine._evaluate_remote_conditions(
+                workflow_run
+            )
+
+            self.assertTrue(result)
+            self.assertEqual(mock_evaluate.call_count, 2)
+
+    @mock.patch('imbi_automations.engine.LOGGER')
+    async def test_remote_file_contains_404_no_warning_log(
+        self, mock_logger: mock.MagicMock
+    ) -> None:
+        """Test that 404 errors don't generate warning logs."""
+        github_repo = models.GitHubRepository(
+            id=1,
+            node_id='test',
+            name='test-repo',
+            full_name='owner/test-repo',
+            owner=models.GitHubUser(
+                login='owner',
+                id=1,
+                node_id='test',
+                avatar_url='',
+                url='',
+                html_url='',
+                type='User',
+                site_admin=False,
+            ),
+            private=False,
+            html_url='',
+            description='',
+            fork=False,
+            url='',
+            default_branch='main',
+            clone_url='',
+            ssh_url='',
+            git_url='',
+        )
+
+        condition = models.WorkflowCondition(
+            remote_file_contains='test', remote_file='missing.txt'
+        )
+
+        # Mock _get_remote_file_content to raise a 404 RuntimeError
+        with mock.patch.object(
+            self.workflow_engine,
+            '_get_remote_file_content',
+            side_effect=RuntimeError(
+                'gh CLI failed with exit code 1: gh: Not Found (HTTP 404)'
+            ),
+        ):
+            result = await self.workflow_engine._evaluate_remote_condition(
+                condition, github_repo
+            )
+
+            # Should return True (graceful degradation)
+            self.assertTrue(result)
+            # Should not have logged any warnings about 404s
+            mock_logger.warning.assert_not_called()
+
+    def test_workflow_stats_counter_initialization(self) -> None:
+        """Test that workflow stats counter is properly initialized."""
+        from collections import Counter
+
+        from imbi_automations.engine import (
+            AutomationEngine,
+            AutomationIterator,
+        )
+        from imbi_automations.models import (
+            Configuration,
+            Workflow,
+            WorkflowConfiguration,
+        )
+
+        config = Configuration()
+        workflow_config = WorkflowConfiguration(name='test', actions=[])
+        workflow = Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        engine = AutomationEngine(
+            args=None,
+            configuration=config,
+            iterator=AutomationIterator.imbi_projects,
+            workflow=workflow,
+        )
+
+        # Verify Counter is initialized
+        self.assertIsInstance(engine.workflow_stats, Counter)
+        self.assertEqual(len(engine.workflow_stats), 0)
+
+    @mock.patch('imbi_automations.engine.LOGGER')
+    def test_output_workflow_stats(self, mock_logger: mock.MagicMock) -> None:
+        """Test workflow stats output formatting."""
+        from collections import Counter
+
+        from imbi_automations.engine import (
+            AutomationEngine,
+            AutomationIterator,
+        )
+        from imbi_automations.models import (
+            Configuration,
+            Workflow,
+            WorkflowConfiguration,
+        )
+
+        config = Configuration()
+        workflow_config = WorkflowConfiguration(name='test', actions=[])
+        workflow = Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        engine = AutomationEngine(
+            args=None,
+            configuration=config,
+            iterator=AutomationIterator.imbi_projects,
+            workflow=workflow,
+        )
+
+        # Set up test stats
+        engine.workflow_stats = Counter(
+            {
+                'successful': 15,
+                'errored': 3,
+                'skipped_remote_conditions': 5,
+                'skipped_conditions': 2,
+                'skipped_no_repository': 1,
+            }
+        )
+
+        # Call the stats output method
+        engine._output_workflow_stats()
+
+        # Verify logging calls
+        mock_logger.info.assert_any_call(
+            '=== Workflow Execution Statistics ==='
+        )
+        mock_logger.info.assert_any_call('Total workflows processed: %d', 26)
+
+        # Check that successful workflows were logged
+        successful_logged = any(
+            call.args[0] == '  %s: %d (%.1f%%)'
+            and call.args[1] == 'Successful'
+            and call.args[2] == 15
+            for call in mock_logger.info.call_args_list
+        )
+        self.assertTrue(successful_logged, 'Successful workflows not logged')
+
+        # Check that success rate was logged
+        success_rate_logged = any(
+            call.args[0] == 'Success rate: %.1f%% (%d/%d)'
+            and call.args[2] == 15
+            and call.args[3] == 26
+            for call in mock_logger.info.call_args_list
+        )
+        self.assertTrue(success_rate_logged, 'Success rate not logged')
+
+    @mock.patch('imbi_automations.engine.LOGGER')
+    def test_output_workflow_stats_no_workflows(
+        self, mock_logger: mock.MagicMock
+    ) -> None:
+        """Test workflow stats output when no workflows processed."""
+        from imbi_automations.engine import (
+            AutomationEngine,
+            AutomationIterator,
+        )
+        from imbi_automations.models import (
+            Configuration,
+            Workflow,
+            WorkflowConfiguration,
+        )
+
+        config = Configuration()
+        workflow_config = WorkflowConfiguration(name='test', actions=[])
+        workflow = Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        engine = AutomationEngine(
+            args=None,
+            configuration=config,
+            iterator=AutomationIterator.imbi_projects,
+            workflow=workflow,
+        )
+
+        # Call stats output with empty counter
+        engine._output_workflow_stats()
+
+        # Should log message about no workflows
+        mock_logger.info.assert_called_with('No workflows were processed')
 
 
 if __name__ == '__main__':

@@ -10,10 +10,16 @@ import pydantic
 
 
 class AnthropicConfiguration(pydantic.BaseModel):
-    api_key: pydantic.SecretStr = pydantic.Field(
-        default=os.environ.get('ANTHROPIC_API_KEY')
-    )
+    api_key: pydantic.SecretStr | None = pydantic.Field(default=None)
     hostname: str = pydantic.Field(default='github.com')
+
+    def __init__(self, **data: typing.Any) -> None:
+        # Handle environment variable properly
+        if 'api_key' not in data:
+            env_key = os.environ.get('ANTHROPIC_API_KEY')
+            if env_key:
+                data['api_key'] = pydantic.SecretStr(env_key)
+        super().__init__(**data)
 
 
 class GitHubConfiguration(pydantic.BaseModel):
@@ -501,10 +507,17 @@ class WorkflowAction(pydantic.BaseModel):
 class WorkflowCondition(pydantic.BaseModel):
     """A single condition in a workflow."""
 
+    # Local conditions (require cloned repository)
     file_exists: str | None = None
     file_not_exists: str | None = None
     file_contains: str | None = None
     file: str | None = None
+
+    # Remote conditions (checked before cloning using GitHub API)
+    remote_file_exists: str | None = None
+    remote_file_not_exists: str | None = None
+    remote_file_contains: str | None = None
+    remote_file: str | None = None
 
 
 class WorkflowFilter(pydantic.BaseModel):

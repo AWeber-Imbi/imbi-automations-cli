@@ -70,13 +70,13 @@ class TestParseArgs(unittest.TestCase):
 
         shutil.rmtree(self.temp_dir)
 
-    def test_parse_args_imbi_project_id(self) -> None:
-        """Test parsing args with Imbi project ID target."""
+    def test_parse_args_project_id(self) -> None:
+        """Test parsing args with project ID target."""
         args = cli.parse_args(
             [
                 str(self.config_file),
                 str(self.workflow_dir),
-                '--imbi-project-id',
+                '--project-id',
                 '123',
             ]
         )
@@ -85,33 +85,29 @@ class TestParseArgs(unittest.TestCase):
         self.assertEqual(args.config[0].name, str(self.config_file))
         self.assertIsInstance(args.workflow, models.Workflow)
         self.assertEqual(args.workflow.path, self.workflow_dir)
-        self.assertEqual(args.imbi_project_id, 123)
+        self.assertEqual(args.project_id, 123)
         self.assertFalse(args.verbose)
 
-    def test_parse_args_imbi_project_type(self) -> None:
-        """Test parsing args with Imbi project type target."""
+    def test_parse_args_project_type(self) -> None:
+        """Test parsing args with project type target."""
         args = cli.parse_args(
             [
                 str(self.config_file),
                 str(self.workflow_dir),
-                '--imbi-project-type',
+                '--project-type',
                 'api',
             ]
         )
 
-        self.assertEqual(args.imbi_project_type, 'api')
+        self.assertEqual(args.project_type, 'api')
 
-    def test_parse_args_all_imbi_projects(self) -> None:
-        """Test parsing args with all Imbi projects target."""
+    def test_parse_args_all_projects(self) -> None:
+        """Test parsing args with all projects target."""
         args = cli.parse_args(
-            [
-                str(self.config_file),
-                str(self.workflow_dir),
-                '--all-imbi-projects',
-            ]
+            [str(self.config_file), str(self.workflow_dir), '--all-projects']
         )
 
-        self.assertTrue(args.all_imbi_projects)
+        self.assertTrue(args.all_projects)
 
     def test_parse_args_github_repository(self) -> None:
         """Test parsing args with GitHub repository target."""
@@ -195,7 +191,7 @@ class TestParseArgs(unittest.TestCase):
             [
                 str(self.config_file),
                 str(self.workflow_dir),
-                '--imbi-project-id',
+                '--project-id',
                 '123',
                 '--verbose',
             ]
@@ -215,7 +211,7 @@ class TestParseArgs(unittest.TestCase):
                 [
                     str(self.config_file),
                     str(self.workflow_dir),
-                    '--imbi-project-id',
+                    '--project-id',
                     '123',
                     '--github-repository',
                     'https://github.com/org/repo',
@@ -229,7 +225,7 @@ class TestParseArgs(unittest.TestCase):
                 [
                     '/nonexistent/config.toml',
                     str(self.workflow_dir),
-                    '--imbi-project-id',
+                    '--project-id',
                     '123',
                 ]
             )
@@ -241,7 +237,7 @@ class TestParseArgs(unittest.TestCase):
                 [
                     str(self.config_file),
                     '/nonexistent/workflow',
-                    '--imbi-project-id',
+                    '--project-id',
                     '123',
                 ]
             )
@@ -320,12 +316,12 @@ class TestConfigureLogging(unittest.TestCase):
 
 
 class TestDetermineIteratorType(unittest.TestCase):
-    def test_determine_iterator_type_imbi_project_id(self) -> None:
+    def test_determine_iterator_type_project_id(self) -> None:
         """Test iterator type for Imbi project ID."""
         args = argparse.Namespace(
-            imbi_project_id=123,
-            imbi_project_type=None,
-            all_imbi_projects=False,
+            project_id=123,
+            project_type=None,
+            all_projects=False,
             github_repository=None,
             github_organization=None,
             all_github_repositories=False,
@@ -337,12 +333,12 @@ class TestDetermineIteratorType(unittest.TestCase):
         result = cli.determine_iterator_type(args)
         self.assertEqual(result, engine.AutomationIterator.imbi_project)
 
-    def test_determine_iterator_type_imbi_project_type(self) -> None:
+    def test_determine_iterator_type_project_type(self) -> None:
         """Test iterator type for Imbi project type."""
         args = argparse.Namespace(
-            imbi_project_id=None,
-            imbi_project_type='api',
-            all_imbi_projects=False,
+            project_id=None,
+            project_type='api',
+            all_projects=False,
             github_repository=None,
             github_organization=None,
             all_github_repositories=False,
@@ -354,12 +350,12 @@ class TestDetermineIteratorType(unittest.TestCase):
         result = cli.determine_iterator_type(args)
         self.assertEqual(result, engine.AutomationIterator.imbi_project_types)
 
-    def test_determine_iterator_type_all_imbi_projects(self) -> None:
+    def test_determine_iterator_type_all_projects(self) -> None:
         """Test iterator type for all Imbi projects."""
         args = argparse.Namespace(
-            imbi_project_id=None,
-            imbi_project_type=None,
-            all_imbi_projects=True,
+            project_id=None,
+            project_type=None,
+            all_projects=True,
             github_repository=None,
             github_organization=None,
             all_github_repositories=False,
@@ -374,9 +370,9 @@ class TestDetermineIteratorType(unittest.TestCase):
     def test_determine_iterator_type_github_repository(self) -> None:
         """Test iterator type for GitHub repository."""
         args = argparse.Namespace(
-            imbi_project_id=None,
-            imbi_project_type=None,
-            all_imbi_projects=False,
+            project_id=None,
+            project_type=None,
+            all_projects=False,
             github_repository='https://github.com/org/repo',
             github_organization=None,
             all_github_repositories=False,
@@ -391,9 +387,9 @@ class TestDetermineIteratorType(unittest.TestCase):
     def test_determine_iterator_type_github_organization(self) -> None:
         """Test iterator type for GitHub organization."""
         args = argparse.Namespace(
-            imbi_project_id=None,
-            imbi_project_type=None,
-            all_imbi_projects=False,
+            project_id=None,
+            project_type=None,
+            all_projects=False,
             github_repository=None,
             github_organization='myorg',
             all_github_repositories=False,
@@ -408,9 +404,9 @@ class TestDetermineIteratorType(unittest.TestCase):
     def test_determine_iterator_type_all_github_repositories(self) -> None:
         """Test iterator type for all GitHub repositories."""
         args = argparse.Namespace(
-            imbi_project_id=None,
-            imbi_project_type=None,
-            all_imbi_projects=False,
+            project_id=None,
+            project_type=None,
+            all_projects=False,
             github_repository=None,
             github_organization=None,
             all_github_repositories=True,
@@ -425,9 +421,9 @@ class TestDetermineIteratorType(unittest.TestCase):
     def test_determine_iterator_type_gitlab_repository(self) -> None:
         """Test iterator type for GitLab repository."""
         args = argparse.Namespace(
-            imbi_project_id=None,
-            imbi_project_type=None,
-            all_imbi_projects=False,
+            project_id=None,
+            project_type=None,
+            all_projects=False,
             github_repository=None,
             github_organization=None,
             all_github_repositories=False,
@@ -442,9 +438,9 @@ class TestDetermineIteratorType(unittest.TestCase):
     def test_determine_iterator_type_gitlab_group(self) -> None:
         """Test iterator type for GitLab organization."""
         args = argparse.Namespace(
-            imbi_project_id=None,
-            imbi_project_type=None,
-            all_imbi_projects=False,
+            project_id=None,
+            project_type=None,
+            all_projects=False,
             github_repository=None,
             github_organization=None,
             all_github_repositories=False,
@@ -459,9 +455,9 @@ class TestDetermineIteratorType(unittest.TestCase):
     def test_determine_iterator_type_all_gitlab_repositories(self) -> None:
         """Test iterator type for all GitLab repositories."""
         args = argparse.Namespace(
-            imbi_project_id=None,
-            imbi_project_type=None,
-            all_imbi_projects=False,
+            project_id=None,
+            project_type=None,
+            all_projects=False,
             github_repository=None,
             github_organization=None,
             all_github_repositories=False,
@@ -476,9 +472,9 @@ class TestDetermineIteratorType(unittest.TestCase):
     def test_determine_iterator_type_no_valid_target(self) -> None:
         """Test that ValueError is raised when no valid target is provided."""
         args = argparse.Namespace(
-            imbi_project_id=None,
-            imbi_project_type=None,
-            all_imbi_projects=False,
+            project_id=None,
+            project_type=None,
+            all_projects=False,
             github_repository=None,
             github_organization=None,
             all_github_repositories=False,

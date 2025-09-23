@@ -324,6 +324,7 @@ async def push_changes(
     remote: str = 'origin',
     branch: str | None = None,
     force: bool = False,
+    set_upstream: bool = False,
 ) -> None:
     """Push committed changes to remote repository.
 
@@ -332,6 +333,7 @@ async def push_changes(
         remote: Remote name (default: 'origin')
         branch: Branch to push (default: current branch)
         force: Force push (default: False)
+        set_upstream: Set upstream tracking for new branches (default: False)
 
     Raises:
         RuntimeError: If git push fails
@@ -342,10 +344,14 @@ async def push_changes(
     if force:
         command.append('--force')
 
-    command.append(remote)
-
-    if branch:
-        command.append(branch)
+    if set_upstream:
+        command.extend(['--set-upstream', remote])
+        if branch:
+            command.append(branch)
+    else:
+        command.append(remote)
+        if branch:
+            command.append(branch)
 
     LOGGER.debug(
         'Pushing changes to %s %s', remote, branch or 'current branch'
