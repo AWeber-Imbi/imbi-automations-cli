@@ -1045,11 +1045,11 @@ class WorkflowEngine:
     async def _execute_claude_action(
         self, action: models.WorkflowAction, context: dict[str, typing.Any]
     ) -> typing.Any:
-        """Execute a claude workflow action (AI-powered code transformation)."""
+        """Execute a claude workflow action (AI-powered transformation)."""
 
         if not action.prompt_file:
             raise ValueError(
-                f'Claude action {action.name} requires prompt_file configuration'
+                f'Claude action {action.name} requires prompt_file'
             )
 
         workflow_run = context['workflow_run']
@@ -1065,7 +1065,8 @@ class WorkflowEngine:
 
         if not prompt_file_path.exists():
             raise FileNotFoundError(
-                f'Prompt file not found for action {action.name}: {prompt_file_path}'
+                f'Prompt file not found for action {action.name}: '
+                f'{prompt_file_path}'
             )
 
         # Read and potentially render prompt content
@@ -1094,7 +1095,7 @@ class WorkflowEngine:
         # Get Claude Code configuration
         if not self.claude_code:
             raise RuntimeError(
-                f'Claude action {action.name} requires Claude Code configuration'
+                f'Claude action {action.name} requires Claude Code config'
             )
 
         # Execute Claude Code with configured timeout and retries
@@ -1119,7 +1120,8 @@ class WorkflowEngine:
         context['actions'] = self.action_results
 
         LOGGER.info(
-            'Claude Code action %s completed: status=%s, attempts=%d, time=%.2fs',
+            'Claude Code action %s completed: status=%s, attempts=%d, '
+            'time=%.2fs',
             action.name,
             result['status'],
             result['attempts'],
@@ -1161,7 +1163,7 @@ class WorkflowEngine:
             return result
 
         if condition.file_contains:
-            # Use condition.file if specified, otherwise use file_contains as filename
+            # Use condition.file if specified, fallback to file_contains
             file_path = working_directory / (
                 condition.file or condition.file_contains
             )
@@ -1179,14 +1181,14 @@ class WorkflowEngine:
                     return result
                 else:
                     LOGGER.debug(
-                        'Condition file_contains "%s" - file "%s" not found: False',
+                        'Condition file_contains "%s" - file "%s" not found',
                         condition.file_contains,
                         condition.file or condition.file_contains,
                     )
                     return False
             except (OSError, UnicodeDecodeError) as exc:
                 LOGGER.debug(
-                    'Condition file_contains "%s" - error reading file "%s": %s',
+                    'Condition file_contains "%s" - error reading "%s": %s',
                     condition.file_contains,
                     condition.file or condition.file_contains,
                     exc,
@@ -1439,7 +1441,7 @@ class WorkflowEngine:
         try:
             if not run.github_repository:
                 LOGGER.warning(
-                    'Cannot create pull request for project %s - no GitHub repository',
+                    'Cannot create pull request for %s - no GitHub repo',
                     project_info,
                 )
                 return
@@ -1515,7 +1517,7 @@ class WorkflowEngine:
                 project_info,
                 exc,
             )
-            # Don't re-raise - workflow should complete even if PR creation fails
+            # Don't re-raise - workflow completes even if PR creation fails
 
     async def execute(self, run: models.WorkflowRun) -> None:
         """Execute a complete workflow run."""
@@ -1545,7 +1547,7 @@ class WorkflowEngine:
                 )
                 return
 
-        # Initialize Claude Code client if configuration available and working directory exists
+        # Initialize Claude Code client if config and working directory exist
         if self._claude_code_config and run.working_directory:
             self.claude_code = claude_code.ClaudeCode(
                 config=self._claude_code_config,

@@ -404,7 +404,8 @@ async def create_branch(
 
     if returncode != 0:
         raise RuntimeError(
-            f'Git branch creation failed (exit code {returncode}): {stderr or stdout}'
+            f'Git branch creation failed (exit code {returncode}): '
+            f'{stderr or stdout}'
         )
 
     LOGGER.debug('Successfully created branch %s', branch_name)
@@ -431,7 +432,8 @@ async def get_current_branch(working_directory: pathlib.Path) -> str:
 
     if returncode != 0:
         raise RuntimeError(
-            f'Git branch query failed (exit code {returncode}): {stderr or stdout}'
+            f'Git branch query failed (exit code {returncode}): '
+            f'{stderr or stdout}'
         )
 
     branch_name = stdout.strip()
