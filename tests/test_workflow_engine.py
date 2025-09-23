@@ -680,6 +680,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         workflow_config = models.WorkflowConfiguration(
             name='test-clone-workflow',
             clone_repository=True,
+            create_pull_request=False,
             actions=[
                 models.WorkflowAction(
                     name='test-action',
@@ -1188,6 +1189,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         workflow_config = models.WorkflowConfiguration(
             name='test-templates-workflow',
             clone_repository=True,
+            create_pull_request=False,
             actions=[
                 models.WorkflowAction(
                     name='apply-templates',
