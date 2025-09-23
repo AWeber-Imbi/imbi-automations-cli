@@ -893,8 +893,7 @@ class WorkflowEngine:
                     commit_message += '\n'.join(f'- {f}' for f in copied_files)
 
                 commit_message += (
-                    '\n\n🤖 Generated with Imbi Automations\n'
-                    'Co-Authored-By: Imbi Automations <noreply@aweber.com>'
+                    '\n\nCo-Authored-By: Imbi Automations <noreply@aweber.com>'
                 )
 
                 # Commit the changes
@@ -1081,8 +1080,7 @@ class WorkflowEngine:
                     )
 
                 commit_message += (
-                    '\n\n🤖 Generated with Imbi Automations\n'
-                    'Co-Authored-By: Imbi Automations <noreply@aweber.com>'
+                    '\n\nCo-Authored-By: Imbi Automations <noreply@aweber.com>'
                 )
 
                 # Commit the changes
@@ -1263,8 +1261,7 @@ class WorkflowEngine:
                     )
 
                 commit_message += (
-                    '\n\n🤖 Generated with Imbi Automations\n'
-                    'Co-Authored-By: Imbi Automations <noreply@aweber.com>'
+                    '\n\nCo-Authored-By: Imbi Automations <noreply@aweber.com>'
                 )
 
                 # Commit the changes
