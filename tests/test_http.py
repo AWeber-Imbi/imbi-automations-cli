@@ -269,7 +269,9 @@ class BaseURLClientTestCase(base.AsyncTestCase):
         client.http_client = mock.MagicMock()
 
         # Create mock for HTTP method
-        mock_get = mock.AsyncMock(return_value='response')
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+        mock_get = mock.AsyncMock(return_value=mock_response)
         client.http_client.get = mock_get
 
         # Call the method with a relative path
@@ -282,7 +284,7 @@ class BaseURLClientTestCase(base.AsyncTestCase):
         mock_logger.debug.assert_called_once_with(
             'Using URL: %s', 'https://api.example.com/api/endpoint'
         )
-        self.assertEqual(result, 'response')
+        self.assertEqual(result, mock_response)
 
         # Test with absolute URL
         mock_get.reset_mock()
@@ -389,3 +391,174 @@ class BaseURLClientTestCase(base.AsyncTestCase):
 
         # Verify aclose was called
         instance.http_client.aclose.assert_called_once()
+
+    async def test_retry_on_rate_limit_success_first_attempt(self) -> None:
+        """Test retry logic when request succeeds on first attempt."""
+        client = http.BaseURLClient()
+        client._base_url = 'https://api.example.com'
+
+        # Mock response that succeeds
+        mock_response = mock.MagicMock()
+        mock_response.status_code = 200
+
+        mock_method = mock.AsyncMock(return_value=mock_response)
+
+        result = await client._retry_on_rate_limit(
+            mock_method, '/test', max_retries=3
+        )
+
+        self.assertEqual(result, mock_response)
+        mock_method.assert_called_once_with('/test')
+
+    @mock.patch('asyncio.sleep')
+    async def test_retry_on_rate_limit_success_after_retry(
+        self, mock_sleep: mock.AsyncMock
+    ) -> None:
+        """Test retry logic when request succeeds after 429 error."""
+        client = http.BaseURLClient()
+        client._base_url = 'https://api.example.com'
+
+        # First response: 429, second response: 200
+        rate_limit_response = mock.MagicMock()
+        rate_limit_response.status_code = http.HTTPStatus.TOO_MANY_REQUESTS
+        rate_limit_response.headers = {'retry-after': '2'}
+
+        success_response = mock.MagicMock()
+        success_response.status_code = 200
+
+        mock_method = mock.AsyncMock(
+            side_effect=[rate_limit_response, success_response]
+        )
+
+        result = await client._retry_on_rate_limit(
+            mock_method, '/test', max_retries=3
+        )
+
+        self.assertEqual(result, success_response)
+        self.assertEqual(mock_method.call_count, 2)
+        mock_sleep.assert_called_once_with(2.0)  # Should use retry-after
+
+    @mock.patch('asyncio.sleep')
+    async def test_retry_on_rate_limit_max_retries_exceeded(
+        self, mock_sleep: mock.AsyncMock
+    ) -> None:
+        """Test retry logic when max retries are exceeded."""
+        client = http.BaseURLClient()
+        client._base_url = 'https://api.example.com'
+
+        # Always return 429
+        rate_limit_response = mock.MagicMock()
+        rate_limit_response.status_code = http.HTTPStatus.TOO_MANY_REQUESTS
+        rate_limit_response.headers = {}
+
+        mock_method = mock.AsyncMock(return_value=rate_limit_response)
+
+        result = await client._retry_on_rate_limit(
+            mock_method, '/test', max_retries=2
+        )
+
+        # Should return the last 429 response
+        self.assertEqual(result, rate_limit_response)
+        self.assertEqual(mock_method.call_count, 3)  # Initial + 2 retries
+
+        # Should have slept twice (exponential backoff: 1.0, 2.0)
+        self.assertEqual(mock_sleep.call_count, 2)
+        mock_sleep.assert_any_call(1.0)  # First retry delay
+        mock_sleep.assert_any_call(2.0)  # Second retry delay
+
+    @mock.patch('asyncio.sleep')
+    async def test_retry_on_rate_limit_with_retry_after_header(
+        self, mock_sleep: mock.AsyncMock
+    ) -> None:
+        """Test retry logic respects Retry-After header."""
+        client = http.BaseURLClient()
+        client._base_url = 'https://api.example.com'
+
+        rate_limit_response = mock.MagicMock()
+        rate_limit_response.status_code = http.HTTPStatus.TOO_MANY_REQUESTS
+        rate_limit_response.headers = {'retry-after': '5'}
+
+        success_response = mock.MagicMock()
+        success_response.status_code = 200
+
+        mock_method = mock.AsyncMock(
+            side_effect=[rate_limit_response, success_response]
+        )
+
+        result = await client._retry_on_rate_limit(
+            mock_method, '/test', max_retries=3, base_delay=1.0
+        )
+
+        self.assertEqual(result, success_response)
+        # Should use the larger of retry-after (5) vs exponential backoff (1)
+        mock_sleep.assert_called_once_with(5.0)
+
+    @mock.patch('asyncio.sleep')
+    async def test_retry_on_rate_limit_invalid_retry_after(
+        self, mock_sleep: mock.AsyncMock
+    ) -> None:
+        """Test retry logic with invalid Retry-After header."""
+        client = http.BaseURLClient()
+        client._base_url = 'https://api.example.com'
+
+        rate_limit_response = mock.MagicMock()
+        rate_limit_response.status_code = http.HTTPStatus.TOO_MANY_REQUESTS
+        rate_limit_response.headers = {'retry-after': 'invalid'}
+
+        success_response = mock.MagicMock()
+        success_response.status_code = 200
+
+        mock_method = mock.AsyncMock(
+            side_effect=[rate_limit_response, success_response]
+        )
+
+        result = await client._retry_on_rate_limit(
+            mock_method, '/test', max_retries=3, base_delay=1.0
+        )
+
+        self.assertEqual(result, success_response)
+        # Should fall back to exponential backoff (1.0 * 2^0 = 1.0)
+        mock_sleep.assert_called_once_with(1.0)
+
+    @mock.patch('asyncio.sleep')
+    async def test_retry_on_request_error(
+        self, mock_sleep: mock.AsyncMock
+    ) -> None:
+        """Test retry logic handles httpx.RequestError."""
+        client = http.BaseURLClient()
+        client._base_url = 'https://api.example.com'
+
+        request_error = httpx.ConnectError('Connection failed')
+        success_response = mock.MagicMock()
+        success_response.status_code = 200
+
+        mock_method = mock.AsyncMock(
+            side_effect=[request_error, success_response]
+        )
+
+        result = await client._retry_on_rate_limit(
+            mock_method, '/test', max_retries=3, base_delay=1.0
+        )
+
+        self.assertEqual(result, success_response)
+        self.assertEqual(mock_method.call_count, 2)
+        mock_sleep.assert_called_once_with(1.0)
+
+    @mock.patch('asyncio.sleep')
+    async def test_retry_on_request_error_max_retries_exceeded(
+        self, mock_sleep: mock.AsyncMock
+    ) -> None:
+        """Test retry logic raises error when max retries exceeded."""
+        client = http.BaseURLClient()
+        client._base_url = 'https://api.example.com'
+
+        request_error = httpx.ConnectError('Connection failed')
+        mock_method = mock.AsyncMock(side_effect=request_error)
+
+        with self.assertRaises(httpx.ConnectError):
+            await client._retry_on_rate_limit(
+                mock_method, '/test', max_retries=2, base_delay=1.0
+            )
+
+        self.assertEqual(mock_method.call_count, 3)  # Initial + 2 retries
+        self.assertEqual(mock_sleep.call_count, 2)  # Should sleep before retry

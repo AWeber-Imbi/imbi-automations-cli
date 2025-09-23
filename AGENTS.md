@@ -102,6 +102,37 @@ workflows/
 │   └── conditions/                # Workflow applicability
 ```
 
+### Workflow Conditions
+
+Workflows support conditional execution based on repository state. Conditions are evaluated after cloning but before action execution:
+
+- **`file_exists`**: Check if a file exists at the specified path
+- **`file_not_exists`**: Check if a file does not exist at the specified path
+- **`file_contains`**: Check if a file contains specified text or matches a regex pattern
+
+#### File Contains Condition
+
+The `file_contains` condition supports both string literals and regular expressions:
+
+```toml
+# String literal matching
+[[conditions]]
+file_contains = "compose.yml"
+file = "bootstrap"
+
+# Regex pattern matching (version numbers)
+[[conditions]]
+file_contains = "version:\\s+\\d+\\.\\d+\\.\\d+"
+file = "package.json"
+
+# Regex pattern matching (multiline)
+[[conditions]]
+file_contains = "FROM python:\\d+\\.\\d+"
+file = "Dockerfile"
+```
+
+**Performance**: String search is performed first (fast), with regex fallback only when string search fails. Invalid regex patterns gracefully fall back to string search behavior.
+
 ## Code Style and Standards
 
 - **Line length**: 79 characters (enforced by ruff)

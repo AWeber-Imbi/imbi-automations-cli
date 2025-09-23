@@ -460,6 +460,7 @@ class WorkflowActionTypes(enum.StrEnum):
     file = 'file'
     claude = 'claude'
     shell = 'shell'
+    ai_editor = 'ai-editor'
 
 
 class WorkflowConditionType(enum.StrEnum):
@@ -492,6 +493,9 @@ class WorkflowAction(pydantic.BaseModel):
     prompt_file: str | None = None
     timeout: int = 3600
     max_retries: int | None = None
+
+    # AI Editor action fields
+    target_file: str | None = None
 
 
 class WorkflowCondition(pydantic.BaseModel):

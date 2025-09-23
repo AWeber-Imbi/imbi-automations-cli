@@ -95,6 +95,7 @@ class AutomationEngine:
             gitlab_client=self.gitlab,
             imbi_client=self.imbi,
             claude_code_config=configuration.claude_code,
+            anthropic_config=configuration.anthropic,
         )
 
     async def run(self) -> None:
@@ -573,6 +574,7 @@ class WorkflowEngine:
         gitlab_client: gitlab.GitLab | None = None,
         imbi_client: imbi.Imbi | None = None,
         claude_code_config: models.ClaudeCodeConfiguration | None = None,
+        anthropic_config: models.AnthropicConfiguration | None = None,
     ) -> None:
         self.github = github_client
         self.gitlab = gitlab_client
@@ -580,6 +582,7 @@ class WorkflowEngine:
         self.utils = utils.Utils()
         self.claude_code: claude_code.ClaudeCode | None = None
         self._claude_code_config = claude_code_config
+        self._anthropic_config = anthropic_config
 
         # Initialize Jinja2 environment
         self.jinja_env = jinja2.Environment(
@@ -716,6 +719,8 @@ class WorkflowEngine:
                 return await self._execute_claude_action(action, context)
             case models.WorkflowActionTypes.shell:
                 return await self._execute_shell_action(action, context)
+            case models.WorkflowActionTypes.ai_editor:
+                return await self._execute_ai_editor_action(action, context)
             case _:
                 raise ValueError(f'Unsupported action type: {action.type}')
 
@@ -1467,6 +1472,172 @@ class WorkflowEngine:
             LOGGER.error(error_msg)
             raise RuntimeError(error_msg) from exc
 
+    async def _execute_ai_editor_action(
+        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+    ) -> typing.Any:
+        """Execute an AI Editor workflow action (fast file transformations)."""
+
+        if not action.prompt_file:
+            raise ValueError(
+                f'AI Editor action {action.name} requires prompt_file'
+            )
+
+        if not action.target_file:
+            raise ValueError(
+                f'AI Editor action {action.name} requires target_file'
+            )
+
+        workflow_run = context['workflow_run']
+
+        if not workflow_run.working_directory:
+            raise RuntimeError(
+                f'AI Editor action {action.name} requires cloned repository '
+                f'(working_directory)'
+            )
+
+        # Get the prompt file path (relative to workflow directory)
+        prompt_file_path = workflow_run.workflow.path / action.prompt_file
+
+        if not prompt_file_path.exists():
+            raise FileNotFoundError(
+                f'Prompt file not found for action {action.name}: '
+                f'{prompt_file_path}'
+            )
+
+        # Read and potentially render prompt content
+        try:
+            if prompt_file_path.suffix == '.j2':
+                # Render Jinja2 template
+                template_content = prompt_file_path.read_text(encoding='utf-8')
+                template = self.jinja_env.from_string(template_content)
+                prompt_content = template.render(context)
+                LOGGER.debug(
+                    'Rendered Jinja2 prompt template for AI Editor action %s',
+                    action.name,
+                )
+            else:
+                # Read plain text prompt
+                prompt_content = prompt_file_path.read_text(encoding='utf-8')
+                LOGGER.debug(
+                    'Loaded plain text prompt for AI Editor action %s',
+                    action.name,
+                )
+
+        except (OSError, UnicodeDecodeError) as exc:
+            raise RuntimeError(
+                f'Failed to read prompt file for action {action.name}: {exc}'
+            ) from exc
+
+        # Get Anthropic API key from configuration
+        if not self._anthropic_config or not self._anthropic_config.api_key:
+            raise RuntimeError(
+                f'AI Editor action {action.name} requires Anthropic API key'
+            )
+
+        # Initialize AI Editor
+        from . import ai_editor
+
+        editor = ai_editor.AIEditor(
+            api_key=self._anthropic_config.api_key.get_secret_value(),
+            working_directory=workflow_run.working_directory,
+        )
+
+        # Execute AI Editor with configured timeout and retries
+        timeout = action.timeout or 300  # Default 5 minutes
+        max_retries = action.max_retries or 3  # Default 3 attempts
+
+        LOGGER.info(
+            'Executing AI Editor action %s on %s (timeout: %ds, retries: %d)',
+            action.name,
+            action.target_file,
+            timeout,
+            max_retries,
+        )
+
+        result = await editor.execute_prompt(
+            prompt_content=prompt_content,
+            target_file=action.target_file,
+            timeout_seconds=timeout,
+            max_retries=max_retries,
+        )
+
+        # Check if AI Editor made any changes and commit them if needed
+        from . import git
+
+        try:
+            changed_files = await git.get_git_status(
+                workflow_run.working_directory
+            )
+            if changed_files and result.get('changed'):
+                LOGGER.debug(
+                    'AI Editor action %s modified %d files: %s',
+                    action.name,
+                    len(changed_files),
+                    ', '.join(changed_files),
+                )
+
+                # Stage all changed files
+                await git.add_files(
+                    workflow_run.working_directory, changed_files
+                )
+
+                # Create commit message
+                commit_message = f'imbi-automations: {action.name}'
+                if len(changed_files) == 1:
+                    commit_message += f'\n\nModified: {changed_files[0]}'
+                else:
+                    commit_message += '\n\nModified files:\n'
+                    commit_message += '\n'.join(
+                        f'- {f}' for f in changed_files
+                    )
+
+                commit_message += (
+                    '\n\nCo-Authored-By: Imbi Automations <noreply@aweber.com>'
+                )
+
+                # Commit the changes
+                commit_sha = await git.commit_changes(
+                    working_directory=workflow_run.working_directory,
+                    message=commit_message,
+                    author_name='Imbi Automations',
+                    author_email='noreply@aweber.com',
+                )
+
+                LOGGER.debug(
+                    'AI Editor action %s committed changes: %s',
+                    action.name,
+                    commit_sha[:8] if commit_sha else 'unknown',
+                )
+
+                # Add commit info to result
+                result['committed'] = True
+                result['commit_sha'] = commit_sha
+                result['changed_files'] = changed_files
+            else:
+                result['committed'] = False
+
+        except (OSError, subprocess.CalledProcessError, RuntimeError) as exc:
+            LOGGER.warning(
+                'Failed to commit changes for AI Editor action %s: %s',
+                action.name,
+                exc,
+            )
+            result['committed'] = False
+            result['commit_error'] = str(exc)
+
+        # Store result for future template references
+        self.action_results[action.name] = {'result': result}
+        context['actions'] = self.action_results
+
+        LOGGER.info(
+            'AI Editor action %s completed: status=%s, attempts=%d',
+            action.name,
+            result['status'],
+            result['attempts'],
+        )
+
+        return result
+
     async def _evaluate_condition(
         self,
         condition: models.WorkflowCondition,
@@ -1508,14 +1679,37 @@ class WorkflowEngine:
             try:
                 if file_path.exists() and file_path.is_file():
                     content = file_path.read_text(encoding='utf-8')
-                    result = condition.file_contains in content
+
+                    # Try string containment first (faster)
+                    if condition.file_contains in content:
+                        LOGGER.debug(
+                            'Condition file_contains string "%s" in "%s": %s',
+                            condition.file_contains,
+                            condition.file or condition.file_contains,
+                            'True',
+                        )
+                        return True
+
+                    # If string search fails, try regex
+                    try:
+                        if re.search(condition.file_contains, content):
+                            LOGGER.debug(
+                                'file_contains regex "%s" in "%s": %s',
+                                condition.file_contains,
+                                condition.file or condition.file_contains,
+                                'True',
+                            )
+                            return True
+                    except re.error:
+                        # Regex is invalid, string search already failed
+                        pass
+
                     LOGGER.debug(
-                        'Condition file_contains "%s" in "%s": %s',
+                        'Condition file_contains "%s" in "%s": False',
                         condition.file_contains,
                         condition.file or condition.file_contains,
-                        result,
                     )
-                    return result
+                    return False
                 else:
                     LOGGER.debug(
                         'Condition file_contains "%s" - file "%s" not found',

@@ -1,3 +1,5 @@
+import asyncio
+import contextlib
 import http
 import logging
 import ssl
@@ -87,6 +89,64 @@ class BaseURLClient(Client):
             return url_or_path
         return f'{self.base_url.rstrip("/")}/{url_or_path.lstrip("/")}'
 
+    async def _retry_on_rate_limit(
+        self,
+        method: typing.Callable,
+        url: str,
+        *args: typing.Any,
+        max_retries: int = 3,
+        base_delay: float = 1.0,
+        **kwargs: typing.Any,
+    ) -> httpx.Response:
+        """Retry HTTP requests with exponential backoff on 429 errors."""
+        for attempt in range(max_retries + 1):
+            try:
+                response = await method(url, *args, **kwargs)
+                if response.status_code != HTTPStatus.TOO_MANY_REQUESTS:
+                    return response
+
+                if attempt == max_retries:
+                    # Last attempt, return the response
+                    return response
+
+                # Calculate delay: base_delay * 2^attempt + jitter
+                delay = base_delay * (2**attempt)
+
+                # Check for Retry-After header
+                retry_after = response.headers.get('retry-after')
+                if retry_after:
+                    with contextlib.suppress(ValueError):
+                        # Retry-After can be in seconds or HTTP-date
+                        delay = max(delay, float(retry_after))
+
+                LOGGER.warning(
+                    'Rate limited (429) on %s, retrying in %.1f seconds '
+                    '(attempt %d/%d)',
+                    utils.sanitize(url),
+                    delay,
+                    attempt + 1,
+                    max_retries,
+                )
+                await asyncio.sleep(delay)
+
+            except httpx.RequestError as exc:
+                if attempt == max_retries:
+                    raise
+                delay = base_delay * (2**attempt)
+                LOGGER.warning(
+                    'Request error on %s: %s, retrying in %.1f seconds '
+                    '(attempt %d/%d)',
+                    utils.sanitize(url),
+                    exc,
+                    delay,
+                    attempt + 1,
+                    max_retries,
+                )
+                await asyncio.sleep(delay)
+
+        # This should never be reached, but helps with type checking
+        raise RuntimeError('Retry logic failed unexpectedly')
+
     def __getattr__(self, name: str) -> typing.Any:
         """Override HTTP methods to prepend base URL when needed"""
         attr = getattr(self.http_client, name)
@@ -97,7 +157,9 @@ class BaseURLClient(Client):
             ) -> typing.Any:
                 modified_url = self._prepend_base_url(url)
                 LOGGER.debug('Using URL: %s', utils.sanitize(modified_url))
-                return await attr(modified_url, *args, **kwargs)
+                return await self._retry_on_rate_limit(
+                    attr, modified_url, *args, **kwargs
+                )
 
             return wrapper
         return attr

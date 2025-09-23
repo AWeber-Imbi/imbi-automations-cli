@@ -1330,6 +1330,139 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
         self.assertTrue(result)
 
+    @mock.patch('pathlib.Path.read_text')
+    @mock.patch('pathlib.Path.is_file')
+    @mock.patch('pathlib.Path.exists')
+    async def test_evaluate_condition_file_contains_string_match(
+        self,
+        mock_exists: mock.Mock,
+        mock_is_file: mock.Mock,
+        mock_read_text: mock.Mock,
+    ) -> None:
+        """Test file_contains condition with string match."""
+        mock_working_dir = pathlib.Path('/mock/working/dir')
+        mock_exists.return_value = True
+        mock_is_file.return_value = True
+        mock_read_text.return_value = 'hello world\nthis is a test'
+
+        condition = models.WorkflowCondition(file_contains='hello')
+        result = await self.workflow_engine._evaluate_condition(
+            condition, mock_working_dir
+        )
+
+        self.assertTrue(result)
+        mock_exists.assert_called_once()
+        mock_is_file.assert_called_once()
+        mock_read_text.assert_called_once_with(encoding='utf-8')
+
+    @mock.patch('pathlib.Path.read_text')
+    @mock.patch('pathlib.Path.is_file')
+    @mock.patch('pathlib.Path.exists')
+    async def test_evaluate_condition_file_contains_regex_match(
+        self,
+        mock_exists: mock.Mock,
+        mock_is_file: mock.Mock,
+        mock_read_text: mock.Mock,
+    ) -> None:
+        """Test file_contains condition with regex match."""
+        mock_working_dir = pathlib.Path('/mock/working/dir')
+        mock_exists.return_value = True
+        mock_is_file.return_value = True
+        mock_read_text.return_value = 'version: 1.2.3\nname: test'
+
+        condition = models.WorkflowCondition(
+            file_contains=r'version:\s+\d+\.\d+\.\d+'
+        )
+        result = await self.workflow_engine._evaluate_condition(
+            condition, mock_working_dir
+        )
+
+        self.assertTrue(result)
+
+    @mock.patch('pathlib.Path.read_text')
+    @mock.patch('pathlib.Path.is_file')
+    @mock.patch('pathlib.Path.exists')
+    async def test_evaluate_condition_file_contains_no_match(
+        self,
+        mock_exists: mock.Mock,
+        mock_is_file: mock.Mock,
+        mock_read_text: mock.Mock,
+    ) -> None:
+        """Test file_contains condition with no match."""
+        mock_working_dir = pathlib.Path('/mock/working/dir')
+        mock_exists.return_value = True
+        mock_is_file.return_value = True
+        mock_read_text.return_value = 'hello world\nthis is a test'
+
+        condition = models.WorkflowCondition(file_contains='missing')
+        result = await self.workflow_engine._evaluate_condition(
+            condition, mock_working_dir
+        )
+
+        self.assertFalse(result)
+
+    @mock.patch('pathlib.Path.exists')
+    async def test_evaluate_condition_file_contains_file_not_found(
+        self, mock_exists: mock.Mock
+    ) -> None:
+        """Test file_contains condition when file doesn't exist."""
+        mock_working_dir = pathlib.Path('/mock/working/dir')
+        mock_exists.return_value = False
+
+        condition = models.WorkflowCondition(file_contains='test')
+        result = await self.workflow_engine._evaluate_condition(
+            condition, mock_working_dir
+        )
+
+        self.assertFalse(result)
+
+    @mock.patch('pathlib.Path.read_text')
+    @mock.patch('pathlib.Path.is_file')
+    @mock.patch('pathlib.Path.exists')
+    async def test_evaluate_condition_file_contains_with_file_field(
+        self,
+        mock_exists: mock.Mock,
+        mock_is_file: mock.Mock,
+        mock_read_text: mock.Mock,
+    ) -> None:
+        """Test file_contains condition using separate file field."""
+        mock_working_dir = pathlib.Path('/mock/working/dir')
+        mock_exists.return_value = True
+        mock_is_file.return_value = True
+        mock_read_text.return_value = 'content here'
+
+        condition = models.WorkflowCondition(
+            file_contains='content', file='config.yml'
+        )
+        result = await self.workflow_engine._evaluate_condition(
+            condition, mock_working_dir
+        )
+
+        self.assertTrue(result)
+
+    @mock.patch('pathlib.Path.read_text')
+    @mock.patch('pathlib.Path.is_file')
+    @mock.patch('pathlib.Path.exists')
+    async def test_evaluate_condition_file_contains_invalid_regex(
+        self,
+        mock_exists: mock.Mock,
+        mock_is_file: mock.Mock,
+        mock_read_text: mock.Mock,
+    ) -> None:
+        """Test file_contains condition with invalid regex."""
+        mock_working_dir = pathlib.Path('/mock/working/dir')
+        mock_exists.return_value = True
+        mock_is_file.return_value = True
+        mock_read_text.return_value = 'hello world'
+
+        # Use an invalid regex pattern that also won't match as string
+        condition = models.WorkflowCondition(file_contains='[invalid')
+        result = await self.workflow_engine._evaluate_condition(
+            condition, mock_working_dir
+        )
+
+        self.assertFalse(result)
+
     async def test_evaluate_conditions_no_conditions(self) -> None:
         """Test conditions evaluation when no conditions are specified."""
         workflow_run = models.WorkflowRun(
