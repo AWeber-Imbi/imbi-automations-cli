@@ -459,6 +459,7 @@ class WorkflowActionTypes(enum.StrEnum):
     templates = 'templates'
     file = 'file'
     claude = 'claude'
+    shell = 'shell'
 
 
 class WorkflowConditionType(enum.StrEnum):

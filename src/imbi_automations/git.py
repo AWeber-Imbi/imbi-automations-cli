@@ -362,7 +362,7 @@ async def push_changes(
             f'Git push failed (exit code {returncode}): {stderr or stdout}'
         )
 
-    LOGGER.info(
+    LOGGER.debug(
         'Successfully pushed changes to %s %s',
         remote,
         branch or 'current branch',

@@ -714,6 +714,8 @@ class WorkflowEngine:
                 return await self._execute_file_action(action, context)
             case models.WorkflowActionTypes.claude:
                 return await self._execute_claude_action(action, context)
+            case models.WorkflowActionTypes.shell:
+                return await self._execute_shell_action(action, context)
             case _:
                 raise ValueError(f'Unsupported action type: {action.type}')
 
@@ -872,7 +874,50 @@ class WorkflowEngine:
                     errors.append(error_msg)
                     LOGGER.error(error_msg)
 
-        # Note: Git operations moved to end of workflow execution
+        # Commit changes if files were copied
+        from . import git
+
+        if copied_files:
+            try:
+                # Stage the copied files
+                await git.add_files(
+                    workflow_run.working_directory, copied_files
+                )
+
+                # Create commit message
+                commit_message = f'Apply templates action: {action.name}'
+                if len(copied_files) == 1:
+                    commit_message += f'\n\nAdded: {copied_files[0]}'
+                else:
+                    commit_message += '\n\nAdded files:\n'
+                    commit_message += '\n'.join(f'- {f}' for f in copied_files)
+
+                commit_message += (
+                    '\n\n🤖 Generated with Imbi Automations\n'
+                    'Co-Authored-By: Imbi Automations <noreply@aweber.com>'
+                )
+
+                # Commit the changes
+                commit_sha = await git.commit_changes(
+                    working_directory=workflow_run.working_directory,
+                    message=commit_message,
+                    author_name='Imbi Automations',
+                    author_email='noreply@aweber.com',
+                )
+
+                LOGGER.info(
+                    'Templates action %s committed %d files: %s',
+                    action.name,
+                    len(copied_files),
+                    commit_sha[:8] if commit_sha else 'unknown',
+                )
+
+            except (OSError, subprocess.CalledProcessError) as exc:
+                LOGGER.warning(
+                    'Failed to commit templates for action %s: %s',
+                    action.name,
+                    exc,
+                )
 
         # Determine result status
         if errors:
@@ -1008,6 +1053,67 @@ class WorkflowEngine:
             case _:
                 raise ValueError(f'Unsupported file command: {action.command}')
 
+        # Commit the file operation
+        from . import git
+
+        try:
+            changed_files = await git.get_git_status(working_directory)
+            if changed_files:
+                # Stage changed files
+                await git.add_files(working_directory, changed_files)
+
+                # Create commit message
+                operation = result.get('operation', action.command)
+                commit_message = (
+                    f'Apply file action: {action.name} ({operation})'
+                )
+
+                if operation == 'rename':
+                    commit_message += (
+                        f'\n\nRenamed: {action.source} → {action.destination}'
+                    )
+                elif operation == 'remove':
+                    commit_message += f'\n\nRemoved: {action.source}'
+                else:
+                    commit_message += '\n\nModified files:\n'
+                    commit_message += '\n'.join(
+                        f'- {f}' for f in changed_files
+                    )
+
+                commit_message += (
+                    '\n\n🤖 Generated with Imbi Automations\n'
+                    'Co-Authored-By: Imbi Automations <noreply@aweber.com>'
+                )
+
+                # Commit the changes
+                commit_sha = await git.commit_changes(
+                    working_directory=working_directory,
+                    message=commit_message,
+                    author_name='Imbi Automations',
+                    author_email='noreply@aweber.com',
+                )
+
+                LOGGER.info(
+                    'File action %s committed changes: %s',
+                    action.name,
+                    commit_sha[:8] if commit_sha else 'unknown',
+                )
+
+                # Add commit info to result
+                result['committed'] = True
+                result['commit_sha'] = commit_sha
+            else:
+                result['committed'] = False
+
+        except (OSError, subprocess.CalledProcessError, RuntimeError) as exc:
+            LOGGER.warning(
+                'Failed to commit changes for file action %s: %s',
+                action.name,
+                exc,
+            )
+            result['committed'] = False
+            result['commit_error'] = str(exc)
+
         # Store result for future template references
         self.action_results[action.name] = {'result': result}
         context['actions'] = self.action_results
@@ -1048,7 +1154,7 @@ class WorkflowEngine:
                 'Rendered template %s to %s', template_file.name, target_file
             )
 
-        except Exception as exc:
+        except (OSError, UnicodeDecodeError, jinja2.TemplateError) as exc:
             raise RuntimeError(
                 f'Failed to render template {template_file.name}: {exc}'
             ) from exc
@@ -1126,6 +1232,71 @@ class WorkflowEngine:
             max_retries=max_retries,
         )
 
+        # Check if Claude Code made any changes and commit them if needed
+        from . import git
+
+        try:
+            changed_files = await git.get_git_status(
+                workflow_run.working_directory
+            )
+            if changed_files:
+                LOGGER.info(
+                    'Claude action %s modified %d files: %s',
+                    action.name,
+                    len(changed_files),
+                    ', '.join(changed_files),
+                )
+
+                # Stage all changed files
+                await git.add_files(
+                    workflow_run.working_directory, changed_files
+                )
+
+                # Create commit message
+                commit_message = f'Apply Claude action: {action.name}'
+                if len(changed_files) == 1:
+                    commit_message += f'\n\nModified: {changed_files[0]}'
+                else:
+                    commit_message += '\n\nModified files:\n'
+                    commit_message += '\n'.join(
+                        f'- {f}' for f in changed_files
+                    )
+
+                commit_message += (
+                    '\n\n🤖 Generated with Imbi Automations\n'
+                    'Co-Authored-By: Imbi Automations <noreply@aweber.com>'
+                )
+
+                # Commit the changes
+                commit_sha = await git.commit_changes(
+                    working_directory=workflow_run.working_directory,
+                    message=commit_message,
+                    author_name='Imbi Automations',
+                    author_email='noreply@aweber.com',
+                )
+
+                LOGGER.info(
+                    'Claude action %s committed changes: %s',
+                    action.name,
+                    commit_sha[:8] if commit_sha else 'unknown',
+                )
+
+                # Add commit info to result
+                result['committed'] = True
+                result['commit_sha'] = commit_sha
+                result['changed_files'] = changed_files
+            else:
+                result['committed'] = False
+
+        except (OSError, subprocess.CalledProcessError, RuntimeError) as exc:
+            LOGGER.warning(
+                'Failed to commit changes for Claude action %s: %s',
+                action.name,
+                exc,
+            )
+            result['committed'] = False
+            result['commit_error'] = str(exc)
+
         # Store result for future template references
         self.action_results[action.name] = {'result': result}
         context['actions'] = self.action_results
@@ -1140,6 +1311,164 @@ class WorkflowEngine:
         )
 
         return result
+
+    async def _execute_shell_action(
+        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+    ) -> typing.Any:
+        """Execute a shell workflow action (run shell commands)."""
+        import subprocess
+
+        from . import git
+
+        if not action.command:
+            raise ValueError(f'Shell action {action.name} requires command')
+
+        workflow_run = context['workflow_run']
+
+        if not workflow_run.working_directory:
+            raise RuntimeError(
+                f'Shell action {action.name} requires cloned repository '
+                f'(working_directory)'
+            )
+
+        # Render the command as a Jinja2 template if it contains templates
+        command = action.command
+        if '{{' in command:
+            LOGGER.debug(
+                'Rendering shell command template for action %s', action.name
+            )
+            template = self.jinja_env.from_string(command)
+            command = template.render(context)
+            LOGGER.debug('Rendered command: %s', command)
+
+        LOGGER.debug(
+            'Executing shell command for action %s: %s', action.name, command
+        )
+
+        try:
+            # Execute the shell command in the working directory
+            result = subprocess.run(  # noqa: ASYNC221, S602
+                command,
+                shell=True,
+                cwd=workflow_run.working_directory,
+                capture_output=True,
+                text=True,
+                timeout=300,  # 5 minute timeout
+                check=False,  # Don't raise exception on non-zero exit
+            )
+
+            # Store the result
+            shell_result = {
+                'command': command,
+                'returncode': result.returncode,
+                'stdout': result.stdout.strip() if result.stdout else '',
+                'stderr': result.stderr.strip() if result.stderr else '',
+            }
+
+            # Log output for debugging
+            if result.stdout:
+                LOGGER.debug('Shell command stdout: %s', result.stdout.strip())
+            if result.stderr:
+                if result.returncode == 0:
+                    LOGGER.debug(
+                        'Shell command stderr: %s', result.stderr.strip()
+                    )
+                else:
+                    LOGGER.warning(
+                        'Shell command stderr: %s', result.stderr.strip()
+                    )
+
+            if result.returncode != 0:
+                LOGGER.warning(
+                    'Shell command failed with exit code %d: %s',
+                    result.returncode,
+                    command,
+                )
+            else:
+                LOGGER.debug(
+                    'Shell command completed successfully: %s', command
+                )
+
+            # Check for git changes and commit them if any exist
+            try:
+                changed_files = await git.get_git_status(
+                    workflow_run.working_directory
+                )
+                if changed_files:
+                    LOGGER.debug(
+                        'Shell action %s modified %d files: %s',
+                        action.name,
+                        len(changed_files),
+                        ', '.join(changed_files),
+                    )
+
+                    # Stage all changed files
+                    await git.add_files(
+                        workflow_run.working_directory, changed_files
+                    )
+
+                    # Create commit message
+                    commit_message = f'Apply shell action: {action.name}'
+                    if len(changed_files) == 1:
+                        commit_message += f'\n\nModified: {changed_files[0]}'
+                    else:
+                        commit_message += '\n\nModified files:\n'
+                        commit_message += '\n'.join(
+                            f'- {f}' for f in changed_files
+                        )
+
+                    commit_message += (
+                        '\n\n🤖 Generated with Imbi Automations\n'
+                        'Co-Authored-By: Imbi Automations <noreply@aweber.com>'
+                    )
+
+                    # Commit the changes
+                    commit_sha = await git.commit_changes(
+                        working_directory=workflow_run.working_directory,
+                        message=commit_message,
+                        author_name='Imbi Automations',
+                        author_email='noreply@aweber.com',
+                    )
+
+                    LOGGER.debug(
+                        'Shell action %s committed changes: %s',
+                        action.name,
+                        commit_sha[:8] if commit_sha else 'unknown',
+                    )
+
+                    # Add commit info to result
+                    shell_result['committed'] = True
+                    shell_result['commit_sha'] = commit_sha
+                    shell_result['changed_files'] = changed_files
+                else:
+                    LOGGER.debug(
+                        'Shell action %s made no git changes', action.name
+                    )
+                    shell_result['committed'] = False
+
+            except (OSError, subprocess.CalledProcessError) as exc:
+                LOGGER.warning(
+                    'Failed to commit changes for shell action %s: %s',
+                    action.name,
+                    exc,
+                )
+                shell_result['committed'] = False
+                shell_result['commit_error'] = str(exc)
+
+            # Store result for future template references
+            self.action_results[action.name] = {'result': shell_result}
+            context['actions'] = self.action_results
+
+            return shell_result
+
+        except subprocess.TimeoutExpired as exc:
+            error_msg = f'Shell command timed out after 300 seconds: {command}'
+            LOGGER.error(error_msg)
+            raise RuntimeError(error_msg) from exc
+        except (OSError, subprocess.CalledProcessError) as exc:
+            error_msg = f'Failed to execute shell command {command}: {exc}'
+            LOGGER.error(error_msg)
+            raise RuntimeError(error_msg) from exc
 
     async def _evaluate_condition(
         self,
@@ -1582,6 +1911,8 @@ class WorkflowEngine:
             run.workflow.configuration.create_pull_request
             and run.working_directory
         ):
+            from . import git
+
             branch_name = f'imbi-automations/{run.workflow.configuration.name}'
             await git.create_branch(run.working_directory, branch_name)
             LOGGER.info(
@@ -1614,7 +1945,7 @@ class WorkflowEngine:
                     project_info,
                 )
                 await self._execute_action(action, context)
-            except Exception as exc:
+            except (OSError, subprocess.CalledProcessError) as exc:
                 LOGGER.error(
                     'Action %s failed for project %s: %s',
                     action.name,
@@ -1623,9 +1954,23 @@ class WorkflowEngine:
                 )
                 raise
 
-        # Commit all template changes at the end of workflow
+        # Push all commits to remote repository at the end of workflow
         if run.working_directory:
-            await self._commit_workflow_changes(run, project_info)
+            try:
+                from . import git
+
+                await git.push_changes(run.working_directory)
+                LOGGER.debug(
+                    'Pushed all workflow changes to remote for project %s',
+                    project_info,
+                )
+            except (OSError, subprocess.CalledProcessError) as exc:
+                LOGGER.warning(
+                    'Failed to push workflow changes for project %s: %s',
+                    project_info,
+                    exc,
+                )
+                # Don't re-raise - workflow completes even if push fails
 
         LOGGER.info(
             'Workflow completed successfully for project %s', project_info
@@ -1681,6 +2026,6 @@ class WorkflowEngine:
                 'Repository cloned to working directory: %s', working_directory
             )
 
-        except Exception as exc:
+        except (OSError, subprocess.CalledProcessError, RuntimeError) as exc:
             LOGGER.error('Failed to clone repository %s: %s', repo_name, exc)
             raise
