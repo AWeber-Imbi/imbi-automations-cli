@@ -57,6 +57,8 @@ async def sync_project_environments(
                 parsed_envs = ast.literal_eval(decoded_envs)
                 if isinstance(parsed_envs, list):
                     imbi_environments = parsed_envs
+                elif parsed_envs is None:
+                    imbi_environments = []
                 else:
                     LOGGER.warning(
                         'Expected list but got %s: %s',
