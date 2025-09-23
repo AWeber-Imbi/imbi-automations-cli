@@ -78,6 +78,13 @@ class ClaudeCode:
                         attempt,
                         execution_time,
                     )
+
+                    # Log stdout and stderr for debugging even on success
+                    if stdout.strip():
+                        LOGGER.debug('Claude Code stdout:\n%s', stdout)
+                    if stderr.strip():
+                        LOGGER.debug('Claude Code stderr:\n%s', stderr)
+
                     return {
                         'status': 'success',
                         'stdout': stdout,
