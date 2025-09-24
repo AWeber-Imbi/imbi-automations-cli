@@ -57,7 +57,7 @@ pre-commit run --all-files
 - **Models** (`models.py`): Pydantic data models for configuration and Imbi entities
 - **HTTP Client** (`http.py`): Base HTTP client with authentication and error handling
 - **Imbi Client** (`imbi.py`): Integration with Imbi project management API
-- **GitHub Client** (`github.py`): GitHub API integration for repository operations
+- **GitHub Client** (`github.py`): GitHub API integration for repository operations with pattern-aware workflow file detection
 - **Git Operations** (`git.py`): Git repository management and operations
 - **Utilities** (`utils.py`): Configuration loading, directory management, URL sanitization
 
@@ -214,6 +214,7 @@ remote_file_exists = ".github/workflows"  # Has GitHub Actions
 - **Colored Logging**: Uses colorlog for CLI output with different colors per log level
 - **Directory Management**: Automatic parent directory creation with proper error handling
 - **Authentication**: Secret string handling for API keys in configuration
+- **Pattern-Aware File Detection**: GitHub client supports both exact file paths and regex patterns for workflow file detection
 
 ## Dependencies
 

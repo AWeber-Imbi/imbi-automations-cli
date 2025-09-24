@@ -1210,6 +1210,127 @@ jobs:
         result = self.instance._extract_imbi_python_version(imbi_project)
         self.assertIsNone(result)
 
+    async def test_check_workflow_file_exists_exact_path_success(self) -> None:
+        """Test workflow file existence check with exact path."""
+        self.http_client_side_effect = httpx.Response(
+            200,
+            request=httpx.Request(
+                'GET',
+                'https://api.github.com/repos/testorg/test-repo/contents/.github/workflows/ci.yml',
+            ),
+        )
+
+        result = await self.instance._check_workflow_file_exists(
+            'testorg', 'test-repo', '.github/workflows/ci.yml'
+        )
+
+        self.assertTrue(result)
+
+    async def test_check_workflow_file_exists_exact_path_not_found(
+        self,
+    ) -> None:
+        """Test workflow file existence check with exact path not found."""
+        self.http_client_side_effect = httpx.Response(
+            404,
+            request=httpx.Request(
+                'GET',
+                'https://api.github.com/repos/testorg/test-repo/contents/.github/workflows/ci.yml',
+            ),
+        )
+
+        result = await self.instance._check_workflow_file_exists(
+            'testorg', 'test-repo', '.github/workflows/ci.yml'
+        )
+
+        self.assertFalse(result)
+
+    async def test_check_workflow_file_exists_pattern_success(self) -> None:
+        """Test workflow file existence check with regex pattern."""
+        # Mock the directory listing
+        workflow_files = [
+            {'name': 'python-api-ci.yml', 'type': 'file'},
+            {'name': 'python-consumer-ci.yml', 'type': 'file'},
+            {'name': 'deploy.yml', 'type': 'file'},
+        ]
+
+        self.http_client_side_effect = httpx.Response(
+            200,
+            json=workflow_files,
+            request=httpx.Request(
+                'GET',
+                'https://api.github.com/repos/testorg/test-repo/contents/.github/workflows',
+            ),
+        )
+
+        result = await self.instance._check_workflow_file_exists(
+            'testorg', 'test-repo', '.github/workflows/python-.*-ci.yml'
+        )
+
+        self.assertTrue(result)
+
+    async def test_check_workflow_file_exists_pattern_no_match(self) -> None:
+        """Test workflow file existence check with regex pattern no match."""
+        # Mock the directory listing with no matching files
+        workflow_files = [
+            {'name': 'deploy.yml', 'type': 'file'},
+            {'name': 'release.yml', 'type': 'file'},
+        ]
+
+        self.http_client_side_effect = httpx.Response(
+            200,
+            json=workflow_files,
+            request=httpx.Request(
+                'GET',
+                'https://api.github.com/repos/testorg/test-repo/contents/.github/workflows',
+            ),
+        )
+
+        result = await self.instance._check_workflow_file_exists(
+            'testorg', 'test-repo', '.github/workflows/python-.*-ci.yml'
+        )
+
+        self.assertFalse(result)
+
+    async def test_check_workflow_file_exists_pattern_invalid_regex(
+        self,
+    ) -> None:
+        """Test workflow file existence check with invalid regex pattern."""
+        # Mock the directory listing
+        workflow_files = [{'name': 'ci.yml', 'type': 'file'}]
+
+        self.http_client_side_effect = httpx.Response(
+            200,
+            json=workflow_files,
+            request=httpx.Request(
+                'GET',
+                'https://api.github.com/repos/testorg/test-repo/contents/.github/workflows',
+            ),
+        )
+
+        result = await self.instance._check_workflow_file_exists(
+            'testorg', 'test-repo', '.github/workflows/python-[invalid'
+        )
+
+        self.assertFalse(result)
+
+    async def test_check_workflow_file_exists_pattern_no_workflows_dir(
+        self,
+    ) -> None:
+        """Test workflow pattern check when workflows dir doesn't exist."""
+        self.http_client_side_effect = httpx.Response(
+            404,
+            request=httpx.Request(
+                'GET',
+                'https://api.github.com/repos/testorg/test-repo/contents/.github/workflows',
+            ),
+        )
+
+        result = await self.instance._check_workflow_file_exists(
+            'testorg', 'test-repo', '.github/workflows/python-.*-ci.yml'
+        )
+
+        self.assertFalse(result)
+
 
 if __name__ == '__main__':
     unittest.main()

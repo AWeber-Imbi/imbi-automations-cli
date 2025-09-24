@@ -1110,22 +1110,101 @@ class GitHub(http.BaseURLClient):
     async def _check_workflow_file_exists(
         self, org: str, repo_name: str, workflow_file: str
     ) -> bool:
-        """Check if specific workflow file exists.
+        """Check if workflow file exists (supports patterns and exact paths).
 
         Args:
             org: GitHub organization name
             repo_name: Repository name
-            workflow_file: Workflow file path (e.g., "ci.yml")
+            workflow_file: Workflow file path or pattern
+                (e.g., "ci.yml" or "python-.*-ci.yml")
 
         Returns:
             True if workflow file exists, False otherwise
         """
         try:
-            response = await self.get(
-                f'/repos/{org}/{repo_name}/contents/{workflow_file}'
-            )
-            return response.status_code == 200
+            # Check if this looks like a regex pattern
+            if any(
+                char in workflow_file
+                for char in ['*', '+', '?', '[', ']', '(', ')', '|', '^', '$']
+            ):
+                return await self._check_workflow_pattern_exists(
+                    org, repo_name, workflow_file
+                )
+            else:
+                # Exact file path check
+                response = await self.get(
+                    f'/repos/{org}/{repo_name}/contents/{workflow_file}'
+                )
+                return response.status_code == 200
         except (httpx.HTTPError, ValueError, KeyError):
+            return False
+
+    async def _check_workflow_pattern_exists(
+        self, org: str, repo_name: str, pattern: str
+    ) -> bool:
+        """Check if any workflow files match the given pattern.
+
+        Args:
+            org: GitHub organization name
+            repo_name: Repository name
+            pattern: Regex pattern to match against workflow files
+
+        Returns:
+            True if any files match the pattern, False otherwise
+        """
+        try:
+            import re
+
+            # Get all files in .github/workflows directory
+            response = await self.get(
+                f'/repos/{org}/{repo_name}/contents/.github/workflows'
+            )
+            if response.status_code == http.HTTPStatus.NOT_FOUND:
+                LOGGER.debug(
+                    'No .github/workflows directory found in %s/%s',
+                    org,
+                    repo_name,
+                )
+                return False
+
+            response.raise_for_status()
+            workflow_files = response.json()
+
+            # Compile the pattern
+            try:
+                regex = re.compile(pattern)
+            except re.error as exc:
+                LOGGER.warning('Invalid regex pattern "%s": %s', pattern, exc)
+                return False
+
+            # Check each file against the pattern
+            for file_info in workflow_files:
+                if file_info.get('type') == 'file':
+                    file_path = f'.github/workflows/{file_info["name"]}'
+                    if regex.match(file_path):
+                        LOGGER.debug(
+                            'Found matching workflow file: %s (pattern: %s)',
+                            file_path,
+                            pattern,
+                        )
+                        return True
+
+            LOGGER.debug(
+                'No workflow files match pattern "%s" in %s/%s',
+                pattern,
+                org,
+                repo_name,
+            )
+            return False
+
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            LOGGER.debug(
+                'Failed to check workflow pattern "%s" for %s/%s: %s',
+                pattern,
+                org,
+                repo_name,
+                exc,
+            )
             return False
 
     async def get_repository_environments(
