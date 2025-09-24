@@ -191,6 +191,45 @@ remote_file_exists = ".github/workflows"  # Has GitHub Actions
 - String search is performed first (fast), with regex fallback only when string search fails
 - Invalid regex patterns gracefully fall back to string search behavior
 
+### Workflow Filtering
+
+Workflows support filtering projects before execution to improve performance and target specific subsets:
+
+```toml
+[filter]
+# Filter by specific project IDs
+project_ids = [123, 456, 789]
+
+# Filter by project types
+project_types = ["apis", "consumers", "scheduled-jobs"]
+
+# Filter by project facts (exact string matching)
+project_facts = {
+    "Programming Language" = "Python 3.12"
+    "Framework" = "FastAPI"
+}
+
+# Require GitHub identifier to be present
+requires_github_identifier = true
+```
+
+**Performance Benefits:**
+- **Pre-filtering**: Projects are filtered before processing, not during each iteration
+- **Batch efficiency**: "Found 664 total projects" → "Processing 50 filtered projects"
+- **Multiple criteria**: All filter criteria must match (AND logic)
+
+**Common Use Cases:**
+```toml
+# Target only Python 3.12 projects
+[filter]
+project_facts = {"Programming Language" = "Python 3.12"}
+
+# Target APIs and consumers with GitHub repos
+[filter]
+project_types = ["apis", "consumers"]
+requires_github_identifier = true
+```
+
 ## Code Style and Standards
 
 - **Line length**: 79 characters (enforced by ruff)

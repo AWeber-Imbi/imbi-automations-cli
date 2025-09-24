@@ -577,6 +577,234 @@ class TestWorkflowEngine(base.AsyncTestCase):
         result = automation_engine._project_matches_filter(self.imbi_project)
         self.assertFalse(result)
 
+    def test_project_matches_filter_project_facts_match(self) -> None:
+        """Test project matching with project_facts filter - match."""
+        # Create workflow with project_facts filter that matches test project
+        workflow_filter = models.WorkflowFilter(
+            project_facts={'Programming Language': 'Python 3.12'}
+        )
+        workflow_config = models.WorkflowConfiguration(
+            name='test-workflow',
+            description='Test workflow',
+            filter=workflow_filter,
+        )
+        workflow = models.Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        automation_engine = engine.AutomationEngine(
+            args=mock.MagicMock(),
+            configuration=models.Configuration(),
+            iterator=engine.AutomationIterator.imbi_projects,
+            workflow=workflow,
+        )
+
+        # Create project with matching facts
+        project_with_facts = mock.MagicMock()
+        project_with_facts.id = 789
+        project_with_facts.name = 'Test Project'
+        project_with_facts.facts = {'Programming Language': 'Python 3.12'}
+
+        # Should match because Programming Language fact matches
+        result = automation_engine._project_matches_filter(project_with_facts)
+        self.assertTrue(result)
+
+    def test_project_matches_filter_project_facts_no_match(self) -> None:
+        """Test project matching with project_facts filter - no match."""
+        # Create workflow with project_facts filter
+        workflow_filter = models.WorkflowFilter(
+            project_facts={'Programming Language': 'Python 3.12'}
+        )
+        workflow_config = models.WorkflowConfiguration(
+            name='test-workflow',
+            description='Test workflow',
+            filter=workflow_filter,
+        )
+        workflow = models.Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        automation_engine = engine.AutomationEngine(
+            args=mock.MagicMock(),
+            configuration=models.Configuration(),
+            iterator=engine.AutomationIterator.imbi_projects,
+            workflow=workflow,
+        )
+
+        # Create project with non-matching facts
+        project_with_facts = mock.MagicMock()
+        project_with_facts.id = 789
+        project_with_facts.name = 'Test Project'
+        project_with_facts.facts = {'Programming Language': 'Python 3.11'}
+
+        # Should not match because Programming Language fact doesn't match
+        result = automation_engine._project_matches_filter(project_with_facts)
+        self.assertFalse(result)
+
+    def test_project_matches_filter_project_facts_missing_fact(self) -> None:
+        """Test project matching when project is missing required fact."""
+        # Create workflow with project_facts filter
+        workflow_filter = models.WorkflowFilter(
+            project_facts={'Programming Language': 'Python 3.12'}
+        )
+        workflow_config = models.WorkflowConfiguration(
+            name='test-workflow',
+            description='Test workflow',
+            filter=workflow_filter,
+        )
+        workflow = models.Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        automation_engine = engine.AutomationEngine(
+            args=mock.MagicMock(),
+            configuration=models.Configuration(),
+            iterator=engine.AutomationIterator.imbi_projects,
+            workflow=workflow,
+        )
+
+        # Create project with no facts
+        project_no_facts = mock.MagicMock()
+        project_no_facts.id = 789
+        project_no_facts.name = 'Test Project'
+        project_no_facts.facts = None
+
+        # Should not match because required fact is missing
+        result = automation_engine._project_matches_filter(project_no_facts)
+        self.assertFalse(result)
+
+    def test_project_matches_filter_multiple_facts(self) -> None:
+        """Test project matching with multiple project_facts filters."""
+        # Create workflow with multiple project_facts filters
+        workflow_filter = models.WorkflowFilter(
+            project_facts={
+                'Programming Language': 'Python 3.12',
+                'Framework': 'FastAPI',
+            }
+        )
+        workflow_config = models.WorkflowConfiguration(
+            name='test-workflow',
+            description='Test workflow',
+            filter=workflow_filter,
+        )
+        workflow = models.Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        automation_engine = engine.AutomationEngine(
+            args=mock.MagicMock(),
+            configuration=models.Configuration(),
+            iterator=engine.AutomationIterator.imbi_projects,
+            workflow=workflow,
+        )
+
+        # Create project with all matching facts
+        project_all_match = mock.MagicMock()
+        project_all_match.id = 789
+        project_all_match.name = 'Test Project'
+        project_all_match.facts = {
+            'Programming Language': 'Python 3.12',
+            'Framework': 'FastAPI',
+        }
+
+        # Should match because all facts match
+        result = automation_engine._project_matches_filter(project_all_match)
+        self.assertTrue(result)
+
+        # Create project with partial matching facts
+        project_partial_match = mock.MagicMock()
+        project_partial_match.id = 789
+        project_partial_match.name = 'Test Project'
+        project_partial_match.facts = {
+            'Programming Language': 'Python 3.12',
+            'Framework': 'Django',  # Different framework
+        }
+
+        # Should not match because not all facts match
+        result = automation_engine._project_matches_filter(
+            project_partial_match
+        )
+        self.assertFalse(result)
+
+    def test_project_matches_filter_requires_github_identifier_match(
+        self,
+    ) -> None:
+        """Test project matching with requires_github_identifier - match."""
+        # Create workflow that requires GitHub identifier
+        workflow_filter = models.WorkflowFilter(
+            requires_github_identifier=True
+        )
+        workflow_config = models.WorkflowConfiguration(
+            name='test-workflow',
+            description='Test workflow',
+            filter=workflow_filter,
+        )
+        workflow = models.Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        automation_engine = engine.AutomationEngine(
+            args=mock.MagicMock(),
+            configuration=models.Configuration(),
+            iterator=engine.AutomationIterator.imbi_projects,
+            workflow=workflow,
+        )
+
+        # Create project with GitHub identifier
+        project_with_github = mock.MagicMock()
+        project_with_github.id = 789
+        project_with_github.name = 'Test Project'
+        project_with_github.identifiers = {'github': '12345'}
+
+        # Should match because project has GitHub identifier
+        result = automation_engine._project_matches_filter(project_with_github)
+        self.assertTrue(result)
+
+    def test_project_matches_filter_requires_github_identifier_no_match(
+        self,
+    ) -> None:
+        """Test project matching with requires_github_identifier - no match."""
+        # Create workflow that requires GitHub identifier
+        workflow_filter = models.WorkflowFilter(
+            requires_github_identifier=True
+        )
+        workflow_config = models.WorkflowConfiguration(
+            name='test-workflow',
+            description='Test workflow',
+            filter=workflow_filter,
+        )
+        workflow = models.Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        automation_engine = engine.AutomationEngine(
+            args=mock.MagicMock(),
+            configuration=models.Configuration(),
+            iterator=engine.AutomationIterator.imbi_projects,
+            workflow=workflow,
+        )
+
+        # Create project without GitHub identifier
+        project_no_github = mock.MagicMock()
+        project_no_github.id = 789
+        project_no_github.name = 'Test Project'
+        project_no_github.identifiers = None
+
+        # Should not match because project lacks GitHub identifier
+        result = automation_engine._project_matches_filter(project_no_github)
+        self.assertFalse(result)
+
+        # Test with empty identifiers dict
+        project_empty_identifiers = mock.MagicMock()
+        project_empty_identifiers.id = 789
+        project_empty_identifiers.name = 'Test Project'
+        project_empty_identifiers.identifiers = {}
+
+        result = automation_engine._project_matches_filter(
+            project_empty_identifiers
+        )
+        self.assertFalse(result)
+
     @mock.patch('imbi_automations.git.clone_repository')
     async def test_setup_repository_clone_github(
         self, mock_clone: mock.Mock

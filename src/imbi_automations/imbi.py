@@ -210,7 +210,7 @@ class Imbi(http.BaseURLClient):
             if len(page_projects) < page_size:
                 break
 
-        LOGGER.info('Found %d total active projects', len(all_projects))
+        LOGGER.debug('Found %d total active projects', len(all_projects))
 
         # Sort by project slug for deterministic results
         all_projects.sort(key=lambda project: project.slug)

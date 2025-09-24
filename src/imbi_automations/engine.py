@@ -158,6 +158,9 @@ class AutomationEngine:
             project_type_slug,
         )
 
+        # Apply workflow filtering first
+        projects = self._filter_projects_by_workflow(projects)
+
         # Apply start-from-project filtering if specified
         if (
             hasattr(self.args, 'start_from_project')
@@ -211,7 +214,10 @@ class AutomationEngine:
     async def _process_imbi_projects(self) -> None:
         """Iterate over all Imbi projects and execute workflow runs."""
         projects = await self.imbi.get_all_projects()
-        LOGGER.info('Processing %d Imbi projects', len(projects))
+        LOGGER.info('Found %d total active projects', len(projects))
+
+        # Apply workflow filtering first
+        projects = self._filter_projects_by_workflow(projects)
 
         # Apply start-from-project filtering if specified
         if (
@@ -221,6 +227,8 @@ class AutomationEngine:
             projects = self._filter_projects_from_start(
                 projects, self.args.start_from_project
             )
+
+        LOGGER.info('Processing %d filtered projects', len(projects))
 
         for project in projects:
             try:
@@ -289,6 +297,40 @@ class AutomationEngine:
             skipped_count,
             len(filtered_projects),
         )
+
+        return filtered_projects
+
+    def _filter_projects_by_workflow(
+        self, projects: list[models.ImbiProject]
+    ) -> list[models.ImbiProject]:
+        """Filter projects based on workflow filter criteria.
+
+        Args:
+            projects: List of Imbi projects to filter
+
+        Returns:
+            Filtered list of projects that match workflow criteria
+
+        """
+        if not self.workflow.configuration.filter:
+            return projects  # No filter means all projects match
+
+        original_count = len(projects)
+        filtered_projects = [
+            project
+            for project in projects
+            if self._project_matches_filter(project)
+        ]
+
+        filtered_count = len(filtered_projects)
+        excluded_count = original_count - filtered_count
+
+        if excluded_count > 0:
+            LOGGER.info(
+                'Workflow filter excluded %d projects, processing %d projects',
+                excluded_count,
+                filtered_count,
+            )
 
         return filtered_projects
 
@@ -542,14 +584,7 @@ class AutomationEngine:
                 'Imbi project is required for workflow execution'
             )
 
-        # Check if project matches workflow filter criteria
-        if not self._project_matches_filter(imbi_project):
-            LOGGER.info(
-                'Skipping project %d (%s) - does not match workflow filter',
-                imbi_project.id,
-                imbi_project.name,
-            )
-            return 'skipped_filter_mismatch'
+        # Project filtering is now done upfront in processing methods
 
         # Check if workflow requires GitHub repository but we don't have one
         if self._workflow_requires_github() and not github_repository:
@@ -590,9 +625,7 @@ class AutomationEngine:
             execution_result = await self.workflow_engine.execute(run)
 
             # Track based on execution result
-            if execution_result == 'skipped_filter_mismatch':
-                self.workflow_stats['skipped_filter_mismatch'] += 1
-            elif execution_result == 'skipped_rate_limited':
+            if execution_result == 'skipped_rate_limited':
                 self.workflow_stats['skipped_rate_limited'] += 1
             elif execution_result == 'skipped_github_api_error':
                 self.workflow_stats['skipped_github_api_error'] += 1
@@ -740,6 +773,46 @@ class AutomationEngine:
             )
             return False
 
+        # Check project_facts filter
+        if workflow_filter.project_facts:
+            project_facts = imbi_project.facts or {}
+            for (
+                fact_name,
+                expected_value,
+            ) in workflow_filter.project_facts.items():
+                actual_value = project_facts.get(fact_name)
+
+                # Convert to string for comparison (facts can be various types)
+                actual_str = (
+                    str(actual_value) if actual_value is not None else None
+                )
+
+                if actual_str != expected_value:
+                    LOGGER.debug(
+                        'Project %d (%s) excluded by project_facts filter - '
+                        '%s: expected "%s", got "%s"',
+                        imbi_project.id,
+                        imbi_project.name,
+                        fact_name,
+                        expected_value,
+                        actual_str,
+                    )
+                    return False
+
+        # Check requires_github_identifier filter
+        if workflow_filter.requires_github_identifier:
+            has_github_id = (
+                imbi_project.identifiers
+                and imbi_project.identifiers.get('github') is not None
+            )
+            if not has_github_id:
+                LOGGER.debug(
+                    'Project %d (%s) excluded by requires_github_identifier',
+                    imbi_project.id,
+                    imbi_project.name,
+                )
+                return False
+
         LOGGER.debug(
             'Project %d (%s) matches filter criteria',
             imbi_project.id,
@@ -772,7 +845,6 @@ class AutomationEngine:
             # Skip reasons - API issues first
             'skipped_rate_limited',
             'skipped_github_api_error',
-            'skipped_filter_mismatch',
             'skipped_no_github_repository',
             'skipped_no_gitlab_project',
             'skipped_remote_conditions',
