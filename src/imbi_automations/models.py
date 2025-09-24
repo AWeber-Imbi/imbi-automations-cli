@@ -500,6 +500,7 @@ class WorkflowActionTypes(enum.StrEnum):
     git_revert = 'git-revert'
     git_extract = 'git-extract'
     docker_extract = 'docker-extract'
+    add_trailing_whitespace = 'add-trailing-whitespace'
 
 
 class WorkflowConditionType(enum.StrEnum):

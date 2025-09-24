@@ -1203,6 +1203,8 @@ class WorkflowEngine:
                 return await self._execute_docker_extract_action(
                     action, context
                 )
+            case models.WorkflowActionTypes.add_trailing_whitespace:
+                return await self._execute_add_trailing_whitespace_action(action, context)
             case _:
                 raise ValueError(f'Unsupported action type: {action.type}')
 
@@ -2283,9 +2285,7 @@ class WorkflowEngine:
                         f'Strategy: {strategy}'
                     )
 
-                    commit_message += (
-                        '\n\nAuthored-By: Imbi Automations <noreply@aweber.com>'
-                    )
+                    commit_message += '\n\nAuthored-By: Imbi Automations <noreply@aweber.com>'
 
                     commit_sha = await git.commit_changes(
                         working_directory=workflow_run.working_directory,
@@ -2571,6 +2571,136 @@ class WorkflowEngine:
             'Docker extract action %s completed: extracted=%s, committed=%s',
             action.name,
             result['extracted'],
+            result['committed'],
+        )
+
+        return result
+
+    async def _execute_add_trailing_whitespace_action(
+        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+    ) -> dict[str, typing.Any]:
+        """Execute an add-trailing-whitespace workflow action.
+
+        Args:
+            action: Add trailing whitespace action to execute
+            context: Workflow execution context
+
+        Returns:
+            Dictionary with execution results
+
+        """
+        if not action.source:
+            raise ValueError(
+                f'Add trailing whitespace action {action.name} missing source file'
+            )
+
+        # Get working directory from context
+        workflow_run = context.get('workflow_run')
+        if not workflow_run or not workflow_run.working_directory:
+            raise RuntimeError(
+                f'Add trailing whitespace action {action.name} needs working directory'
+            )
+
+        result = {
+            'action': action.name,
+            'source': action.source,
+            'modified': False,
+            'committed': False,
+        }
+
+        try:
+            file_path = workflow_run.working_directory / action.source
+
+            if not file_path.exists():
+                self.logger.warning(
+                    'Add trailing whitespace action %s: file %s does not exist',
+                    action.name,
+                    action.source,
+                )
+                result['error'] = f'File {action.source} does not exist'
+                return result
+
+            # Read current content
+            try:
+                content = file_path.read_text(encoding='utf-8')
+            except UnicodeDecodeError:
+                # Try different encoding
+                content = file_path.read_text(encoding='latin-1')
+
+            # Check if file already ends with newline
+            if content.endswith('\n'):
+                self.logger.debug(
+                    'Add trailing whitespace action %s: file %s already has trailing newline',
+                    action.name,
+                    action.source,
+                )
+                result['modified'] = False
+                return result
+
+            # Add trailing newline
+            new_content = content + '\n'
+            file_path.write_text(new_content, encoding='utf-8')
+
+            self.logger.debug(
+                'Add trailing whitespace action %s: added trailing newline to %s',
+                action.name,
+                action.source,
+            )
+
+            result['modified'] = True
+
+            # Check if changes were made and commit
+            changed_files = await git.get_git_status(
+                workflow_run.working_directory
+            )
+
+            if changed_files and action.source in changed_files:
+                await git.add_files(
+                    workflow_run.working_directory, [action.source]
+                )
+
+                commit_message = (
+                    f'Apply add trailing whitespace action: {action.name}\n\n'
+                    f'Added trailing newline to {action.source}'
+                )
+
+                commit_message += (
+                    '\n\nAuthored-By: Imbi Automations <noreply@aweber.com>'
+                )
+
+                commit_sha = await git.commit_changes(
+                    working_directory=workflow_run.working_directory,
+                    message=commit_message,
+                    author_name='Imbi Automations',
+                    author_email='noreply@aweber.com',
+                )
+
+                self.logger.debug(
+                    'Add trailing whitespace action %s committed changes: %s',
+                    action.name,
+                    commit_sha[:8] if commit_sha else 'unknown',
+                )
+
+                result['committed'] = True
+                result['commit_sha'] = commit_sha
+                result['changed_files'] = [action.source]
+
+        except (OSError, UnicodeDecodeError) as exc:
+            self.logger.error(
+                'Add trailing whitespace action %s failed: %s',
+                action.name,
+                exc,
+            )
+            result['error'] = str(exc)
+
+        # Store result for future template references
+        self.action_results[action.name] = {'result': result}
+        context['actions'] = self.action_results
+
+        self.logger.debug(
+            'Add trailing whitespace action %s completed: modified=%s, committed=%s',
+            action.name,
+            result['modified'],
             result['committed'],
         )
 

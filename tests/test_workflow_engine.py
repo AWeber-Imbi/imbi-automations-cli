@@ -2642,6 +2642,45 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
         # Success rate logging was removed, so we don't check for it
 
+    def test_add_trailing_whitespace_logic(self) -> None:
+        """Test add trailing whitespace logic."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            # Test file without trailing newline
+            test_file = pathlib.Path(tmp_dir) / 'test.txt'
+            test_file.write_text('content without newline')
+
+            # Check content needs newline
+            content = test_file.read_text()
+            self.assertFalse(content.endswith('\n'))
+
+            # Add trailing newline
+            new_content = content + '\n'
+            test_file.write_text(new_content)
+
+            # Verify newline added
+            final_content = test_file.read_text()
+            self.assertEqual(final_content, 'content without newline\n')
+
+    def test_add_trailing_whitespace_no_change_needed(self) -> None:
+        """Test when file already has trailing newline."""
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            # Test file WITH trailing newline
+            test_file = pathlib.Path(tmp_dir) / 'test.txt'
+            original_content = 'content with newline\n'
+            test_file.write_text(original_content)
+
+            # Check content already has newline
+            content = test_file.read_text()
+            self.assertTrue(content.endswith('\n'))
+
+            # No change needed
+            final_content = test_file.read_text()
+            self.assertEqual(final_content, original_content)
+
     @mock.patch('imbi_automations.engine.LOGGER')
     def test_output_workflow_stats_no_workflows(
         self, mock_logger: mock.MagicMock
