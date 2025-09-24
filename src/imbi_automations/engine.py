@@ -169,7 +169,20 @@ class AutomationEngine:
 
         for project in projects:
             try:
-                await self._execute_workflow_run(imbi_project=project)
+                execution_result = await self._execute_workflow_run(
+                    imbi_project=project
+                )
+
+                # Stop processing if rate limited
+                if execution_result == 'skipped_rate_limited':
+                    LOGGER.error(
+                        'GitHub API rate limit exceeded. Stopping execution. '
+                        'Wait for rate limit reset before resuming with '
+                        '--start-from-project %s',
+                        project.slug,
+                    )
+                    break
+
             except (RuntimeError, httpx.HTTPError, ValueError) as e:
                 LOGGER.error(
                     'Failed to process project %d (%s): %s - %s',
@@ -211,7 +224,20 @@ class AutomationEngine:
 
         for project in projects:
             try:
-                await self._execute_workflow_run(imbi_project=project)
+                execution_result = await self._execute_workflow_run(
+                    imbi_project=project
+                )
+
+                # Stop processing if rate limited
+                if execution_result == 'skipped_rate_limited':
+                    LOGGER.error(
+                        'GitHub API rate limit exceeded. Stopping execution. '
+                        'Wait for rate limit reset before resuming with '
+                        '--start-from-project %s',
+                        project.slug,
+                    )
+                    break
+
             except (RuntimeError, httpx.HTTPError, ValueError) as e:
                 LOGGER.error(
                     'Failed to process project %d (%s): %s - %s',

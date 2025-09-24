@@ -493,5 +493,62 @@ class TestAutomationEngineFiltering(unittest.TestCase):
         self.assertEqual(result, [])
 
 
+class TestAutomationEngineRateLimiting(unittest.TestCase):
+    def test_rate_limit_stops_processing(self) -> None:
+        """Test that rate limiting stops batch processing."""
+        # Mock projects
+        project1 = unittest.mock.Mock()
+        project1.slug = 'project-a'
+        project1.id = 1
+        project1.name = 'Project A'
+
+        project2 = unittest.mock.Mock()
+        project2.slug = 'project-b'
+        project2.id = 2
+        project2.name = 'Project B'
+
+        projects = [project1, project2]
+
+        # Create engine with mocked workflow_run method
+        args = argparse.Namespace()
+        config = models.Configuration()
+        workflow = models.Workflow(
+            path=pathlib.Path(tempfile.mkdtemp()),
+            configuration=models.WorkflowConfiguration(
+                name='test', description='test'
+            ),
+        )
+        ae = engine.AutomationEngine(
+            args, config, engine.AutomationIterator.imbi_projects, workflow
+        )
+
+        # Mock the _execute_workflow_run to return rate limited on first call
+        execution_results = ['skipped_rate_limited', 'successful_no_changes']
+        call_count = 0
+
+        async def mock_execute_workflow_run(**kwargs: typing.Any) -> str:
+            nonlocal call_count
+            result = execution_results[call_count]
+            call_count += 1
+            return result
+
+        ae._execute_workflow_run = mock_execute_workflow_run
+
+        # Test that processing stops after rate limit
+        import asyncio
+
+        # Mock get_all_projects to return our test projects
+        with unittest.mock.patch.object(ae, 'imbi') as mock_imbi:
+            mock_imbi.get_all_projects = unittest.mock.AsyncMock(
+                return_value=projects
+            )
+
+            asyncio.run(ae._process_imbi_projects())
+
+        # Should only have called _execute_workflow_run once (for project1)
+        # project2 should not have been processed due to rate limiting
+        self.assertEqual(call_count, 1)
+
+
 if __name__ == '__main__':
     unittest.main()
