@@ -3368,7 +3368,7 @@ class WorkflowEngine:
             working_directory = await git.clone_repository(
                 clone_url=clone_url,
                 branch=branch,
-                depth=1,  # Shallow clone for faster performance
+                depth=1 if run.workflow.configuration.shallow_clone else None,
             )
 
             # Update the WorkflowRun with the working directory

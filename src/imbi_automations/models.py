@@ -583,6 +583,7 @@ class WorkflowConfiguration(pydantic.BaseModel):
     filter: WorkflowFilter | None = None
     ci_skip_checks: bool = False
     clone_repository: bool = True
+    shallow_clone: bool = True
     condition_type: WorkflowConditionType = WorkflowConditionType.all
     conditions: list[WorkflowCondition] = pydantic.Field(default_factory=list)
     create_pull_request: bool = True
