@@ -106,7 +106,7 @@ CRITICAL REQUIREMENTS:
                 )
 
                 response = self.client.messages.create(
-                    model='claude-3-5-sonnet-20241022',
+                    model='claude-sonnet-4-20250514',
                     max_tokens=64000,
                     system=(
                         'You are an expert code editor. You MUST follow the '
