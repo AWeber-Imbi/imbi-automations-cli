@@ -2300,7 +2300,7 @@ class WorkflowEngine:
                     )
 
                     commit_message = (
-                        f'Apply git revert action: {action.name}\n\n'
+                        f'imbi-automations: {action.name}\n\n'
                         f'Reverted {action.source} before: {action.keyword}\n'
                         f'Target commit: {before_commit[:8]}\n'
                         f'Strategy: {strategy}'
@@ -2703,7 +2703,7 @@ class WorkflowEngine:
                 )
 
                 commit_message = (
-                    f'Apply add trailing whitespace action: {action.name}\n\n'
+                    f'imbi-automations: {action.name}\n\n'
                     f'Added trailing newline to {action.source}'
                 )
 
@@ -3413,7 +3413,7 @@ class WorkflowEngine:
         # Evaluate remote conditions before cloning
         if not await self._evaluate_remote_conditions(run):
             self.logger.info(
-                'Skipping workflow execution for project %s - '
+                'Skipping workflow execution for %s - '
                 'remote conditions not met',
                 project_info,
             )
@@ -3425,7 +3425,7 @@ class WorkflowEngine:
                 await self._setup_repository_clone(run)
             except RuntimeError as exc:
                 self.logger.warning(
-                    'Skipping workflow execution for project %s - %s',
+                    'Skipping workflow execution for %s - %s',
                     project_info,
                     exc,
                 )
@@ -3444,8 +3444,7 @@ class WorkflowEngine:
         # Evaluate workflow conditions
         if not await self._evaluate_conditions(run):
             self.logger.info(
-                'Skipping workflow execution for project %s - '
-                'conditions not met',
+                'Skipping workflow execution for %s - conditions not met',
                 project_info,
             )
             return 'skipped_conditions'
@@ -3608,22 +3607,21 @@ class WorkflowEngine:
         if changes_made:
             if pr_created:
                 self.logger.info(
-                    'Workflow completed successfully for project %s - '
+                    'Workflow completed successfully for %s - '
                     'changes pushed and pull request created',
                     project_info,
                 )
                 return 'successful_pr_created'
             else:
                 self.logger.info(
-                    'Workflow completed successfully for project %s - '
+                    'Workflow completed successfully for %s - '
                     'changes pushed to main branch',
                     project_info,
                 )
                 return 'successful_changes_pushed'
         else:
             self.logger.info(
-                'Workflow completed successfully for project %s - '
-                'no changes needed',
+                'Workflow completed successfully for %s - no changes needed',
                 project_info,
             )
             return 'successful_no_changes'
