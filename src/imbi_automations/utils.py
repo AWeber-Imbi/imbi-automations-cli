@@ -12,6 +12,66 @@ LOGGER = logging.getLogger(__name__)
 class Utils:
     """Utility client for file operations and other utility functions."""
 
+    @staticmethod
+    def compare_versions_with_build_numbers(
+        current_version: str, target_version: str
+    ) -> bool:
+        """Compare versions including build numbers.
+
+        Handles semantic versions with optional build numbers in the format:
+        "major.minor.patch" or "major.minor.patch-build"
+
+        Args:
+            current_version: Current version (e.g., "3.9.18-0")
+            target_version: Target version (e.g., "3.9.18-4")
+
+        Returns:
+            True if current_version is older than target_version
+
+        Examples:
+            compare_versions_with_build_numbers("3.9.18-0", "3.9.18-4") → True
+            compare_versions_with_build_numbers("3.9.17-4", "3.9.18-0") → True
+            compare_versions_with_build_numbers("3.9.18-4", "3.9.18-0") → False
+
+        """
+        import semver
+
+        # Split versions into semantic version and build number
+        if '-' in current_version:
+            current_sem, current_build_str = current_version.rsplit('-', 1)
+            try:
+                current_build = int(current_build_str)
+            except ValueError:
+                current_build = 0
+        else:
+            current_sem = current_version
+            current_build = 0
+
+        if '-' in target_version:
+            target_sem, target_build_str = target_version.rsplit('-', 1)
+            try:
+                target_build = int(target_build_str)
+            except ValueError:
+                target_build = 0
+        else:
+            target_sem = target_version
+            target_build = 0
+
+        # Compare semantic versions first
+        current_version_obj = semver.Version.parse(current_sem)
+        target_version_obj = semver.Version.parse(target_sem)
+        sem_comparison = current_version_obj.compare(target_version_obj)
+
+        if sem_comparison < 0:
+            # Current semantic version is older
+            return True
+        elif sem_comparison > 0:
+            # Current semantic version is newer
+            return False
+        else:
+            # Semantic versions are equal, compare build numbers
+            return current_build < target_build
+
     async def append_file(self, file: str, value: str) -> str:
         """Append a value to a file.
 

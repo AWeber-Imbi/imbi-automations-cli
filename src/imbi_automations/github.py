@@ -973,12 +973,15 @@ class GitHub(http.BaseURLClient):
             requires_dockerfile_update = False
             if dockerfile_version:
                 try:
-                    # Parse versions for comparison (remove build number)
-                    current_base = dockerfile_version.rsplit('-', 1)[0]
-                    target_base = target_version.rsplit('-', 1)[0]
+                    from imbi_automations import utils
 
-                    if semver.compare(current_base, target_base) < 0:
-                        requires_dockerfile_update = True
+                    requires_dockerfile_update = (
+                        utils.Utils.compare_versions_with_build_numbers(
+                            dockerfile_version, target_version
+                        )
+                    )
+
+                    if requires_dockerfile_update:
                         LOGGER.debug(
                             'Version %s older than target %s, update needed',
                             dockerfile_version,

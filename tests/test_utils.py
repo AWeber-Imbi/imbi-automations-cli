@@ -158,5 +158,71 @@ class TestLoadToml(unittest.TestCase):
         self.assertEqual(result['test']['value'], 'content')
 
 
+class TestVersionComparison(unittest.TestCase):
+    def test_compare_versions_with_build_numbers_same_semantic_different_build(
+        self,
+    ) -> None:
+        """Test version comparison with same semantic, different builds."""
+        from imbi_automations.utils import Utils
+
+        # Critical case: same semantic version, newer build number
+        self.assertTrue(
+            Utils.compare_versions_with_build_numbers('3.9.18-0', '3.9.18-4')
+        )
+        self.assertFalse(
+            Utils.compare_versions_with_build_numbers('3.9.18-4', '3.9.18-0')
+        )
+
+        # Edge case: equal versions
+        self.assertFalse(
+            Utils.compare_versions_with_build_numbers('3.9.18-4', '3.9.18-4')
+        )
+
+    def test_compare_versions_with_build_numbers_different_semantic(
+        self,
+    ) -> None:
+        """Test version comparison with different semantic versions."""
+        from imbi_automations.utils import Utils
+
+        # Older semantic version (build number irrelevant)
+        self.assertTrue(
+            Utils.compare_versions_with_build_numbers('3.9.17-4', '3.9.18-0')
+        )
+
+        # Newer semantic version (build number irrelevant)
+        self.assertFalse(
+            Utils.compare_versions_with_build_numbers('3.9.19-0', '3.9.18-4')
+        )
+
+    def test_compare_versions_with_build_numbers_missing_build(self) -> None:
+        """Test version comparison with missing build numbers."""
+        from imbi_automations.utils import Utils
+
+        # No build number vs with build number
+        self.assertTrue(
+            Utils.compare_versions_with_build_numbers('3.9.18', '3.9.18-4')
+        )
+        self.assertFalse(
+            Utils.compare_versions_with_build_numbers('3.9.18-4', '3.9.18')
+        )
+
+        # Both without build numbers
+        self.assertFalse(
+            Utils.compare_versions_with_build_numbers('3.9.18', '3.9.18')
+        )
+
+    def test_compare_versions_with_build_numbers_invalid_build(self) -> None:
+        """Test version comparison with invalid build numbers."""
+        from imbi_automations.utils import Utils
+
+        # Invalid build numbers should default to 0
+        self.assertTrue(
+            Utils.compare_versions_with_build_numbers('3.9.18-abc', '3.9.18-4')
+        )
+        self.assertFalse(
+            Utils.compare_versions_with_build_numbers('3.9.18-4', '3.9.18-abc')
+        )
+
+
 if __name__ == '__main__':
     unittest.main()
