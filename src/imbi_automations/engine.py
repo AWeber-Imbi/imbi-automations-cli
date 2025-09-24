@@ -2230,15 +2230,15 @@ class WorkflowEngine:
                 )
                 return result
 
-            # Write reverted content to target file outside git working directory
+            # Write reverted content to target file outside git working dir
             if action.target_path:
-                # Save to parent directory (outside git repo) to avoid committing
+                # Save to parent directory (outside git repo) to avoid commit
                 target_file = action.target_path
                 file_path = workflow_run.working_directory.parent / target_file
                 file_path.parent.mkdir(parents=True, exist_ok=True)
                 file_path.write_text(file_content, encoding='utf-8')
                 self.logger.debug(
-                    'Git revert action %s: saved content to %s (outside git repo)',
+                    'Git revert action %s: saved content to %s (outside git)',
                     action.name,
                     file_path,
                 )
@@ -2264,9 +2264,12 @@ class WorkflowEngine:
             )
 
             if action.target_path:
-                # When using target_path, file is saved outside git repo (no commit)
+                # When using target_path, file saved outside git (no commit)
                 self.logger.debug(
-                    'Git revert action %s: extracted content for template use (not committed)',
+                    (
+                        'Git revert action %s: extracted content for template '
+                        'use (not committed)'
+                    ),
                     action.name,
                 )
             else:
@@ -2287,7 +2290,9 @@ class WorkflowEngine:
                         f'Strategy: {strategy}'
                     )
 
-                    commit_message += '\n\nAuthored-By: Imbi Automations <noreply@aweber.com>'
+                    commit_message += (
+                        '\n\nAuthored-By: Imbi Automations <noreply@aweber.com>'
+                    )
 
                     commit_sha = await git.commit_changes(
                         working_directory=workflow_run.working_directory,
@@ -2333,7 +2338,7 @@ class WorkflowEngine:
     async def _execute_git_extract_action(
         self, action: models.WorkflowAction, context: dict[str, typing.Any]
     ) -> dict[str, typing.Any]:
-        """Execute a git-extract workflow action (extracts content without committing).
+        """Execute a git-extract workflow action (extracts content without commit).
 
         Args:
             action: Git extract action to execute
@@ -2345,7 +2350,7 @@ class WorkflowEngine:
         """
         if not action.source:
             raise ValueError(
-                f'Git extract action {action.name} missing required source file'
+                f'Git extract action {action.name} missing required source'
             )
 
         if not action.keyword:
@@ -2413,7 +2418,10 @@ class WorkflowEngine:
             file_path.write_text(file_content, encoding='utf-8')
 
             self.logger.debug(
-                'Git extract action %s: extracted %s from commit %s (%d bytes) → %s',
+                (
+                    'Git extract action %s: extracted %s from commit %s '
+                    '(%d bytes) → %s'
+                ),
                 action.name,
                 action.source,
                 before_commit[:8],
@@ -2439,7 +2447,7 @@ class WorkflowEngine:
         context['actions'] = self.action_results
 
         self.logger.debug(
-            'Git extract action %s completed: extracted=%s (working file only)',
+            'Git extract action %s completed: extracted=%s (working only)',
             action.name,
             result['extracted'],
         )
@@ -2525,7 +2533,7 @@ class WorkflowEngine:
                 )
                 return result
 
-            # Write extracted content outside git working directory to avoid committing
+            # Write extracted content outside git working dir to avoid commit
             target_file_path = (
                 workflow_run.working_directory.parent / target_path
             )
@@ -2552,10 +2560,13 @@ class WorkflowEngine:
                 result['packages'] = packages
                 result['package_count'] = len(packages)
 
-            # Note: Docker extract saves working files outside git repo (not committed)
-            # The extracted content is available for templates via result['content']
+            # Note: Docker extract saves working files outside git (not committed)
+            # The extracted content is available for templates via result
             self.logger.debug(
-                'Docker extract action %s: saved working file outside git repo (not committed)',
+                (
+                    'Docker extract action %s: saved working file outside '
+                    'git repo (not committed)'
+                ),
                 action.name,
             )
 
@@ -2593,14 +2604,14 @@ class WorkflowEngine:
         """
         if not action.source:
             raise ValueError(
-                f'Add trailing whitespace action {action.name} missing source file'
+                f'Add trailing whitespace action {action.name} missing source'
             )
 
         # Get working directory from context
         workflow_run = context.get('workflow_run')
         if not workflow_run or not workflow_run.working_directory:
             raise RuntimeError(
-                f'Add trailing whitespace action {action.name} needs working directory'
+                f'Add trailing whitespace action {action.name} needs working dir'
             )
 
         result = {
@@ -2615,7 +2626,7 @@ class WorkflowEngine:
 
             if not file_path.exists():
                 self.logger.warning(
-                    'Add trailing whitespace action %s: file %s does not exist',
+                    'Add trailing whitespace action %s: file %s not found',
                     action.name,
                     action.source,
                 )
@@ -2632,7 +2643,10 @@ class WorkflowEngine:
             # Check if file already ends with newline
             if content.endswith('\n'):
                 self.logger.debug(
-                    'Add trailing whitespace action %s: file %s already has trailing newline',
+                    (
+                        'Add trailing whitespace action %s: file %s already '
+                        'has trailing newline'
+                    ),
                     action.name,
                     action.source,
                 )
@@ -2644,7 +2658,7 @@ class WorkflowEngine:
             file_path.write_text(new_content, encoding='utf-8')
 
             self.logger.debug(
-                'Add trailing whitespace action %s: added trailing newline to %s',
+                'Add trailing whitespace action %s: added trailing newline',
                 action.name,
                 action.source,
             )
@@ -2700,7 +2714,10 @@ class WorkflowEngine:
         context['actions'] = self.action_results
 
         self.logger.debug(
-            'Add trailing whitespace action %s completed: modified=%s, committed=%s',
+            (
+                'Add trailing whitespace action %s completed: '
+                'modified=%s, committed=%s'
+            ),
             action.name,
             result['modified'],
             result['committed'],
@@ -3443,14 +3460,22 @@ class WorkflowEngine:
                     action.name,
                     project_info,
                 )
-                await self._execute_action(action, context)
-            except (OSError, subprocess.CalledProcessError) as exc:
+                result = await self._execute_action(action, context)
+                # Store action result for template access
+                if result is not None:
+                    context['actions'][action.name] = result
+            except (OSError, subprocess.CalledProcessError, RuntimeError, Exception) as exc:
                 self.logger.error(
                     'Action %s failed for project %s: %s',
                     action.name,
                     project_info,
                     exc,
                 )
+                # Store failed result for template access
+                context['actions'][action.name] = {
+                    'result': {'extracted': False, 'packages': [], 'package_count': 0},
+                    'error': str(exc)
+                }
                 raise
 
         # Check if any changes were made during workflow execution
