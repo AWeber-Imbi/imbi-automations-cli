@@ -657,3 +657,79 @@ async def get_file_at_commit(
     )
 
     return stdout
+
+
+async def delete_remote_branch_if_exists(
+    working_directory: pathlib.Path,
+    branch_name: str,
+    remote: str = 'origin',
+) -> bool:
+    """Delete a remote branch if it exists.
+
+    Args:
+        working_directory: Git repository working directory
+        branch_name: Name of the branch to delete
+        remote: Remote name (default: 'origin')
+
+    Returns:
+        True if branch was deleted or didn't exist, False if deletion failed
+
+    """
+    LOGGER.debug(
+        'Checking if remote branch %s/%s exists for deletion',
+        remote,
+        branch_name,
+    )
+
+    # Check if remote branch exists
+    command = ['git', 'ls-remote', '--heads', remote, branch_name]
+
+    returncode, stdout, stderr = await _run_git_command(
+        command, cwd=working_directory, timeout_seconds=30
+    )
+
+    if returncode != 0:
+        LOGGER.debug(
+            'Could not check remote branch %s/%s: %s',
+            remote,
+            branch_name,
+            stderr or stdout,
+        )
+        return True  # Assume it doesn't exist
+
+    if not stdout.strip():
+        LOGGER.debug(
+            'Remote branch %s/%s does not exist',
+            remote,
+            branch_name,
+        )
+        return True  # Branch doesn't exist, nothing to delete
+
+    # Branch exists, delete it
+    LOGGER.info(
+        'Deleting existing remote branch %s/%s',
+        remote,
+        branch_name,
+    )
+
+    command = ['git', 'push', remote, '--delete', branch_name]
+
+    returncode, stdout, stderr = await _run_git_command(
+        command, cwd=working_directory, timeout_seconds=60
+    )
+
+    if returncode == 0:
+        LOGGER.debug(
+            'Successfully deleted remote branch %s/%s',
+            remote,
+            branch_name,
+        )
+        return True
+    else:
+        LOGGER.warning(
+            'Failed to delete remote branch %s/%s: %s',
+            remote,
+            branch_name,
+            stderr or stdout,
+        )
+        return False

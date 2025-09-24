@@ -3491,6 +3491,12 @@ class WorkflowEngine:
                         workflow_name = run.workflow.configuration.name
                         kebab_name = workflow_name.lower().replace(' ', '-')
                         branch_name = f'ia-{kebab_name}'
+
+                        # Delete remote branch if it exists to avoid conflicts
+                        await git.delete_remote_branch_if_exists(
+                            run.working_directory, branch_name
+                        )
+
                         await git.create_branch(
                             run.working_directory, branch_name
                         )

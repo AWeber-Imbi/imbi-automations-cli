@@ -704,5 +704,48 @@ class TestGitRevert(base.AsyncTestCase):
         self.assertIsNone(result)
 
 
+class TestRemoteBranchDeletion(base.AsyncTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.git_dir = pathlib.Path(tempfile.mkdtemp())
+
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_delete_remote_branch_if_exists_branch_exists(
+        self, mock_run_git: mock.Mock
+    ) -> None:
+        """Test deleting remote branch when it exists."""
+        # Mock ls-remote output showing branch exists
+        ls_remote_output = 'abc123 refs/heads/ia-test-branch'
+
+        # Mock successful commands
+        mock_run_git.side_effect = [
+            (0, ls_remote_output, ''),  # git ls-remote (branch exists)
+            (0, 'deleted', ''),         # git push --delete (success)
+        ]
+
+        result = await git.delete_remote_branch_if_exists(
+            self.git_dir, 'ia-test-branch'
+        )
+
+        self.assertTrue(result)
+        self.assertEqual(mock_run_git.call_count, 2)
+
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_delete_remote_branch_if_exists_branch_not_exists(
+        self, mock_run_git: mock.Mock
+    ) -> None:
+        """Test when remote branch doesn't exist."""
+        # Mock ls-remote output showing no branch
+        mock_run_git.return_value = (0, '', '')
+
+        result = await git.delete_remote_branch_if_exists(
+            self.git_dir, 'ia-nonexistent-branch'
+        )
+
+        self.assertTrue(result)
+        # Should only call ls-remote, not delete
+        self.assertEqual(mock_run_git.call_count, 1)
+
+
 if __name__ == '__main__':
     unittest.main()
