@@ -992,7 +992,7 @@ class AutomationEngine:
 
         LOGGER.info('')
         LOGGER.info('=== Workflow Execution Statistics ===')
-        LOGGER.info('Total workflows processed: %d', total_workflows)
+        LOGGER.info('Total projects processed: %d', total_workflows)
         LOGGER.info('')
 
         # Output each stat category in logical order
@@ -1023,22 +1023,6 @@ class AutomationEngine:
                 )
 
         LOGGER.info('')
-
-        # Show success rate (sum all successful variants)
-        successful_total = (
-            self.workflow_stats['successful_pr_created']
-            + self.workflow_stats['successful_changes_pushed']
-            + self.workflow_stats['successful_no_changes']
-            + self.workflow_stats['successful']
-        )
-        if total_workflows > 0:
-            success_rate = (successful_total / total_workflows) * 100
-            LOGGER.info(
-                'Success rate: %.1f%% (%d/%d)',
-                success_rate,
-                successful_total,
-                total_workflows,
-            )
 
         LOGGER.info('=====================================')
 
