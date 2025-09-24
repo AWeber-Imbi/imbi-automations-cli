@@ -685,7 +685,9 @@ class TestGitRevert(base.AsyncTestCase):
 
         self.assertEqual(result, file_content)
         mock_run_git.assert_called_once_with(
-            ['git', 'show', '7d507ce:setup.cfg'], cwd=self.git_dir, timeout=30
+            ['git', 'show', '7d507ce:setup.cfg'],
+            cwd=self.git_dir,
+            timeout_seconds=30,
         )
 
     @mock.patch('imbi_automations.git._run_git_command')

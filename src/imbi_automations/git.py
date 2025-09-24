@@ -533,7 +533,7 @@ async def find_commit_before_keyword(
     ]
 
     returncode, stdout, stderr = await _run_git_command(
-        command, cwd=working_directory, timeout=30
+        command, cwd=working_directory, timeout_seconds=30
     )
 
     if returncode != 0:
@@ -580,7 +580,7 @@ async def find_commit_before_keyword(
     command = ['git', 'log', '--format=%H', '-n', '1', f'{target_commit}~1']
 
     returncode, stdout, stderr = await _run_git_command(
-        command, cwd=working_directory, timeout=30
+        command, cwd=working_directory, timeout_seconds=30
     )
 
     if returncode != 0:
@@ -627,7 +627,7 @@ async def get_file_at_commit(
     command = ['git', 'show', f'{commit_hash}:{file_path}']
 
     returncode, stdout, stderr = await _run_git_command(
-        command, cwd=working_directory, timeout=30
+        command, cwd=working_directory, timeout_seconds=30
     )
 
     if returncode != 0:
