@@ -2,11 +2,11 @@
 
 import asyncio
 import logging
-import os
 import pathlib
-import subprocess
 import time
 import typing
+
+from claude_code_sdk import ClaudeCodeOptions, ClaudeSDKClient
 
 from imbi_automations import models
 
@@ -106,11 +106,7 @@ class ClaudeCode:
                 if attempt < max_retries:
                     await asyncio.sleep(attempt)
 
-            except (
-                TimeoutError,
-                OSError,
-                subprocess.CalledProcessError,
-            ) as exc:
+            except (TimeoutError, OSError, RuntimeError) as exc:
                 last_error = str(exc)
                 LOGGER.error(
                     'Claude Code attempt %d/%d error: %s',
@@ -144,7 +140,7 @@ class ClaudeCode:
     async def _run_claude_command(
         self, prompt_content: str, timeout_seconds: int
     ) -> tuple[int, str, str]:
-        """Execute Claude Code command with prompt content.
+        """Execute Claude Code using SDK with prompt content.
 
         Args:
             prompt_content: Complete prompt content to send
@@ -172,62 +168,49 @@ class ClaudeCode:
                     exc,
                 )
 
-        # Build Claude Code command
-        command = [
-            str(self.config.executable),
-            '--permission-mode',
-            'acceptEdits',
-            '--mcp-config',
-            '{"mcpServers": {}}',
-            '--strict-mcp-config',
-        ]
-
         LOGGER.debug(
-            'Running Claude Code: %s (cwd: %s)',
-            ' '.join(command),
-            self.working_directory,
+            'Running Claude Code SDK (cwd: %s)', self.working_directory
         )
 
-        # Set environment variables for optimal performance
-        env = {
-            **os.environ,
-            'DISABLE_AUTOUPDATER': '1',
-            'DISABLE_NON_ESSENTIAL_MODEL_CALLS': '1',
-            'CLAUDE_DISABLE_METRICS': '1',
-            'CLAUDE_DISABLE_TELEMETRY': '1',
-        }
-
-        # Execute command
-        process = await asyncio.create_subprocess_exec(
-            *command,
-            cwd=self.working_directory,
-            env=env,
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+        # Configure Claude Code SDK options
+        options = ClaudeCodeOptions(
+            allowed_tools=['Read', 'Write', 'Bash', 'Edit'],
+            permission_mode='acceptEdits',
+            working_directory=str(self.working_directory),
         )
 
         try:
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(input=final_prompt.encode('utf-8')),
-                timeout=timeout_seconds,
-            )
+            # Execute with SDK
+            stdout_messages = []
+            stderr_messages = []
 
-            stdout_str = stdout.decode('utf-8') if stdout else ''
-            stderr_str = stderr.decode('utf-8') if stderr else ''
+            async with ClaudeSDKClient(options=options) as client:
+                # Send the prompt
+                await asyncio.wait_for(
+                    client.query(final_prompt), timeout=timeout_seconds
+                )
 
-            return process.returncode or 0, stdout_str, stderr_str
+                # Collect response messages
+                async for message in client.receive_response():
+                    if hasattr(message, 'content') and message.content:
+                        stdout_messages.append(str(message.content))
+                    elif hasattr(message, 'error') and message.error:
+                        stderr_messages.append(str(message.error))
+
+            # Combine messages into stdout/stderr format
+            stdout_str = '\n'.join(stdout_messages) if stdout_messages else ''
+            stderr_str = '\n'.join(stderr_messages) if stderr_messages else ''
+
+            # Success case - return 0 for successful execution
+            return 0, stdout_str, stderr_str
 
         except TimeoutError:
             LOGGER.warning(
-                'Claude Code command timed out after %d seconds',
-                timeout_seconds,
+                'Claude Code SDK timed out after %d seconds', timeout_seconds
             )
-            process.terminate()
-            try:
-                await asyncio.wait_for(process.wait(), timeout=5)
-            except TimeoutError:
-                process.kill()
-                await process.wait()
-
             return -1, '', f'Command timed out after {timeout_seconds} seconds'
+
+        except (OSError, RuntimeError, ValueError) as exc:
+            error_msg = f'Claude Code SDK error: {exc}'
+            LOGGER.warning('Claude Code SDK execution failed: %s', exc)
+            return 1, '', error_msg

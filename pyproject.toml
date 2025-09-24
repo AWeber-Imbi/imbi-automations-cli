@@ -35,6 +35,7 @@ classifiers = [
 ]
 dependencies = [
   "anthropic",
+  "claude-code-sdk",
   "colorlog",
   "httpx",
   "jinja2",
