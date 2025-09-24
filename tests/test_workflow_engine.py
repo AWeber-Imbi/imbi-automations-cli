@@ -750,6 +750,120 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
         self.assertFalse(result)
 
+    def test_project_matches_filter_project_environments_match(self) -> None:
+        """Test project matching with project_environments filter - match."""
+        # Create workflow with project_environments filter
+        workflow_filter = models.WorkflowFilter(
+            project_environments=['staging', 'production']
+        )
+        workflow_config = models.WorkflowConfiguration(
+            name='test-workflow',
+            description='Test workflow',
+            filter=workflow_filter,
+        )
+        workflow = models.Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        automation_engine = engine.AutomationEngine(
+            args=mock.MagicMock(),
+            configuration=models.Configuration(),
+            iterator=engine.AutomationIterator.imbi_projects,
+            workflow=workflow,
+        )
+
+        # Create project with matching environments (dict format)
+        project_with_envs = mock.MagicMock()
+        project_with_envs.id = 789
+        project_with_envs.name = 'Test Project'
+        project_with_envs.environments = [
+            {'name': 'staging'},
+            {'name': 'production'},
+            {'name': 'development'},
+        ]
+
+        # Should match because both required environments are present
+        result = automation_engine._project_matches_basic_filters(
+            project_with_envs
+        )
+        self.assertTrue(result)
+
+    def test_project_matches_filter_project_environments_no_match(
+        self,
+    ) -> None:
+        """Test project environments filter - no match."""
+        # Create workflow with project_environments filter
+        workflow_filter = models.WorkflowFilter(
+            project_environments=['staging', 'production']
+        )
+        workflow_config = models.WorkflowConfiguration(
+            name='test-workflow',
+            description='Test workflow',
+            filter=workflow_filter,
+        )
+        workflow = models.Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        automation_engine = engine.AutomationEngine(
+            args=mock.MagicMock(),
+            configuration=models.Configuration(),
+            iterator=engine.AutomationIterator.imbi_projects,
+            workflow=workflow,
+        )
+
+        # Create project missing required environment
+        project_missing_env = mock.MagicMock()
+        project_missing_env.id = 789
+        project_missing_env.name = 'Test Project'
+        project_missing_env.environments = [
+            {'name': 'development'},
+            {'name': 'staging'},
+            # Missing 'production'
+        ]
+
+        # Should not match because production environment is missing
+        result = automation_engine._project_matches_basic_filters(
+            project_missing_env
+        )
+        self.assertFalse(result)
+
+    def test_project_matches_filter_project_environments_string_format(
+        self,
+    ) -> None:
+        """Test project environments filter with string format."""
+        # Create workflow with project_environments filter
+        workflow_filter = models.WorkflowFilter(
+            project_environments=['staging']
+        )
+        workflow_config = models.WorkflowConfiguration(
+            name='test-workflow',
+            description='Test workflow',
+            filter=workflow_filter,
+        )
+        workflow = models.Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        automation_engine = engine.AutomationEngine(
+            args=mock.MagicMock(),
+            configuration=models.Configuration(),
+            iterator=engine.AutomationIterator.imbi_projects,
+            workflow=workflow,
+        )
+
+        # Create project with string format environments
+        project_string_envs = mock.MagicMock()
+        project_string_envs.id = 789
+        project_string_envs.name = 'Test Project'
+        project_string_envs.environments = ['staging', 'production']
+
+        # Should match because staging is present
+        result = automation_engine._project_matches_basic_filters(
+            project_string_envs
+        )
+        self.assertTrue(result)
+
     def test_project_matches_filter_requires_github_identifier_match(
         self,
     ) -> None:
@@ -1925,6 +2039,142 @@ class TestWorkflowEngine(base.AsyncTestCase):
             self.assertIn(
                 'Source file not found: nonexistent.txt', str(cm.exception)
             )
+
+    async def test_execute_file_action_copy_success(self) -> None:
+        """Test file copy action successful execution."""
+        action = models.WorkflowAction(
+            name='copy-template',
+            type=models.WorkflowActionTypes.file,
+            command='copy',
+            source='workflow_templates/test.yml',
+            destination='.github/workflows/test.yml',
+        )
+
+        mock_working_dir = pathlib.Path('/mock/working/dir')
+        mock_workflow_dir = pathlib.Path('/mock/workflow/dir')
+
+        workflow = models.Workflow(
+            path=mock_workflow_dir, configuration=self.workflow_config
+        )
+
+        workflow_run = models.WorkflowRun(
+            workflow=workflow,
+            working_directory=mock_working_dir,
+            imbi_project=self.imbi_project,
+        )
+
+        context = {'workflow_run': workflow_run}
+
+        # Mock source and destination paths
+        source_path = mock.MagicMock()
+        source_path.exists.return_value = True
+
+        dest_path = mock.MagicMock()
+        dest_parent = mock.MagicMock()
+        dest_path.parent = dest_parent
+
+        with mock.patch('pathlib.Path.__truediv__') as mock_truediv:
+            # Configure path mocking for workflow source and working dest
+            mock_truediv.side_effect = lambda other: (
+                source_path
+                if 'workflow_templates' in str(other)
+                else dest_path
+            )
+
+            with (
+                mock.patch('shutil.copy2') as mock_copy2,
+                mock.patch(
+                    'imbi_automations.git.get_git_status'
+                ) as mock_git_status,
+                mock.patch('imbi_automations.git.add_files'),
+                mock.patch(
+                    'imbi_automations.git.commit_changes'
+                ) as mock_commit,
+            ):
+                mock_git_status.return_value = ['.github/workflows/test.yml']
+                mock_commit.return_value = 'abc123'
+
+                result = await self.workflow_engine._execute_file_action(
+                    action, context
+                )
+
+        # Verify copy operation
+        mock_copy2.assert_called_once_with(source_path, dest_path)
+        dest_parent.mkdir.assert_called_once_with(parents=True, exist_ok=True)
+
+        # Verify result
+        self.assertEqual(result['operation'], 'copy')
+        self.assertEqual(result['source'], 'workflow_templates/test.yml')
+        self.assertEqual(result['destination'], '.github/workflows/test.yml')
+        self.assertEqual(result['status'], 'success')
+        self.assertTrue(result['committed'])
+
+    async def test_execute_file_action_copy_missing_source(self) -> None:
+        """Test file copy action with missing source template."""
+        action = models.WorkflowAction(
+            name='copy-template',
+            type=models.WorkflowActionTypes.file,
+            command='copy',
+            source='workflow_templates/missing.yml',
+            destination='.github/workflows/test.yml',
+        )
+
+        mock_working_dir = pathlib.Path('/mock/working/dir')
+        mock_workflow_dir = pathlib.Path('/mock/workflow/dir')
+
+        workflow = models.Workflow(
+            path=mock_workflow_dir, configuration=self.workflow_config
+        )
+
+        workflow_run = models.WorkflowRun(
+            workflow=workflow,
+            working_directory=mock_working_dir,
+            imbi_project=self.imbi_project,
+        )
+
+        context = {'workflow_run': workflow_run}
+
+        # Mock source file doesn't exist
+        source_path = mock.MagicMock()
+        source_path.exists.return_value = False
+
+        with mock.patch('pathlib.Path.__truediv__', return_value=source_path):
+            with self.assertRaises(FileNotFoundError) as cm:
+                await self.workflow_engine._execute_file_action(
+                    action, context
+                )
+
+            self.assertIn(
+                'Source template file not found: '
+                'workflow_templates/missing.yml',
+                str(cm.exception),
+            )
+
+    async def test_execute_file_action_copy_missing_destination(self) -> None:
+        """Test file copy action with missing destination."""
+        action = models.WorkflowAction(
+            name='copy-template',
+            type=models.WorkflowActionTypes.file,
+            command='copy',
+            source='workflow_templates/test.yml',
+            # Missing destination
+        )
+
+        mock_working_dir = pathlib.Path('/mock/working/dir')
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow,
+            working_directory=mock_working_dir,
+            imbi_project=self.imbi_project,
+        )
+
+        context = {'workflow_run': workflow_run}
+
+        with self.assertRaises(ValueError) as cm:
+            await self.workflow_engine._execute_file_action(action, context)
+
+        self.assertIn(
+            'Copy action copy-template missing destination', str(cm.exception)
+        )
 
     async def test_execute_file_action_missing_command(self) -> None:
         """Test file action with missing command."""

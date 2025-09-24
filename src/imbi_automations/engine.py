@@ -890,6 +890,43 @@ class AutomationEngine:
                     )
                     return False
 
+        # Check project_environments filter
+        if workflow_filter.project_environments:
+            project_environments = imbi_project.environments or []
+
+            # Convert environments to list of strings for comparison
+            env_names = []
+            for env in project_environments:
+                if isinstance(env, dict):
+                    env_names.append(env.get('name', ''))
+                else:
+                    env_names.append(str(env))
+
+            LOGGER.debug(
+                'Project %d (%s) has environments: %s, checking for: %s',
+                imbi_project.id,
+                imbi_project.name,
+                env_names,
+                workflow_filter.project_environments,
+            )
+
+            # Check if any required environment is present (case-insensitive)
+            # Normalize environment names (lowercase, spaces to dashes)
+            normalized_env_names = [
+                name.lower().replace(' ', '-') for name in env_names
+            ]
+            for required_env in workflow_filter.project_environments:
+                normalized_required = required_env.lower().replace(' ', '-')
+                if normalized_required not in normalized_env_names:
+                    LOGGER.debug(
+                        'Project %d (%s) excluded by project_environments '
+                        'filter - missing environment: "%s"',
+                        imbi_project.id,
+                        imbi_project.name,
+                        required_env,
+                    )
+                    return False
+
         # Check requires_github_identifier filter
         if workflow_filter.requires_github_identifier:
             has_github_id = (
@@ -1564,6 +1601,47 @@ class WorkflowEngine:
                     'status': 'success',
                 }
 
+            case 'copy':
+                if not action.destination:
+                    raise ValueError(
+                        f'Copy action {action.name} missing destination'
+                    )
+
+                # Source path is relative to workflow directory
+                workflow_source_path = (
+                    workflow_run.workflow.path / action.source
+                )
+
+                # Destination path is relative to working directory
+                destination_path = working_directory / action.destination
+
+                # Validate source file exists in workflow directory
+                if not workflow_source_path.exists():
+                    raise FileNotFoundError(
+                        f'Source template file not found: {action.source}'
+                    )
+
+                # Create destination directory if needed
+                destination_path.parent.mkdir(parents=True, exist_ok=True)
+
+                # Copy file from workflow to repository
+                import shutil
+
+                shutil.copy2(workflow_source_path, destination_path)
+
+                self.logger.debug(
+                    'Copied template %s to %s',
+                    action.source,
+                    action.destination,
+                )
+
+                result = {
+                    'operation': 'copy',
+                    'source': action.source,
+                    'destination': action.destination,
+                    'status': 'success',
+                }
+
             case 'regex':
                 # Placeholder for future regex implementation
                 raise NotImplementedError(
@@ -1592,6 +1670,10 @@ class WorkflowEngine:
                     )
                 elif operation == 'remove':
                     commit_message += f'\n\nRemoved: {action.source}'
+                elif operation == 'copy':
+                    commit_message += (
+                        f'\n\nCopied: {action.source} → {action.destination}'
+                    )
                 else:
                     commit_message += '\n\nModified files:\n'
                     commit_message += '\n'.join(
@@ -3519,11 +3601,11 @@ class WorkflowEngine:
                 from . import git
 
                 # Check if any actions created commits during execution
-                # Actions like shell, ai-editor, etc. create their own commits
+                # Actions like file, shell, ai-editor, etc. create commits
                 commits_made = any(
-                    result.get('result', {}).get('committed', False)
+                    result.get('committed', False)
                     for result in self.action_results._results.values()
-                    if isinstance(result.get('result'), dict)
+                    if isinstance(result, dict)
                 )
 
                 # Also check for any remaining uncommitted changes
