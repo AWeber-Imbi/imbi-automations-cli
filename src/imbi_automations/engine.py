@@ -1069,6 +1069,22 @@ class WorkflowEngine:
         workflow_dir_name = workflow_path.name
         self.logger = logging.getLogger(workflow_dir_name)
 
+    def _get_project_info_string(
+        self, workflow_run: models.WorkflowRun | None
+    ) -> str:
+        """Get project information string for logging.
+
+        Args:
+            workflow_run: Workflow run containing project information
+
+        Returns:
+            Formatted project information string
+        """
+        if workflow_run and workflow_run.imbi_project:
+            project = workflow_run.imbi_project
+            return f'{project.name} ({project.project_type})'
+        return 'Unknown Project'
+
     def _create_template_context(
         self, run: models.WorkflowRun
     ) -> dict[str, typing.Any]:
