@@ -158,10 +158,7 @@ class AutomationEngine:
             project_type_slug,
         )
 
-        # Apply workflow filtering first
-        projects = await self._filter_projects_by_workflow(projects)
-
-        # Apply start-from-project filtering if specified
+        # Apply start-from-project filtering FIRST (cheap, no API calls)
         if (
             hasattr(self.args, 'start_from_project')
             and self.args.start_from_project
@@ -169,6 +166,9 @@ class AutomationEngine:
             projects = self._filter_projects_from_start(
                 projects, self.args.start_from_project
             )
+
+        # Apply workflow filtering SECOND (expensive GitHub API calls)
+        projects = await self._filter_projects_by_workflow(projects)
 
         for project in projects:
             try:
@@ -216,10 +216,7 @@ class AutomationEngine:
         projects = await self.imbi.get_all_projects()
         LOGGER.info('Found %d total active projects', len(projects))
 
-        # Apply workflow filtering first
-        projects = await self._filter_projects_by_workflow(projects)
-
-        # Apply start-from-project filtering if specified
+        # Apply start-from-project filtering FIRST (cheap, no API calls)
         if (
             hasattr(self.args, 'start_from_project')
             and self.args.start_from_project
@@ -228,7 +225,10 @@ class AutomationEngine:
                 projects, self.args.start_from_project
             )
 
-        LOGGER.info('Processing %d projects', len(projects))
+        # Apply workflow filtering SECOND (expensive GitHub API calls)
+        projects = await self._filter_projects_by_workflow(projects)
+
+        LOGGER.info('Processing %d filtered projects', len(projects))
 
         for project in projects:
             try:
@@ -316,6 +316,9 @@ class AutomationEngine:
             return projects  # No filter means all projects match
 
         original_count = len(projects)
+        LOGGER.debug(
+            'Applying workflow filters to %d projects', original_count
+        )
         filtered_projects = []
 
         for project in projects:
