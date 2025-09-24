@@ -157,7 +157,7 @@ def parse_constraints_file(content: str) -> list[str]:
             continue
 
         # Extract package name (before ==, >=, <=, etc.)
-        package_match = re.match(r'^([a-zA-Z0-9_-]+)', line)
+        package_match = re.match(r'^([a-zA-Z0-9_.-]+)', line)
         if package_match:
             package_name = package_match.group(1)
             packages.append(package_name)

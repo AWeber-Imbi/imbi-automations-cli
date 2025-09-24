@@ -720,7 +720,7 @@ class TestRemoteBranchDeletion(base.AsyncTestCase):
         # Mock successful commands
         mock_run_git.side_effect = [
             (0, ls_remote_output, ''),  # git ls-remote (branch exists)
-            (0, 'deleted', ''),         # git push --delete (success)
+            (0, 'deleted', ''),  # git push --delete (success)
         ]
 
         result = await git.delete_remote_branch_if_exists(

@@ -660,9 +660,7 @@ async def get_file_at_commit(
 
 
 async def delete_remote_branch_if_exists(
-    working_directory: pathlib.Path,
-    branch_name: str,
-    remote: str = 'origin',
+    working_directory: pathlib.Path, branch_name: str, remote: str = 'origin'
 ) -> bool:
     """Delete a remote branch if it exists.
 
@@ -698,19 +696,11 @@ async def delete_remote_branch_if_exists(
         return True  # Assume it doesn't exist
 
     if not stdout.strip():
-        LOGGER.debug(
-            'Remote branch %s/%s does not exist',
-            remote,
-            branch_name,
-        )
+        LOGGER.debug('Remote branch %s/%s does not exist', remote, branch_name)
         return True  # Branch doesn't exist, nothing to delete
 
     # Branch exists, delete it
-    LOGGER.info(
-        'Deleting existing remote branch %s/%s',
-        remote,
-        branch_name,
-    )
+    LOGGER.info('Deleting existing remote branch %s/%s', remote, branch_name)
 
     command = ['git', 'push', remote, '--delete', branch_name]
 
@@ -720,9 +710,7 @@ async def delete_remote_branch_if_exists(
 
     if returncode == 0:
         LOGGER.debug(
-            'Successfully deleted remote branch %s/%s',
-            remote,
-            branch_name,
+            'Successfully deleted remote branch %s/%s', remote, branch_name
         )
         return True
     else:
