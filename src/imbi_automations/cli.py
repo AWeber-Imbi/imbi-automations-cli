@@ -206,6 +206,14 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         help='Process all GitLab repositories across all organizations',
     )
 
+    # Optional modifiers
+    parser.add_argument(
+        '--start-from-project',
+        metavar='SLUG',
+        help='When processing multiple projects, skip all projects up to '
+        'and including this project slug',
+    )
+
     parser.add_argument('-v', '--verbose', action='store_true')
     parser.add_argument('-V', '--version', action='version', version=version)
     return parser.parse_args(args)

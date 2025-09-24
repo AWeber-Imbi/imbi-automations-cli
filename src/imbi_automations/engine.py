@@ -158,6 +158,15 @@ class AutomationEngine:
             project_type_slug,
         )
 
+        # Apply start-from-project filtering if specified
+        if (
+            hasattr(self.args, 'start_from_project')
+            and self.args.start_from_project
+        ):
+            projects = self._filter_projects_from_start(
+                projects, self.args.start_from_project
+            )
+
         for project in projects:
             try:
                 await self._execute_workflow_run(imbi_project=project)
@@ -190,6 +199,16 @@ class AutomationEngine:
         """Iterate over all Imbi projects and execute workflow runs."""
         projects = await self.imbi.get_all_projects()
         LOGGER.info('Processing %d Imbi projects', len(projects))
+
+        # Apply start-from-project filtering if specified
+        if (
+            hasattr(self.args, 'start_from_project')
+            and self.args.start_from_project
+        ):
+            projects = self._filter_projects_from_start(
+                projects, self.args.start_from_project
+            )
+
         for project in projects:
             try:
                 await self._execute_workflow_run(imbi_project=project)
@@ -202,6 +221,50 @@ class AutomationEngine:
                     str(e),
                 )
                 # Continue processing other projects
+
+    def _filter_projects_from_start(
+        self, projects: list[models.ImbiProject], start_from_slug: str
+    ) -> list[models.ImbiProject]:
+        """Filter projects to start from a specific project slug.
+
+        Args:
+            projects: List of Imbi projects
+            start_from_slug: Project slug to start from (exclusive)
+
+        Returns:
+            Filtered list of projects starting after the specified slug
+
+        """
+        original_count = len(projects)
+
+        # Find the index of the start_from_project
+        start_index = None
+        for i, project in enumerate(projects):
+            if project.slug == start_from_slug:
+                start_index = i + 1  # Start from the next project
+                break
+
+        if start_index is None:
+            LOGGER.warning(
+                'Start project slug "%s" not found in project list, '
+                'processing all %d projects',
+                start_from_slug,
+                original_count,
+            )
+            return projects
+
+        filtered_projects = projects[start_index:]
+        skipped_count = original_count - len(filtered_projects)
+
+        LOGGER.info(
+            'Starting from project "%s": skipping %d projects, '
+            'processing %d projects',
+            start_from_slug,
+            skipped_count,
+            len(filtered_projects),
+        )
+
+        return filtered_projects
 
     async def _get_github_repository(
         self, imbi_project: models.ImbiProject

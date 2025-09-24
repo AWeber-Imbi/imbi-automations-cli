@@ -17,7 +17,10 @@ pip install -e .[dev]
 pre-commit install
 
 # Run the CLI
-imbi-automations config.toml
+imbi-automations config.toml workflows/workflow-name --all-projects
+
+# Resume processing from a specific project (useful for large batches)
+imbi-automations config.toml workflows/workflow-name --all-projects --start-from-project my-project-slug
 
 # Development with virtual environment
 python -m venv .venv
@@ -215,6 +218,7 @@ remote_file_exists = ".github/workflows"  # Has GitHub Actions
 - **Directory Management**: Automatic parent directory creation with proper error handling
 - **Authentication**: Secret string handling for API keys in configuration
 - **Pattern-Aware File Detection**: GitHub client supports both exact file paths and regex patterns for workflow file detection
+- **Resumable Processing**: `--start-from-project` CLI option allows resuming batch processing from a specific project slug
 
 ## Dependencies
 

@@ -395,5 +395,103 @@ class TestAutomationEngineImbiProjectTypes(unittest.TestCase):
         )
 
 
+class TestAutomationEngineFiltering(unittest.TestCase):
+    def test_filter_projects_from_start_found(self) -> None:
+        """Test filtering projects when start project is found."""
+        # Create mock projects
+        project1 = unittest.mock.Mock()
+        project1.slug = 'project-a'
+        project1.id = 1
+        project1.name = 'Project A'
+
+        project2 = unittest.mock.Mock()
+        project2.slug = 'project-b'
+        project2.id = 2
+        project2.name = 'Project B'
+
+        project3 = unittest.mock.Mock()
+        project3.slug = 'project-c'
+        project3.id = 3
+        project3.name = 'Project C'
+
+        projects = [project1, project2, project3]
+
+        # Create minimal engine instance
+        args = argparse.Namespace(start_from_project='project-a')
+        config = models.Configuration()
+        workflow = models.Workflow(
+            path=pathlib.Path(tempfile.mkdtemp()),
+            configuration=models.WorkflowConfiguration(
+                name='test', description='test'
+            ),
+        )
+        ae = engine.AutomationEngine(
+            args, config, engine.AutomationIterator.imbi_projects, workflow
+        )
+
+        # Test filtering
+        result = ae._filter_projects_from_start(projects, 'project-a')
+
+        # Should return projects after 'project-a' (project-b and project-c)
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result[0].slug, 'project-b')
+        self.assertEqual(result[1].slug, 'project-c')
+
+    def test_filter_projects_from_start_not_found(self) -> None:
+        """Test filtering projects when start project is not found."""
+        # Create mock projects
+        project1 = unittest.mock.Mock()
+        project1.slug = 'project-a'
+        project1.id = 1
+
+        project2 = unittest.mock.Mock()
+        project2.slug = 'project-b'
+        project2.id = 2
+
+        projects = [project1, project2]
+
+        # Create minimal engine instance
+        args = argparse.Namespace(start_from_project='nonexistent')
+        config = models.Configuration()
+        workflow = models.Workflow(
+            path=pathlib.Path(tempfile.mkdtemp()),
+            configuration=models.WorkflowConfiguration(
+                name='test', description='test'
+            ),
+        )
+        ae = engine.AutomationEngine(
+            args, config, engine.AutomationIterator.imbi_projects, workflow
+        )
+
+        # Test filtering with non-existent project
+        result = ae._filter_projects_from_start(projects, 'nonexistent')
+
+        # Should return all projects since start project wasn't found
+        self.assertEqual(len(result), 2)
+        self.assertEqual(result, projects)
+
+    def test_filter_projects_from_start_empty_list(self) -> None:
+        """Test filtering projects with empty project list."""
+        # Create minimal engine instance
+        args = argparse.Namespace(start_from_project='project-a')
+        config = models.Configuration()
+        workflow = models.Workflow(
+            path=pathlib.Path(tempfile.mkdtemp()),
+            configuration=models.WorkflowConfiguration(
+                name='test', description='test'
+            ),
+        )
+        ae = engine.AutomationEngine(
+            args, config, engine.AutomationIterator.imbi_projects, workflow
+        )
+
+        # Test filtering with empty list
+        result = ae._filter_projects_from_start([], 'project-a')
+
+        # Should return empty list
+        self.assertEqual(len(result), 0)
+        self.assertEqual(result, [])
+
+
 if __name__ == '__main__':
     unittest.main()
