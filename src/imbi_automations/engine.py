@@ -1428,7 +1428,7 @@ class WorkflowEngine:
                 workflow_run.working_directory
             )
             if changed_files:
-                self.logger.info(
+                self.logger.debug(
                     'Claude action %s modified %d files: %s',
                     action.name,
                     len(changed_files),
@@ -1466,7 +1466,7 @@ class WorkflowEngine:
                     author_email='noreply@aweber.com',
                 )
 
-                self.logger.info(
+                self.logger.debug(
                     'Claude action %s committed changes: %s',
                     action.name,
                     commit_sha[:8] if commit_sha else 'unknown',
