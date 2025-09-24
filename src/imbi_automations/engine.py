@@ -217,7 +217,7 @@ class AutomationEngine:
     async def _process_imbi_projects(self) -> None:
         """Iterate over all Imbi projects and execute workflow runs."""
         projects = await self.imbi.get_all_projects()
-        LOGGER.info('Found %d total active projects', len(projects))
+        LOGGER.debug('Found %d total active projects', len(projects))
 
         # Apply cheap filters FIRST (project_types, facts, github_id)
         projects = self._filter_projects_by_basic_criteria(projects)
@@ -296,7 +296,7 @@ class AutomationEngine:
         filtered_projects = projects[start_index:]
         skipped_count = original_count - len(filtered_projects)
 
-        LOGGER.info(
+        LOGGER.debug(
             'Starting from project "%s": skipping %d projects, '
             'processing %d projects',
             start_from_slug,
@@ -374,7 +374,7 @@ class AutomationEngine:
         excluded_count = original_count - filtered_count
 
         if excluded_count > 0:
-            LOGGER.info(
+            LOGGER.debug(
                 'Applied basic filters: %d → %d projects',
                 original_count,
                 filtered_count,
