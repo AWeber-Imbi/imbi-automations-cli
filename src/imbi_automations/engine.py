@@ -1197,6 +1197,10 @@ class WorkflowEngine:
                 return await self._execute_ai_editor_action(action, context)
             case models.WorkflowActionTypes.git_revert:
                 return await self._execute_git_revert_action(action, context)
+            case models.WorkflowActionTypes.docker_extract:
+                return await self._execute_docker_extract_action(
+                    action, context
+                )
             case _:
                 raise ValueError(f'Unsupported action type: {action.type}')
 
@@ -2297,6 +2301,174 @@ class WorkflowEngine:
             'Git revert action %s completed: reverted=%s, committed=%s',
             action.name,
             result['reverted'],
+            result['committed'],
+        )
+
+        return result
+
+    async def _execute_docker_extract_action(
+        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+    ) -> dict[str, typing.Any]:
+        """Execute a docker-extract workflow action.
+
+        Args:
+            action: Docker extract action to execute
+            context: Workflow execution context
+
+        Returns:
+            Dictionary with execution results
+
+        """
+        if not action.source_path:
+            raise ValueError(
+                f'Docker extract action {action.name} missing source_path'
+            )
+
+        # Get working directory from context
+        workflow_run = context.get('workflow_run')
+        if not workflow_run or not workflow_run.working_directory:
+            raise RuntimeError(
+                f'Docker extract action {action.name} needs working directory'
+            )
+
+        dockerfile_path = action.dockerfile_path or 'Dockerfile'
+        target_path = (
+            action.target_path or pathlib.Path(action.source_path).name
+        )
+
+        result = {
+            'action': action.name,
+            'dockerfile_path': dockerfile_path,
+            'source_path': action.source_path,
+            'target_path': target_path,
+            'extracted': False,
+            'committed': False,
+        }
+
+        try:
+            # Import docker operations
+            from imbi_automations import docker
+
+            # Extract Docker image from Dockerfile
+            dockerfile_full_path = (
+                workflow_run.working_directory / dockerfile_path
+            )
+            image_name = await docker.extract_docker_image_from_dockerfile(
+                dockerfile_full_path
+            )
+
+            if not image_name:
+                self.logger.warning(
+                    'Docker extract action %s: no image found in %s',
+                    action.name,
+                    dockerfile_path,
+                )
+                result['error'] = (
+                    f'Could not extract image from {dockerfile_path}'
+                )
+                return result
+
+            # Extract file content from Docker image
+            file_content = await docker.extract_file_from_docker_image(
+                image_name, action.source_path
+            )
+
+            if file_content is None:
+                self.logger.warning(
+                    'Docker extract action %s: file %s not found in image %s',
+                    action.name,
+                    action.source_path,
+                    image_name,
+                )
+                result['error'] = (
+                    f'File {action.source_path} not found in {image_name}'
+                )
+                return result
+
+            # Write extracted content to target file
+            target_file_path = workflow_run.working_directory / target_path
+            target_file_path.parent.mkdir(parents=True, exist_ok=True)
+            target_file_path.write_text(file_content, encoding='utf-8')
+
+            self.logger.debug(
+                'Docker extract action %s: %s from %s (%d bytes) → %s',
+                action.name,
+                action.source_path,
+                image_name,
+                len(file_content),
+                target_path,
+            )
+
+            result['extracted'] = True
+            result['image_name'] = image_name
+            result['content'] = file_content
+            result['content_length'] = len(file_content)
+
+            # Parse constraints if it looks like a constraints file
+            if 'constraints' in action.source_path.lower():
+                packages = docker.parse_constraints_file(file_content)
+                result['packages'] = packages
+                result['package_count'] = len(packages)
+
+            # Check if changes were made (new file created)
+            changed_files = await git.get_git_status(
+                workflow_run.working_directory
+            )
+
+            if changed_files and target_path in changed_files:
+                # Stage the extracted file
+                await git.add_files(
+                    workflow_run.working_directory, [target_path]
+                )
+
+                # Commit the extraction
+                commit_message = (
+                    f'Apply docker extract action: {action.name}\n\n'
+                    f'Extracted {action.source_path} from {image_name}\n'
+                    f'Saved to: {target_path}'
+                )
+
+                commit_message += (
+                    '\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\n'
+                    'Co-Authored-By: Imbi Automations <noreply@aweber.com>'
+                )
+
+                commit_sha = await git.commit_changes(
+                    working_directory=workflow_run.working_directory,
+                    message=commit_message,
+                    author_name='Imbi Automations',
+                    author_email='noreply@aweber.com',
+                )
+
+                self.logger.debug(
+                    'Docker extract action %s committed changes: %s',
+                    action.name,
+                    commit_sha[:8] if commit_sha else 'unknown',
+                )
+
+                result['committed'] = True
+                result['commit_sha'] = commit_sha
+                result['changed_files'] = [target_path]
+            else:
+                self.logger.debug(
+                    'Docker extract action %s: no new files created',
+                    action.name,
+                )
+
+        except (OSError, subprocess.CalledProcessError, RuntimeError) as exc:
+            self.logger.error(
+                'Docker extract action %s failed: %s', action.name, exc
+            )
+            result['error'] = str(exc)
+
+        # Store result for future template references
+        self.action_results[action.name] = {'result': result}
+        context['actions'] = self.action_results
+
+        self.logger.debug(
+            'Docker extract action %s completed: extracted=%s, committed=%s',
+            action.name,
+            result['extracted'],
             result['committed'],
         )
 

@@ -498,6 +498,7 @@ class WorkflowActionTypes(enum.StrEnum):
     shell = 'shell'
     ai_editor = 'ai-editor'
     git_revert = 'git-revert'
+    docker_extract = 'docker-extract'
 
 
 class WorkflowConditionType(enum.StrEnum):
@@ -543,6 +544,11 @@ class WorkflowAction(pydantic.BaseModel):
     # Git revert action fields
     keyword: str | None = None
     strategy: str | None = None  # before_first_match, before_last_match
+
+    # Docker extract action fields
+    dockerfile_path: str | None = None
+    source_path: str | None = None
+    target_path: str | None = None
 
 
 class WorkflowCondition(pydantic.BaseModel):
