@@ -2291,7 +2291,8 @@ class WorkflowEngine:
                     )
 
                     commit_message += (
-                        '\n\nAuthored-By: Imbi Automations <noreply@aweber.com>'
+                        '\n\nAuthored-By: Imbi Automations '
+                        '<noreply@aweber.com>'
                     )
 
                     commit_sha = await git.commit_changes(
@@ -2338,7 +2339,7 @@ class WorkflowEngine:
     async def _execute_git_extract_action(
         self, action: models.WorkflowAction, context: dict[str, typing.Any]
     ) -> dict[str, typing.Any]:
-        """Execute a git-extract workflow action (extracts content without commit).
+        """Execute git-extract action (extracts content without commit).
 
         Args:
             action: Git extract action to execute
@@ -2560,7 +2561,7 @@ class WorkflowEngine:
                 result['packages'] = packages
                 result['package_count'] = len(packages)
 
-            # Note: Docker extract saves working files outside git (not committed)
+            # Note: Docker extract saves working files outside git
             # The extracted content is available for templates via result
             self.logger.debug(
                 (
@@ -2611,7 +2612,7 @@ class WorkflowEngine:
         workflow_run = context.get('workflow_run')
         if not workflow_run or not workflow_run.working_directory:
             raise RuntimeError(
-                f'Add trailing whitespace action {action.name} needs working dir'
+                f'Add trailing whitespace action {action.name} needs work dir'
             )
 
         result = {
@@ -3464,7 +3465,11 @@ class WorkflowEngine:
                 # Store action result for template access
                 if result is not None:
                     context['actions'][action.name] = result
-            except (OSError, subprocess.CalledProcessError, RuntimeError, Exception) as exc:
+            except (
+                OSError,
+                subprocess.CalledProcessError,
+                RuntimeError,
+            ) as exc:
                 self.logger.error(
                     'Action %s failed for project %s: %s',
                     action.name,
@@ -3473,8 +3478,12 @@ class WorkflowEngine:
                 )
                 # Store failed result for template access
                 context['actions'][action.name] = {
-                    'result': {'extracted': False, 'packages': [], 'package_count': 0},
-                    'error': str(exc)
+                    'result': {
+                        'extracted': False,
+                        'packages': [],
+                        'package_count': 0,
+                    },
+                    'error': str(exc),
                 }
                 raise
 
