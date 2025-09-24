@@ -574,6 +574,7 @@ class WorkflowFilter(pydantic.BaseModel):
     project_ids: list[int] = pydantic.Field(default_factory=list)
     project_types: list[str] = pydantic.Field(default_factory=list)
     project_facts: dict[str, str] = pydantic.Field(default_factory=dict)
+    project_environments: list[str] = pydantic.Field(default_factory=list)
     requires_github_identifier: bool = False
     exclude_github_workflow_status: list[str] = pydantic.Field(
         default_factory=list
