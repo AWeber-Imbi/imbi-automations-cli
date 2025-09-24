@@ -495,3 +495,159 @@ async def get_commit_messages_since_branch(
         'Found %d commit messages since %s', len(commit_messages), base_branch
     )
     return commit_messages
+
+
+async def find_commit_before_keyword(
+    working_directory: pathlib.Path,
+    keyword: str,
+    strategy: str = 'before_last_match',
+) -> str | None:
+    """Find the commit hash before the last commit containing a keyword.
+
+    Args:
+        working_directory: Git repository working directory
+        keyword: Keyword to search for in commit messages
+        strategy: 'before_first_match' or 'before_last_match'
+
+    Returns:
+        Commit hash before the keyword match, or None if not found
+
+    Raises:
+        RuntimeError: If git operations fail
+
+    """
+    LOGGER.debug(
+        'Searching for commit before "%s" keyword with strategy: %s',
+        keyword,
+        strategy,
+    )
+
+    # Get commit history with messages
+    command = [
+        'git',
+        'log',
+        '--oneline',
+        '--grep',
+        keyword,
+        '--format=%H %s',  # Full hash and subject
+    ]
+
+    returncode, stdout, stderr = await _run_git_command(
+        command, cwd=working_directory, timeout=30
+    )
+
+    if returncode != 0:
+        raise RuntimeError(
+            f'Git log failed (exit code {returncode}): {stderr or stdout}'
+        )
+
+    if not stdout.strip():
+        LOGGER.debug('No commits found with keyword "%s"', keyword)
+        return None
+
+    # Parse commit lines
+    matching_commits = []
+    for line in stdout.strip().split('\n'):
+        if line.strip():
+            parts = line.strip().split(' ', 1)
+            if len(parts) >= 2:
+                commit_hash, message = parts[0], parts[1]
+                matching_commits.append((commit_hash, message))
+
+    if not matching_commits:
+        LOGGER.debug('No valid commits found with keyword "%s"', keyword)
+        return None
+
+    # Apply strategy
+    if strategy == 'before_first_match':
+        target_commit = matching_commits[-1][
+            0
+        ]  # Last in list = first chronologically
+    else:  # before_last_match (default)
+        target_commit = matching_commits[0][
+            0
+        ]  # First in list = last chronologically
+
+    LOGGER.debug(
+        'Found %d commits with keyword "%s", using commit %s with strategy %s',
+        len(matching_commits),
+        keyword,
+        target_commit[:8],
+        strategy,
+    )
+
+    # Get the commit before the target commit
+    command = ['git', 'log', '--format=%H', '-n', '1', f'{target_commit}~1']
+
+    returncode, stdout, stderr = await _run_git_command(
+        command, cwd=working_directory, timeout=30
+    )
+
+    if returncode != 0:
+        LOGGER.warning(
+            'Could not find commit before %s: %s',
+            target_commit[:8],
+            stderr or stdout,
+        )
+        return None
+
+    before_commit = stdout.strip()
+    if before_commit:
+        LOGGER.debug(
+            'Found commit before keyword match: %s (before %s)',
+            before_commit[:8],
+            target_commit[:8],
+        )
+        return before_commit
+
+    return None
+
+
+async def get_file_at_commit(
+    working_directory: pathlib.Path, file_path: str, commit_hash: str
+) -> str | None:
+    """Get the content of a file at a specific commit.
+
+    Args:
+        working_directory: Git repository working directory
+        file_path: Path to the file relative to repository root
+        commit_hash: Git commit hash
+
+    Returns:
+        File content as string, or None if file doesn't exist at that commit
+
+    Raises:
+        RuntimeError: If git operations fail
+
+    """
+    LOGGER.debug(
+        'Getting content of %s at commit %s', file_path, commit_hash[:8]
+    )
+
+    command = ['git', 'show', f'{commit_hash}:{file_path}']
+
+    returncode, stdout, stderr = await _run_git_command(
+        command, cwd=working_directory, timeout=30
+    )
+
+    if returncode != 0:
+        if 'does not exist' in stderr or 'exists on disk' in stderr:
+            LOGGER.debug(
+                'File %s does not exist at commit %s',
+                file_path,
+                commit_hash[:8],
+            )
+            return None
+        else:
+            raise RuntimeError(
+                f'Git show failed (exit code {returncode}): {stderr or stdout}'
+            )
+
+    LOGGER.debug(
+        'Retrieved %d bytes of content for %s at commit %s',
+        len(stdout),
+        file_path,
+        commit_hash[:8],
+    )
+
+    return stdout

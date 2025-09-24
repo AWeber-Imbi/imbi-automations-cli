@@ -1195,6 +1195,8 @@ class WorkflowEngine:
                 return await self._execute_shell_action(action, context)
             case models.WorkflowActionTypes.ai_editor:
                 return await self._execute_ai_editor_action(action, context)
+            case models.WorkflowActionTypes.git_revert:
+                return await self._execute_git_revert_action(action, context)
             case _:
                 raise ValueError(f'Unsupported action type: {action.type}')
 
@@ -2139,6 +2141,163 @@ class WorkflowEngine:
             action.name,
             result['status'],
             result['attempts'],
+        )
+
+        return result
+
+    async def _execute_git_revert_action(
+        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+    ) -> dict[str, typing.Any]:
+        """Execute a git-revert workflow action.
+
+        Args:
+            action: Git revert action to execute
+            context: Workflow execution context
+
+        Returns:
+            Dictionary with execution results
+
+        """
+        if not action.source:
+            raise ValueError(
+                f'Git revert action {action.name} missing required source file'
+            )
+
+        if not action.keyword:
+            raise ValueError(
+                f'Git revert action {action.name} missing required keyword'
+            )
+
+        # Get working directory from context
+        workflow_run = context.get('workflow_run')
+        if not workflow_run or not workflow_run.working_directory:
+            raise RuntimeError(
+                f'Git revert action {action.name} requires working directory'
+            )
+
+        strategy = action.strategy or 'before_last_match'
+
+        result = {
+            'action': action.name,
+            'source': action.source,
+            'keyword': action.keyword,
+            'strategy': strategy,
+            'reverted': False,
+            'committed': False,
+        }
+
+        try:
+            # Find commit before keyword match
+            before_commit = await git.find_commit_before_keyword(
+                workflow_run.working_directory, action.keyword, strategy
+            )
+
+            if not before_commit:
+                self.logger.warning(
+                    'Git revert action %s: no commit found with keyword "%s"',
+                    action.name,
+                    action.keyword,
+                )
+                result['error'] = (
+                    f'No commit found with keyword "{action.keyword}"'
+                )
+                return result
+
+            # Get file content at that commit
+            file_content = await git.get_file_at_commit(
+                workflow_run.working_directory, action.source, before_commit
+            )
+
+            if file_content is None:
+                self.logger.warning(
+                    'Git revert action %s: file %s missing at commit %s',
+                    action.name,
+                    action.source,
+                    before_commit[:8],
+                )
+                result['error'] = (
+                    f'File {action.source} not found at {before_commit[:8]}'
+                )
+                return result
+
+            # Write the reverted content to the file
+            file_path = workflow_run.working_directory / action.source
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.write_text(file_content, encoding='utf-8')
+
+            self.logger.debug(
+                'Git revert action %s: reverted %s to commit %s (%d bytes)',
+                action.name,
+                action.source,
+                before_commit[:8],
+                len(file_content),
+            )
+
+            result['reverted'] = True
+            result['commit_hash'] = before_commit
+            result['content_length'] = len(file_content)
+
+            # Check if changes were made
+            changed_files = await git.get_git_status(
+                workflow_run.working_directory
+            )
+
+            if changed_files:
+                # Stage the reverted file
+                await git.add_files(
+                    workflow_run.working_directory, [action.source]
+                )
+
+                # Commit the revert
+                commit_message = (
+                    f'Apply git revert action: {action.name}\n\n'
+                    f'Reverted {action.source} before: {action.keyword}\n'
+                    f'Target commit: {before_commit[:8]}\n'
+                    f'Strategy: {strategy}'
+                )
+
+                commit_message += (
+                    '\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\n'
+                    'Co-Authored-By: Imbi Automations <noreply@aweber.com>'
+                )
+
+                commit_sha = await git.commit_changes(
+                    working_directory=workflow_run.working_directory,
+                    message=commit_message,
+                    author_name='Imbi Automations',
+                    author_email='noreply@aweber.com',
+                )
+
+                self.logger.debug(
+                    'Git revert action %s committed changes: %s',
+                    action.name,
+                    commit_sha[:8] if commit_sha else 'unknown',
+                )
+
+                result['committed'] = True
+                result['commit_sha'] = commit_sha
+                result['changed_files'] = changed_files
+            else:
+                self.logger.debug(
+                    'Git revert action %s: no changes after revert',
+                    action.name,
+                )
+
+        except (OSError, subprocess.CalledProcessError, RuntimeError) as exc:
+            self.logger.error(
+                'Git revert action %s failed: %s', action.name, exc
+            )
+            result['error'] = str(exc)
+
+        # Store result for future template references
+        self.action_results[action.name] = {'result': result}
+        context['actions'] = self.action_results
+
+        self.logger.debug(
+            'Git revert action %s completed: reverted=%s, committed=%s',
+            action.name,
+            result['reverted'],
+            result['committed'],
         )
 
         return result

@@ -627,5 +627,80 @@ class TestGitModule(base.AsyncTestCase):
         )
 
 
+class TestGitRevert(base.AsyncTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        self.git_dir = pathlib.Path(tempfile.mkdtemp())
+
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_find_commit_before_keyword_success(
+        self, mock_run_git: mock.Mock
+    ) -> None:
+        """Test finding commit before keyword match."""
+        # Mock git log output with matching commits
+        git_log_output = (
+            '43da34e imbi-automations: remove-pins\n'
+            '7d507ce g2g-migration: Apply Pre-commit Check\n'
+            '826fcb7 g2g-migration: Apply repo-url-replace transformation'
+        )
+
+        # Mock git log --grep and git log for previous commit
+        mock_run_git.side_effect = [
+            (0, git_log_output, ''),  # git log --grep output
+            (0, '7d507ce', ''),  # git log previous commit
+        ]
+
+        result = await git.find_commit_before_keyword(
+            self.git_dir, 'imbi-automations: remove-pins'
+        )
+
+        self.assertEqual(result, '7d507ce')
+        self.assertEqual(mock_run_git.call_count, 2)
+
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_find_commit_before_keyword_not_found(
+        self, mock_run_git: mock.Mock
+    ) -> None:
+        """Test finding commit when keyword doesn't exist."""
+        # Mock empty git log output
+        mock_run_git.return_value = (0, '', '')
+
+        result = await git.find_commit_before_keyword(
+            self.git_dir, 'nonexistent-keyword'
+        )
+
+        self.assertIsNone(result)
+
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_get_file_at_commit_success(
+        self, mock_run_git: mock.Mock
+    ) -> None:
+        """Test getting file content at specific commit."""
+        file_content = '[metadata]\nname = test\nversion = 1.0.0'
+        mock_run_git.return_value = (0, file_content, '')
+
+        result = await git.get_file_at_commit(
+            self.git_dir, 'setup.cfg', '7d507ce'
+        )
+
+        self.assertEqual(result, file_content)
+        mock_run_git.assert_called_once_with(
+            ['git', 'show', '7d507ce:setup.cfg'], cwd=self.git_dir, timeout=30
+        )
+
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_get_file_at_commit_not_found(
+        self, mock_run_git: mock.Mock
+    ) -> None:
+        """Test getting file content when file doesn't exist at commit."""
+        mock_run_git.return_value = (128, '', 'does not exist')
+
+        result = await git.get_file_at_commit(
+            self.git_dir, 'nonexistent.txt', '7d507ce'
+        )
+
+        self.assertIsNone(result)
+
+
 if __name__ == '__main__':
     unittest.main()

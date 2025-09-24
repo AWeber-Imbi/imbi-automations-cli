@@ -2629,7 +2629,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         mock_logger.info.assert_any_call(
             '=== Workflow Execution Statistics ==='
         )
-        mock_logger.info.assert_any_call('Total workflows processed: %d', 26)
+        mock_logger.info.assert_any_call('Total projects processed: %d', 26)
 
         # Check that successful workflows were logged
         successful_logged = any(
@@ -2640,14 +2640,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
         self.assertTrue(successful_logged, 'Successful workflows not logged')
 
-        # Check that success rate was logged
-        success_rate_logged = any(
-            call.args[0] == 'Success rate: %.1f%% (%d/%d)'
-            and call.args[2] == 15
-            and call.args[3] == 26
-            for call in mock_logger.info.call_args_list
-        )
-        self.assertTrue(success_rate_logged, 'Success rate not logged')
+        # Success rate logging was removed, so we don't check for it
 
     @mock.patch('imbi_automations.engine.LOGGER')
     def test_output_workflow_stats_no_workflows(

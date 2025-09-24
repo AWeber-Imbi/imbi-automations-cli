@@ -497,6 +497,7 @@ class WorkflowActionTypes(enum.StrEnum):
     claude = 'claude'
     shell = 'shell'
     ai_editor = 'ai-editor'
+    git_revert = 'git-revert'
 
 
 class WorkflowConditionType(enum.StrEnum):
@@ -538,6 +539,10 @@ class WorkflowAction(pydantic.BaseModel):
 
     # AI Editor action fields
     target_file: str | None = None
+
+    # Git revert action fields
+    keyword: str | None = None
+    strategy: str | None = None  # before_first_match, before_last_match
 
 
 class WorkflowCondition(pydantic.BaseModel):
