@@ -3,6 +3,7 @@
 import logging
 import pathlib
 import re
+import subprocess
 
 LOGGER = logging.getLogger(__name__)
 
@@ -107,6 +108,14 @@ async def extract_file_from_docker_image(
                     image_name,
                 )
                 return None
+            elif 'unable to find image' in stderr_str.lower() or 'not found' in stderr_str.lower():
+                LOGGER.error(
+                    'Docker image %s not available locally or accessible: %s',
+                    image_name,
+                    stderr_str,
+                )
+                error_msg = f'Docker image not available: {image_name}'
+                raise RuntimeError(f'Docker extraction failed: {error_msg}')
             else:
                 LOGGER.error(
                     'Docker extraction failed for %s from %s: %s',
@@ -128,7 +137,7 @@ async def extract_file_from_docker_image(
             f'Docker extraction timed out after {timeout_seconds} seconds'
         ) from None
 
-    except (OSError, asyncio.subprocess.SubprocessError) as exc:
+    except (OSError, subprocess.SubprocessError) as exc:
         LOGGER.error(
             'Docker command failed for %s from %s: %s',
             source_path,
