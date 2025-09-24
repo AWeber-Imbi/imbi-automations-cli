@@ -2359,8 +2359,9 @@ class WorkflowEngine:
                 f'Git extract action {action.name} missing required keyword'
             )
 
-        # Get working directory from context
+        # Get working directory and project info from context
         workflow_run = context.get('workflow_run')
+        project_info = self._get_project_info_string(workflow_run)
         if not workflow_run or not workflow_run.working_directory:
             raise RuntimeError(
                 f'Git extract action {action.name} requires working directory'
@@ -2403,10 +2404,14 @@ class WorkflowEngine:
 
             if file_content is None:
                 self.logger.warning(
-                    'Git extract action %s: file %s missing at commit %s',
+                    (
+                        'Git extract action %s: file %s missing at commit %s '
+                        'for project %s'
+                    ),
                     action.name,
                     action.source,
                     before_commit[:8],
+                    project_info,
                 )
                 result['error'] = (
                     f'File {action.source} not found at {before_commit[:8]}'
@@ -2473,8 +2478,9 @@ class WorkflowEngine:
                 f'Docker extract action {action.name} missing source_path'
             )
 
-        # Get working directory from context
+        # Get working directory and project info from context
         workflow_run = context.get('workflow_run')
+        project_info = self._get_project_info_string(workflow_run)
         if not workflow_run or not workflow_run.working_directory:
             raise RuntimeError(
                 f'Docker extract action {action.name} needs working directory'
@@ -2524,10 +2530,14 @@ class WorkflowEngine:
 
             if file_content is None:
                 self.logger.warning(
-                    'Docker extract action %s: file %s not found in image %s',
+                    (
+                        'Docker extract action %s: file %s not found in '
+                        'image %s for project %s'
+                    ),
                     action.name,
                     action.source_path,
                     image_name,
+                    project_info,
                 )
                 result['error'] = (
                     f'File {action.source_path} not found in {image_name}'
