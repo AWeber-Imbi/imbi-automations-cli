@@ -2224,8 +2224,9 @@ class WorkflowEngine:
                 )
                 return result
 
-            # Write the reverted content to the file
-            file_path = workflow_run.working_directory / action.source
+            # Write reverted content to target file (or source if no target)
+            target_file = action.target_path or action.source
+            file_path = workflow_run.working_directory / target_file
             file_path.parent.mkdir(parents=True, exist_ok=True)
             file_path.write_text(file_content, encoding='utf-8')
 
@@ -2240,6 +2241,9 @@ class WorkflowEngine:
             result['reverted'] = True
             result['commit_hash'] = before_commit
             result['content_length'] = len(file_content)
+            result['content'] = (
+                file_content  # Make content available for templates
+            )
 
             # Check if changes were made
             changed_files = await git.get_git_status(
@@ -2247,9 +2251,10 @@ class WorkflowEngine:
             )
 
             if changed_files:
-                # Stage the reverted file
+                # Stage the reverted file (target_path or source)
+                target_file = action.target_path or action.source
                 await git.add_files(
-                    workflow_run.working_directory, [action.source]
+                    workflow_run.working_directory, [target_file]
                 )
 
                 # Commit the revert
@@ -2261,8 +2266,7 @@ class WorkflowEngine:
                 )
 
                 commit_message += (
-                    '\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\n'
-                    'Co-Authored-By: Imbi Automations <noreply@aweber.com>'
+                    '\n\nCo-Authored-By: Imbi Automations <noreply@aweber.com>'
                 )
 
                 commit_sha = await git.commit_changes(
@@ -2429,8 +2433,7 @@ class WorkflowEngine:
                 )
 
                 commit_message += (
-                    '\n\n🤖 Generated with [Claude Code](https://claude.ai/code)\n\n'
-                    'Co-Authored-By: Imbi Automations <noreply@aweber.com>'
+                    '\n\nCo-Authored-By: Imbi Automations <noreply@aweber.com>'
                 )
 
                 commit_sha = await git.commit_changes(

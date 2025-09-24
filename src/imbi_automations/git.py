@@ -526,10 +526,10 @@ async def find_commit_before_keyword(
     command = [
         'git',
         'log',
-        '--oneline',
         '--grep',
         keyword,
         '--format=%H %s',  # Full hash and subject
+        '--all',  # Search all branches
     ]
 
     returncode, stdout, stderr = await _run_git_command(

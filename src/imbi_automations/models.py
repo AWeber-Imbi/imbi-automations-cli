@@ -544,6 +544,7 @@ class WorkflowAction(pydantic.BaseModel):
     # Git revert action fields
     keyword: str | None = None
     strategy: str | None = None  # before_first_match, before_last_match
+    # target_path: If specified, save reverted content to different file
 
     # Docker extract action fields
     dockerfile_path: str | None = None
