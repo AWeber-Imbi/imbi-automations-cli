@@ -159,7 +159,7 @@ class AutomationEngine:
         )
 
         # Apply workflow filtering first
-        projects = self._filter_projects_by_workflow(projects)
+        projects = await self._filter_projects_by_workflow(projects)
 
         # Apply start-from-project filtering if specified
         if (
@@ -217,7 +217,7 @@ class AutomationEngine:
         LOGGER.info('Found %d total active projects', len(projects))
 
         # Apply workflow filtering first
-        projects = self._filter_projects_by_workflow(projects)
+        projects = await self._filter_projects_by_workflow(projects)
 
         # Apply start-from-project filtering if specified
         if (
@@ -300,7 +300,7 @@ class AutomationEngine:
 
         return filtered_projects
 
-    def _filter_projects_by_workflow(
+    async def _filter_projects_by_workflow(
         self, projects: list[models.ImbiProject]
     ) -> list[models.ImbiProject]:
         """Filter projects based on workflow filter criteria.
@@ -316,11 +316,16 @@ class AutomationEngine:
             return projects  # No filter means all projects match
 
         original_count = len(projects)
-        filtered_projects = [
-            project
-            for project in projects
-            if self._project_matches_filter(project)
-        ]
+        filtered_projects = []
+
+        for project in projects:
+            # Apply basic filters first (fast)
+            if not self._project_matches_basic_filters(project):
+                continue
+
+            # Apply GitHub-based filters (slower, requires API calls)
+            if await self._project_matches_github_filters(project):
+                filtered_projects.append(project)
 
         filtered_count = len(filtered_projects)
         excluded_count = original_count - filtered_count
@@ -731,17 +736,20 @@ class AutomationEngine:
                 return True
         return False
 
-    def _project_matches_filter(
+    def _project_matches_basic_filters(
         self, imbi_project: models.ImbiProject
     ) -> bool:
-        """Check if an Imbi project matches the workflow filter criteria.
+        """Check if an Imbi project matches basic workflow filter criteria.
+
+        This includes project_ids, project_types, project_facts, and
+        requires_github_identifier filters. GitHub API-based filters are
+        handled separately.
 
         Args:
             imbi_project: Imbi project to check against filter
 
         Returns:
-            True if project matches filter criteria (or no filter),
-            False otherwise
+            True if project matches basic filter criteria, False otherwise
         """
         workflow_filter = self.workflow.configuration.filter
         if not workflow_filter:
@@ -814,7 +822,78 @@ class AutomationEngine:
                 return False
 
         LOGGER.debug(
-            'Project %d (%s) matches filter criteria',
+            'Project %d (%s) matches basic filter criteria',
+            imbi_project.id,
+            imbi_project.name,
+        )
+        return True
+
+    async def _project_matches_github_filters(
+        self, imbi_project: models.ImbiProject
+    ) -> bool:
+        """Check if an Imbi project matches GitHub-based workflow filters.
+
+        Args:
+            imbi_project: Imbi project to check against GitHub filters
+
+        Returns:
+            True if project matches GitHub filter criteria, False otherwise
+        """
+        workflow_filter = self.workflow.configuration.filter
+        if (
+            not workflow_filter
+            or not workflow_filter.exclude_github_workflow_status
+        ):
+            return True  # No GitHub filters to check
+
+        # Get GitHub repository for this project
+        try:
+            github_repository = await self._get_github_repository(imbi_project)
+            if not github_repository:
+                LOGGER.debug(
+                    'Project %d (%s) excluded - no GitHub repository found',
+                    imbi_project.id,
+                    imbi_project.name,
+                )
+                return False
+
+            # Check workflow status
+            if self.github:
+                org, repo = github_repository.full_name.split('/', 1)
+                workflow_status = await self.github.get_latest_workflow_status(
+                    org, repo
+                )
+
+                if (
+                    workflow_status
+                    in workflow_filter.exclude_github_workflow_status
+                ):
+                    LOGGER.debug(
+                        'Project %d (%s) excluded by workflow status filter - '
+                        'status: %s (excluded: %s)',
+                        imbi_project.id,
+                        imbi_project.name,
+                        workflow_status,
+                        workflow_filter.exclude_github_workflow_status,
+                    )
+                    return False
+
+        except (
+            models.GitHubRateLimitError,
+            models.GitHubNotFoundError,
+            Exception,
+        ) as exc:
+            LOGGER.debug(
+                'Project %d (%s) GitHub filter check failed: %s',
+                imbi_project.id,
+                imbi_project.name,
+                exc,
+            )
+            # On error, include the project (don't exclude due to API issues)
+            return True
+
+        LOGGER.debug(
+            'Project %d (%s) matches GitHub filter criteria',
             imbi_project.id,
             imbi_project.name,
         )
@@ -1382,7 +1461,7 @@ class WorkflowEngine:
                 # Perform remove
                 source_path.unlink()
 
-                self.logger.info('Removed file %s', action.source)
+                self.logger.debug('Removed file %s', action.source)
 
                 result = {
                     'operation': 'remove',
@@ -1442,7 +1521,7 @@ class WorkflowEngine:
                     author_email='noreply@aweber.com',
                 )
 
-                self.logger.info(
+                self.logger.debug(
                     'File action %s committed changes: %s',
                     action.name,
                     commit_sha[:8] if commit_sha else 'unknown',

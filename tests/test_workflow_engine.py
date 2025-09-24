@@ -396,7 +396,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         # Should match any project when no filter
-        result = automation_engine._project_matches_filter(self.imbi_project)
+        result = automation_engine._project_matches_basic_filters(
+            self.imbi_project
+        )
         self.assertTrue(result)
 
     def test_project_matches_filter_project_ids_match(self) -> None:
@@ -420,7 +422,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         # Should match because project ID 789 is in filter
-        result = automation_engine._project_matches_filter(self.imbi_project)
+        result = automation_engine._project_matches_basic_filters(
+            self.imbi_project
+        )
         self.assertTrue(result)
 
     def test_project_matches_filter_project_ids_no_match(self) -> None:
@@ -444,7 +448,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         # Should not match because project ID 789 is not in filter
-        result = automation_engine._project_matches_filter(self.imbi_project)
+        result = automation_engine._project_matches_basic_filters(
+            self.imbi_project
+        )
         self.assertFalse(result)
 
     def test_project_matches_filter_project_types_match(self) -> None:
@@ -468,7 +474,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         # Should match because project type 'api' is in filter
-        result = automation_engine._project_matches_filter(self.imbi_project)
+        result = automation_engine._project_matches_basic_filters(
+            self.imbi_project
+        )
         self.assertTrue(result)
 
     def test_project_matches_filter_project_types_no_match(self) -> None:
@@ -494,7 +502,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         # Should not match because project type 'api' is not in filter
-        result = automation_engine._project_matches_filter(self.imbi_project)
+        result = automation_engine._project_matches_basic_filters(
+            self.imbi_project
+        )
         self.assertFalse(result)
 
     def test_project_matches_filter_combined_filters_match(self) -> None:
@@ -520,7 +530,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         # Should match because both project ID and type are in filters
-        result = automation_engine._project_matches_filter(self.imbi_project)
+        result = automation_engine._project_matches_basic_filters(
+            self.imbi_project
+        )
         self.assertTrue(result)
 
     def test_project_matches_filter_combined_filters_no_match_id(self) -> None:
@@ -546,7 +558,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         # Should not match - project ID not in filter despite type match
-        result = automation_engine._project_matches_filter(self.imbi_project)
+        result = automation_engine._project_matches_basic_filters(
+            self.imbi_project
+        )
         self.assertFalse(result)
 
     def test_project_matches_filter_combined_filters_no_match_type(
@@ -574,7 +588,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         # Should not match - project type not in filter despite ID match
-        result = automation_engine._project_matches_filter(self.imbi_project)
+        result = automation_engine._project_matches_basic_filters(
+            self.imbi_project
+        )
         self.assertFalse(result)
 
     def test_project_matches_filter_project_facts_match(self) -> None:
@@ -606,7 +622,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         project_with_facts.facts = {'Programming Language': 'Python 3.12'}
 
         # Should match because Programming Language fact matches
-        result = automation_engine._project_matches_filter(project_with_facts)
+        result = automation_engine._project_matches_basic_filters(
+            project_with_facts
+        )
         self.assertTrue(result)
 
     def test_project_matches_filter_project_facts_no_match(self) -> None:
@@ -638,7 +656,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         project_with_facts.facts = {'Programming Language': 'Python 3.11'}
 
         # Should not match because Programming Language fact doesn't match
-        result = automation_engine._project_matches_filter(project_with_facts)
+        result = automation_engine._project_matches_basic_filters(
+            project_with_facts
+        )
         self.assertFalse(result)
 
     def test_project_matches_filter_project_facts_missing_fact(self) -> None:
@@ -670,7 +690,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         project_no_facts.facts = None
 
         # Should not match because required fact is missing
-        result = automation_engine._project_matches_filter(project_no_facts)
+        result = automation_engine._project_matches_basic_filters(
+            project_no_facts
+        )
         self.assertFalse(result)
 
     def test_project_matches_filter_multiple_facts(self) -> None:
@@ -708,7 +730,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         }
 
         # Should match because all facts match
-        result = automation_engine._project_matches_filter(project_all_match)
+        result = automation_engine._project_matches_basic_filters(
+            project_all_match
+        )
         self.assertTrue(result)
 
         # Create project with partial matching facts
@@ -721,7 +745,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         }
 
         # Should not match because not all facts match
-        result = automation_engine._project_matches_filter(
+        result = automation_engine._project_matches_basic_filters(
             project_partial_match
         )
         self.assertFalse(result)
@@ -757,7 +781,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         project_with_github.identifiers = {'github': '12345'}
 
         # Should match because project has GitHub identifier
-        result = automation_engine._project_matches_filter(project_with_github)
+        result = automation_engine._project_matches_basic_filters(
+            project_with_github
+        )
         self.assertTrue(result)
 
     def test_project_matches_filter_requires_github_identifier_no_match(
@@ -791,7 +817,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
         project_no_github.identifiers = None
 
         # Should not match because project lacks GitHub identifier
-        result = automation_engine._project_matches_filter(project_no_github)
+        result = automation_engine._project_matches_basic_filters(
+            project_no_github
+        )
         self.assertFalse(result)
 
         # Test with empty identifiers dict
@@ -800,10 +828,108 @@ class TestWorkflowEngine(base.AsyncTestCase):
         project_empty_identifiers.name = 'Test Project'
         project_empty_identifiers.identifiers = {}
 
-        result = automation_engine._project_matches_filter(
+        result = automation_engine._project_matches_basic_filters(
             project_empty_identifiers
         )
         self.assertFalse(result)
+
+    async def test_project_matches_github_filters_exclude_status(self) -> None:
+        """Test GitHub workflow status filtering - exclude successful."""
+        # Create workflow that excludes successful workflow status
+        workflow_filter = models.WorkflowFilter(
+            exclude_github_workflow_status=['success']
+        )
+        workflow_config = models.WorkflowConfiguration(
+            name='test-workflow',
+            description='Test workflow',
+            filter=workflow_filter,
+        )
+        workflow = models.Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        # Create engine with mocked GitHub client
+        config = models.Configuration()
+        automation_engine = engine.AutomationEngine(
+            args=mock.MagicMock(),
+            configuration=config,
+            iterator=engine.AutomationIterator.imbi_projects,
+            workflow=workflow,
+        )
+
+        # Mock GitHub client and repository
+        mock_github_repo = mock.Mock()
+        mock_github_repo.full_name = 'org/repo'
+
+        # Set up GitHub client mock
+        mock_github_client = mock.AsyncMock()
+        mock_github_client.get_latest_workflow_status.return_value = 'success'
+        automation_engine.github = mock_github_client
+
+        with mock.patch.object(
+            automation_engine, '_get_github_repository'
+        ) as mock_get_repo:
+            mock_get_repo.return_value = mock_github_repo
+
+            # Create test project
+            project = mock.Mock()
+            project.id = 123
+            project.name = 'Test Project'
+
+            # Should be excluded because workflow status is 'success'
+            result = await automation_engine._project_matches_github_filters(
+                project
+            )
+            self.assertFalse(result)
+
+    async def test_project_matches_github_filters_include_status(self) -> None:
+        """Test GitHub workflow status filtering - include failing builds."""
+        # Create workflow that excludes successful workflow status
+        workflow_filter = models.WorkflowFilter(
+            exclude_github_workflow_status=['success']
+        )
+        workflow_config = models.WorkflowConfiguration(
+            name='test-workflow',
+            description='Test workflow',
+            filter=workflow_filter,
+        )
+        workflow = models.Workflow(
+            path=self.workflow_dir, configuration=workflow_config
+        )
+
+        # Create engine with mocked GitHub client
+        config = models.Configuration()
+        automation_engine = engine.AutomationEngine(
+            args=mock.MagicMock(),
+            configuration=config,
+            iterator=engine.AutomationIterator.imbi_projects,
+            workflow=workflow,
+        )
+
+        # Mock GitHub client and repository
+        mock_github_repo = mock.Mock()
+        mock_github_repo.full_name = 'org/repo'
+
+        # Set up GitHub client mock
+        mock_github_client = mock.AsyncMock()
+        mock_github_client.get_latest_workflow_status.return_value = 'failure'
+        automation_engine.github = mock_github_client
+
+        with mock.patch.object(
+            automation_engine, '_get_github_repository'
+        ) as mock_get_repo:
+            mock_get_repo.return_value = mock_github_repo
+
+            # Create test project
+            project = mock.Mock()
+            project.id = 123
+            project.name = 'Test Project'
+
+            # Should be included because workflow status is 'failure'
+            result = await automation_engine._project_matches_github_filters(
+                project
+            )
+            self.assertTrue(result)
 
     @mock.patch('imbi_automations.git.clone_repository')
     async def test_setup_repository_clone_github(

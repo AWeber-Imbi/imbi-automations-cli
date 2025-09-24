@@ -211,6 +211,9 @@ project_facts = {
 
 # Require GitHub identifier to be present
 requires_github_identifier = true
+
+# Exclude projects with specific GitHub workflow statuses
+exclude_github_workflow_status = ["success"]
 ```
 
 **Performance Benefits:**
@@ -228,6 +231,10 @@ project_facts = {"Programming Language" = "Python 3.12"}
 [filter]
 project_types = ["apis", "consumers"]
 requires_github_identifier = true
+
+# Only process projects with failing builds (exclude working ones)
+[filter]
+exclude_github_workflow_status = ["success"]
 ```
 
 ## Code Style and Standards
