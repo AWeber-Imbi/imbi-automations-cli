@@ -396,7 +396,7 @@ class TestGitModule(base.AsyncTestCase):
                 'git',
                 'commit',
                 '-m',
-                'Test commit message',
+                'imbi-automations: Test commit message',
                 '--author',
                 'Test Author <test@example.com>',
             ],
@@ -417,7 +417,7 @@ class TestGitModule(base.AsyncTestCase):
 
         # Verify git commit command without author
         mock_run_git.assert_called_once_with(
-            ['git', 'commit', '-m', 'Simple commit'],
+            ['git', 'commit', '-m', 'imbi-automations: Simple commit'],
             cwd=self.git_dir,
             timeout_seconds=60,
         )
