@@ -228,7 +228,7 @@ class AutomationEngine:
                 projects, self.args.start_from_project
             )
 
-        LOGGER.info('Processing %d filtered projects', len(projects))
+        LOGGER.info('Processing %d projects', len(projects))
 
         for project in projects:
             try:
@@ -326,7 +326,7 @@ class AutomationEngine:
         excluded_count = original_count - filtered_count
 
         if excluded_count > 0:
-            LOGGER.info(
+            LOGGER.debug(
                 'Workflow filter excluded %d projects, processing %d projects',
                 excluded_count,
                 filtered_count,
