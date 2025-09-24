@@ -576,19 +576,25 @@ async def find_commit_before_keyword(
         strategy,
     )
 
-    # Get the commit before the target commit
-    command = ['git', 'log', '--format=%H', '-n', '1', f'{target_commit}~1']
+    # Get the commit before the target commit using rev-parse
+    command = ['git', 'rev-parse', f'{target_commit}^']
 
     returncode, stdout, stderr = await _run_git_command(
         command, cwd=working_directory, timeout_seconds=30
     )
 
     if returncode != 0:
-        LOGGER.warning(
-            'Could not find commit before %s: %s',
-            target_commit[:8],
-            stderr or stdout,
-        )
+        if 'unknown revision' in stderr or 'bad revision' in stderr:
+            LOGGER.warning(
+                'Commit %s has no parent (likely first commit in repository)',
+                target_commit[:8],
+            )
+        else:
+            LOGGER.warning(
+                'Could not find commit before %s: %s',
+                target_commit[:8],
+                stderr or stdout,
+            )
         return None
 
     before_commit = stdout.strip()
