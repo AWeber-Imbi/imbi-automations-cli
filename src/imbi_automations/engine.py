@@ -158,7 +158,10 @@ class AutomationEngine:
             project_type_slug,
         )
 
-        # Apply start-from-project filtering FIRST (cheap, no API calls)
+        # Apply cheap filters FIRST (project_facts, github_id)
+        projects = self._filter_projects_by_basic_criteria(projects)
+
+        # Apply start-from-project filtering SECOND (on smaller dataset)
         if (
             hasattr(self.args, 'start_from_project')
             and self.args.start_from_project
@@ -167,8 +170,8 @@ class AutomationEngine:
                 projects, self.args.start_from_project
             )
 
-        # Apply workflow filtering SECOND (expensive GitHub API calls)
-        projects = await self._filter_projects_by_workflow(projects)
+        # Apply expensive GitHub filtering LAST (smallest dataset)
+        projects = await self._filter_projects_by_github_criteria(projects)
 
         for project in projects:
             try:
@@ -216,7 +219,10 @@ class AutomationEngine:
         projects = await self.imbi.get_all_projects()
         LOGGER.info('Found %d total active projects', len(projects))
 
-        # Apply start-from-project filtering FIRST (cheap, no API calls)
+        # Apply cheap filters FIRST (project_types, facts, github_id)
+        projects = self._filter_projects_by_basic_criteria(projects)
+
+        # Apply start-from-project filtering SECOND (on smaller dataset)
         if (
             hasattr(self.args, 'start_from_project')
             and self.args.start_from_project
@@ -225,8 +231,8 @@ class AutomationEngine:
                 projects, self.args.start_from_project
             )
 
-        # Apply workflow filtering SECOND (expensive GitHub API calls)
-        projects = await self._filter_projects_by_workflow(projects)
+        # Apply expensive GitHub filtering LAST (smallest dataset)
+        projects = await self._filter_projects_by_github_criteria(projects)
 
         LOGGER.info('Processing %d filtered projects', len(projects))
 
@@ -337,6 +343,80 @@ class AutomationEngine:
             LOGGER.debug(
                 'Workflow filter excluded %d projects, processing %d projects',
                 excluded_count,
+                filtered_count,
+            )
+
+        return filtered_projects
+
+    def _filter_projects_by_basic_criteria(
+        self, projects: list[models.ImbiProject]
+    ) -> list[models.ImbiProject]:
+        """Filter projects by cheap criteria (no GitHub API calls).
+
+        Args:
+            projects: List of Imbi projects to filter
+
+        Returns:
+            Filtered list of projects that match basic criteria
+
+        """
+        if not self.workflow.configuration.filter:
+            return projects  # No filter means all projects match
+
+        original_count = len(projects)
+        filtered_projects = [
+            project
+            for project in projects
+            if self._project_matches_basic_filters(project)
+        ]
+
+        filtered_count = len(filtered_projects)
+        excluded_count = original_count - filtered_count
+
+        if excluded_count > 0:
+            LOGGER.info(
+                'Applied basic filters: %d → %d projects',
+                original_count,
+                filtered_count,
+            )
+
+        return filtered_projects
+
+    async def _filter_projects_by_github_criteria(
+        self, projects: list[models.ImbiProject]
+    ) -> list[models.ImbiProject]:
+        """Filter projects by GitHub-based criteria (GitHub API calls).
+
+        Args:
+            projects: List of Imbi projects to filter
+
+        Returns:
+            Filtered list of projects that match GitHub criteria
+
+        """
+        workflow_filter = self.workflow.configuration.filter
+        if (
+            not workflow_filter
+            or not workflow_filter.exclude_github_workflow_status
+        ):
+            return projects  # No GitHub filters to apply
+
+        original_count = len(projects)
+        filtered_projects = []
+
+        LOGGER.debug('Applying GitHub filters to %d projects', original_count)
+
+        for project in projects:
+            if await self._project_matches_github_filters(project):
+                filtered_projects.append(project)
+
+        filtered_count = len(filtered_projects)
+        excluded_count = original_count - filtered_count
+
+        if excluded_count > 0:
+            LOGGER.info(
+                'Applied GitHub filters: %d → %d projects',
+                original_count,
                 filtered_count,
             )
 
