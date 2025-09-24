@@ -1402,7 +1402,7 @@ class WorkflowEngine:
                 )
 
                 # Create commit message with proper formatting
-                commit_message = f'imbi-automations: {action.name}'
+                commit_message = action.name
                 if len(copied_files) == 1:
                     commit_message += f'\n\nAdded: {copied_files[0]}'
                 else:
@@ -1584,9 +1584,7 @@ class WorkflowEngine:
 
                 # Create commit message
                 operation = result.get('operation', action.command)
-                commit_message = (
-                    f'imbi-automations: {action.name} ({operation})'
-                )
+                commit_message = f'{action.name} ({operation})'
 
                 if operation == 'rename':
                     commit_message += (
@@ -1776,7 +1774,7 @@ class WorkflowEngine:
                 )
 
                 # Create commit message with proper formatting
-                commit_message = f'imbi-automations: {action.name}'
+                commit_message = action.name
                 if len(changed_files) == 1:
                     commit_message += f'\n\nModified: {changed_files[0]}'
                 else:
@@ -1934,7 +1932,7 @@ class WorkflowEngine:
                     )
 
                     # Create commit message with proper formatting
-                    commit_message = f'imbi-automations: {action.name}'
+                    commit_message = action.name
 
                     if len(changed_files) == 1:
                         commit_message += f'\n\nModified: {changed_files[0]}'
@@ -2111,7 +2109,7 @@ class WorkflowEngine:
                 )
 
                 # Create commit message with proper formatting
-                commit_message = f'imbi-automations: {action.name}'
+                commit_message = action.name
                 if len(changed_files) == 1:
                     commit_message += f'\n\nModified: {changed_files[0]}'
                 else:
@@ -2300,7 +2298,7 @@ class WorkflowEngine:
                     )
 
                     commit_message = (
-                        f'imbi-automations: {action.name}\n\n'
+                        f'{action.name}\n\n'
                         f'Reverted {action.source} before: {action.keyword}\n'
                         f'Target commit: {before_commit[:8]}\n'
                         f'Strategy: {strategy}'
@@ -2703,7 +2701,7 @@ class WorkflowEngine:
                 )
 
                 commit_message = (
-                    f'imbi-automations: {action.name}\n\n'
+                    f'{action.name}\n\n'
                     f'Added trailing newline to {action.source}'
                 )
 

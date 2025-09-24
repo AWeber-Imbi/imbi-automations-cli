@@ -247,6 +247,10 @@ async def commit_changes(
         RuntimeError: If git commit fails
 
     """
+    # Ensure commit message has imbi-automations prefix
+    if not message.startswith('imbi-automations:'):
+        message = f'imbi-automations: {message}'
+
     LOGGER.debug('Committing changes with message: %s', message)
 
     command = ['git', 'commit', '-m', message]
