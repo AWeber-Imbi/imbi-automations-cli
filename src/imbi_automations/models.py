@@ -498,6 +498,7 @@ class WorkflowActionTypes(enum.StrEnum):
     shell = 'shell'
     ai_editor = 'ai-editor'
     git_revert = 'git-revert'
+    git_extract = 'git-extract'
     docker_extract = 'docker-extract'
 
 

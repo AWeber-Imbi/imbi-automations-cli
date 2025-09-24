@@ -1197,6 +1197,8 @@ class WorkflowEngine:
                 return await self._execute_ai_editor_action(action, context)
             case models.WorkflowActionTypes.git_revert:
                 return await self._execute_git_revert_action(action, context)
+            case models.WorkflowActionTypes.git_extract:
+                return await self._execute_git_extract_action(action, context)
             case models.WorkflowActionTypes.docker_extract:
                 return await self._execute_docker_extract_action(
                     action, context
@@ -1392,7 +1394,7 @@ class WorkflowEngine:
                     commit_message += '\n\n[ci skip]'
 
                 commit_message += (
-                    '\n\nCo-Authored-By: Imbi Automations <noreply@aweber.com>'
+                    '\n\nAuthored-By: Imbi Automations <noreply@aweber.com>'
                 )
 
                 # Commit the changes
@@ -1583,7 +1585,7 @@ class WorkflowEngine:
                     commit_message += '\n\n[ci skip]'
 
                 commit_message += (
-                    '\n\nCo-Authored-By: Imbi Automations <noreply@aweber.com>'
+                    '\n\nAuthored-By: Imbi Automations <noreply@aweber.com>'
                 )
 
                 # Commit the changes
@@ -1768,7 +1770,7 @@ class WorkflowEngine:
                     commit_message += '\n\n[ci skip]'
 
                 commit_message += (
-                    '\n\nCo-Authored-By: Imbi Automations <noreply@aweber.com>'
+                    '\n\nAuthored-By: Imbi Automations <noreply@aweber.com>'
                 )
 
                 # Commit the changes
@@ -1927,7 +1929,7 @@ class WorkflowEngine:
                         commit_message += '\n\n[ci skip]'
 
                     commit_message += (
-                        '\n\nCo-Authored-By: Imbi Automations '
+                        '\n\nAuthored-By: Imbi Automations '
                         '<noreply@aweber.com>'
                     )
 
@@ -2103,7 +2105,7 @@ class WorkflowEngine:
                     commit_message += '\n\n[ci skip]'
 
                 commit_message += (
-                    '\n\nCo-Authored-By: Imbi Automations <noreply@aweber.com>'
+                    '\n\nAuthored-By: Imbi Automations <noreply@aweber.com>'
                 )
 
                 # Commit the changes
@@ -2224,11 +2226,23 @@ class WorkflowEngine:
                 )
                 return result
 
-            # Write reverted content to target file (or source if no target)
-            target_file = action.target_path or action.source
-            file_path = workflow_run.working_directory / target_file
-            file_path.parent.mkdir(parents=True, exist_ok=True)
-            file_path.write_text(file_content, encoding='utf-8')
+            # Write reverted content to target file outside git working directory
+            if action.target_path:
+                # Save to parent directory (outside git repo) to avoid committing
+                target_file = action.target_path
+                file_path = workflow_run.working_directory.parent / target_file
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                file_path.write_text(file_content, encoding='utf-8')
+                self.logger.debug(
+                    'Git revert action %s: saved content to %s (outside git repo)',
+                    action.name,
+                    file_path,
+                )
+            else:
+                # Original behavior: overwrite source file in git repo
+                file_path = workflow_run.working_directory / action.source
+                file_path.parent.mkdir(parents=True, exist_ok=True)
+                file_path.write_text(file_content, encoding='utf-8')
 
             self.logger.debug(
                 'Git revert action %s: reverted %s to commit %s (%d bytes)',
@@ -2245,51 +2259,55 @@ class WorkflowEngine:
                 file_content  # Make content available for templates
             )
 
-            # Check if changes were made
-            changed_files = await git.get_git_status(
-                workflow_run.working_directory
-            )
-
-            if changed_files:
-                # Stage the reverted file (target_path or source)
-                target_file = action.target_path or action.source
-                await git.add_files(
-                    workflow_run.working_directory, [target_file]
-                )
-
-                # Commit the revert
-                commit_message = (
-                    f'Apply git revert action: {action.name}\n\n'
-                    f'Reverted {action.source} before: {action.keyword}\n'
-                    f'Target commit: {before_commit[:8]}\n'
-                    f'Strategy: {strategy}'
-                )
-
-                commit_message += (
-                    '\n\nCo-Authored-By: Imbi Automations <noreply@aweber.com>'
-                )
-
-                commit_sha = await git.commit_changes(
-                    working_directory=workflow_run.working_directory,
-                    message=commit_message,
-                    author_name='Imbi Automations',
-                    author_email='noreply@aweber.com',
-                )
-
+            if action.target_path:
+                # When using target_path, file is saved outside git repo (no commit)
                 self.logger.debug(
-                    'Git revert action %s committed changes: %s',
+                    'Git revert action %s: extracted content for template use (not committed)',
                     action.name,
-                    commit_sha[:8] if commit_sha else 'unknown',
                 )
-
-                result['committed'] = True
-                result['commit_sha'] = commit_sha
-                result['changed_files'] = changed_files
             else:
-                self.logger.debug(
-                    'Git revert action %s: no changes after revert',
-                    action.name,
+                # When overwriting source file, commit the changes
+                changed_files = await git.get_git_status(
+                    workflow_run.working_directory
                 )
+
+                if changed_files:
+                    await git.add_files(
+                        workflow_run.working_directory, [action.source]
+                    )
+
+                    commit_message = (
+                        f'Apply git revert action: {action.name}\n\n'
+                        f'Reverted {action.source} before: {action.keyword}\n'
+                        f'Target commit: {before_commit[:8]}\n'
+                        f'Strategy: {strategy}'
+                    )
+
+                    commit_message += (
+                        '\n\nAuthored-By: Imbi Automations <noreply@aweber.com>'
+                    )
+
+                    commit_sha = await git.commit_changes(
+                        working_directory=workflow_run.working_directory,
+                        message=commit_message,
+                        author_name='Imbi Automations',
+                        author_email='noreply@aweber.com',
+                    )
+
+                    self.logger.debug(
+                        'Git revert action %s committed changes: %s',
+                        action.name,
+                        commit_sha[:8] if commit_sha else 'unknown',
+                    )
+
+                    result['committed'] = True
+                    result['commit_sha'] = commit_sha
+                    result['changed_files'] = changed_files
+                else:
+                    self.logger.debug(
+                        'Git revert action %s: no changes after revert',
+                        action.name,
+                    )
 
         except (OSError, subprocess.CalledProcessError, RuntimeError) as exc:
             self.logger.error(
@@ -2306,6 +2324,122 @@ class WorkflowEngine:
             action.name,
             result['reverted'],
             result['committed'],
+        )
+
+        return result
+
+    async def _execute_git_extract_action(
+        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+    ) -> dict[str, typing.Any]:
+        """Execute a git-extract workflow action (extracts content without committing).
+
+        Args:
+            action: Git extract action to execute
+            context: Workflow execution context
+
+        Returns:
+            Dictionary with execution results
+
+        """
+        if not action.source:
+            raise ValueError(
+                f'Git extract action {action.name} missing required source file'
+            )
+
+        if not action.keyword:
+            raise ValueError(
+                f'Git extract action {action.name} missing required keyword'
+            )
+
+        # Get working directory from context
+        workflow_run = context.get('workflow_run')
+        if not workflow_run or not workflow_run.working_directory:
+            raise RuntimeError(
+                f'Git extract action {action.name} requires working directory'
+            )
+
+        strategy = action.strategy or 'before_last_match'
+        target_path = action.target_path or f'{action.source}.extracted'
+
+        result = {
+            'action': action.name,
+            'source': action.source,
+            'keyword': action.keyword,
+            'strategy': strategy,
+            'target_path': target_path,
+            'extracted': False,
+            'committed': False,  # git-extract never commits
+        }
+
+        try:
+            # Find commit before keyword match
+            before_commit = await git.find_commit_before_keyword(
+                workflow_run.working_directory, action.keyword, strategy
+            )
+
+            if not before_commit:
+                self.logger.warning(
+                    'Git extract action %s: no commit found with keyword "%s"',
+                    action.name,
+                    action.keyword,
+                )
+                result['error'] = (
+                    f'No commit found with keyword "{action.keyword}"'
+                )
+                return result
+
+            # Get file content at that commit
+            file_content = await git.get_file_at_commit(
+                workflow_run.working_directory, action.source, before_commit
+            )
+
+            if file_content is None:
+                self.logger.warning(
+                    'Git extract action %s: file %s missing at commit %s',
+                    action.name,
+                    action.source,
+                    before_commit[:8],
+                )
+                result['error'] = (
+                    f'File {action.source} not found at {before_commit[:8]}'
+                )
+                return result
+
+            # Save extracted content outside git working directory
+            file_path = workflow_run.working_directory.parent / target_path
+            file_path.parent.mkdir(parents=True, exist_ok=True)
+            file_path.write_text(file_content, encoding='utf-8')
+
+            self.logger.debug(
+                'Git extract action %s: extracted %s from commit %s (%d bytes) → %s',
+                action.name,
+                action.source,
+                before_commit[:8],
+                len(file_content),
+                target_path,
+            )
+
+            result['extracted'] = True
+            result['commit_hash'] = before_commit
+            result['content_length'] = len(file_content)
+            result['content'] = (
+                file_content  # Make content available for templates
+            )
+
+        except (OSError, subprocess.CalledProcessError, RuntimeError) as exc:
+            self.logger.error(
+                'Git extract action %s failed: %s', action.name, exc
+            )
+            result['error'] = str(exc)
+
+        # Store result for future template references
+        self.action_results[action.name] = {'result': result}
+        context['actions'] = self.action_results
+
+        self.logger.debug(
+            'Git extract action %s completed: extracted=%s (working file only)',
+            action.name,
+            result['extracted'],
         )
 
         return result
@@ -2389,8 +2523,10 @@ class WorkflowEngine:
                 )
                 return result
 
-            # Write extracted content to target file
-            target_file_path = workflow_run.working_directory / target_path
+            # Write extracted content outside git working directory to avoid committing
+            target_file_path = (
+                workflow_run.working_directory.parent / target_path
+            )
             target_file_path.parent.mkdir(parents=True, exist_ok=True)
             target_file_path.write_text(file_content, encoding='utf-8')
 
@@ -2414,49 +2550,12 @@ class WorkflowEngine:
                 result['packages'] = packages
                 result['package_count'] = len(packages)
 
-            # Check if changes were made (new file created)
-            changed_files = await git.get_git_status(
-                workflow_run.working_directory
+            # Note: Docker extract saves working files outside git repo (not committed)
+            # The extracted content is available for templates via result['content']
+            self.logger.debug(
+                'Docker extract action %s: saved working file outside git repo (not committed)',
+                action.name,
             )
-
-            if changed_files and target_path in changed_files:
-                # Stage the extracted file
-                await git.add_files(
-                    workflow_run.working_directory, [target_path]
-                )
-
-                # Commit the extraction
-                commit_message = (
-                    f'Apply docker extract action: {action.name}\n\n'
-                    f'Extracted {action.source_path} from {image_name}\n'
-                    f'Saved to: {target_path}'
-                )
-
-                commit_message += (
-                    '\n\nCo-Authored-By: Imbi Automations <noreply@aweber.com>'
-                )
-
-                commit_sha = await git.commit_changes(
-                    working_directory=workflow_run.working_directory,
-                    message=commit_message,
-                    author_name='Imbi Automations',
-                    author_email='noreply@aweber.com',
-                )
-
-                self.logger.debug(
-                    'Docker extract action %s committed changes: %s',
-                    action.name,
-                    commit_sha[:8] if commit_sha else 'unknown',
-                )
-
-                result['committed'] = True
-                result['commit_sha'] = commit_sha
-                result['changed_files'] = [target_path]
-            else:
-                self.logger.debug(
-                    'Docker extract action %s: no new files created',
-                    action.name,
-                )
 
         except (OSError, subprocess.CalledProcessError, RuntimeError) as exc:
             self.logger.error(
