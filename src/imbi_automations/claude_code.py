@@ -176,7 +176,6 @@ class ClaudeCode:
         options = ClaudeCodeOptions(
             allowed_tools=['Read', 'Write', 'Bash', 'Edit'],
             permission_mode='acceptEdits',
-            working_directory=str(self.working_directory),
         )
 
         try:
@@ -184,25 +183,41 @@ class ClaudeCode:
             stdout_messages = []
             stderr_messages = []
 
-            async with ClaudeSDKClient(options=options) as client:
-                # Send the prompt
-                await asyncio.wait_for(
-                    client.query(final_prompt), timeout=timeout_seconds
+            # Change to working directory for Claude Code execution
+            import os
+
+            original_cwd = os.getcwd()
+
+            try:
+                os.chdir(self.working_directory)
+
+                async with ClaudeSDKClient(options=options) as client:
+                    # Send the prompt
+                    await asyncio.wait_for(
+                        client.query(final_prompt), timeout=timeout_seconds
+                    )
+
+                    # Collect response messages
+                    async for message in client.receive_response():
+                        if hasattr(message, 'content') and message.content:
+                            stdout_messages.append(str(message.content))
+                        elif hasattr(message, 'error') and message.error:
+                            stderr_messages.append(str(message.error))
+
+                # Combine messages into stdout/stderr format
+                stdout_str = (
+                    '\n'.join(stdout_messages) if stdout_messages else ''
+                )
+                stderr_str = (
+                    '\n'.join(stderr_messages) if stderr_messages else ''
                 )
 
-                # Collect response messages
-                async for message in client.receive_response():
-                    if hasattr(message, 'content') and message.content:
-                        stdout_messages.append(str(message.content))
-                    elif hasattr(message, 'error') and message.error:
-                        stderr_messages.append(str(message.error))
+                # Success case - return 0 for successful execution
+                return 0, stdout_str, stderr_str
 
-            # Combine messages into stdout/stderr format
-            stdout_str = '\n'.join(stdout_messages) if stdout_messages else ''
-            stderr_str = '\n'.join(stderr_messages) if stderr_messages else ''
-
-            # Success case - return 0 for successful execution
-            return 0, stdout_str, stderr_str
+            finally:
+                # Always restore original working directory
+                os.chdir(original_cwd)
 
         except TimeoutError:
             LOGGER.warning(
