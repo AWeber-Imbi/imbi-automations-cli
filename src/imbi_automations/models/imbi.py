@@ -3,8 +3,10 @@ import typing
 
 import pydantic
 
+from . import base
 
-class ImbiProjectLink(pydantic.BaseModel):
+
+class ImbiProjectLink(base.BaseModel):
     id: int | None = None
     project_id: int
     link_type_id: int
@@ -13,7 +15,7 @@ class ImbiProjectLink(pydantic.BaseModel):
     url: str
 
 
-class ImbiProject(pydantic.BaseModel):
+class ImbiProject(base.BaseModel):
     id: int
     dependencies: list[int] | None
     description: str | None
@@ -32,7 +34,7 @@ class ImbiProject(pydantic.BaseModel):
     imbi_url: str
 
 
-class ImbiProjectType(pydantic.BaseModel):
+class ImbiProjectType(base.BaseModel):
     id: int
     created_by: str | None = None
     last_modified_by: str | None = None
@@ -45,7 +47,7 @@ class ImbiProjectType(pydantic.BaseModel):
     gitlab_project_prefix: str | None = None
 
 
-class ImbiProjectFactType(pydantic.BaseModel):
+class ImbiProjectFactType(base.BaseModel):
     id: int
     created_by: str | None = None
     last_modified_by: str | None = None
@@ -58,7 +60,7 @@ class ImbiProjectFactType(pydantic.BaseModel):
     weight: float = 0.0
 
 
-class ImbiProjectFactTypeEnum(pydantic.BaseModel):
+class ImbiProjectFactTypeEnum(base.BaseModel):
     id: int
     fact_type_id: int
     created_by: str | None = None
@@ -68,7 +70,7 @@ class ImbiProjectFactTypeEnum(pydantic.BaseModel):
     score: int
 
 
-class ImbiProjectFact(pydantic.BaseModel):
+class ImbiProjectFact(base.BaseModel):
     fact_type_id: int
     name: str
     recorded_at: datetime.datetime | None = None

@@ -4,14 +4,11 @@ import pydantic
 
 
 class AgentRunResult(enum.Enum):
-    """Claude agent run result."""
-
     success = 'success'
     failure = 'failure'
 
 
 class AgentRun(pydantic.BaseModel):
-    """Claude agent run."""
-
     result: AgentRunResult
-    message: str
+    message: str | None = None
+    errors: list[str] = pydantic.Field(default_factory=list)

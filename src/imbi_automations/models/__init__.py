@@ -45,7 +45,9 @@ from .workflow import (
     WorkflowConfiguration,
     WorkflowContext,
     WorkflowFilter,
-    WorkflowRun,
+    WorkflowGit,
+    WorkflowGitCloneType,
+    WorkflowGitHub,
 )
 
 __all__ = [
@@ -88,5 +90,7 @@ __all__ = [
     'WorkflowConfiguration',
     'WorkflowContext',
     'WorkflowFilter',
-    'WorkflowRun',
+    'WorkflowGit',
+    'WorkflowGitCloneType',
+    'WorkflowGitHub',
 ]

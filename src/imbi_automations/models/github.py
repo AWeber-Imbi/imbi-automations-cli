@@ -1,10 +1,10 @@
 import datetime
 import typing
 
-import pydantic
+from . import base
 
 
-class GitHubOrganization(pydantic.BaseModel):
+class GitHubOrganization(base.BaseModel):
     """GitHub organization (simple schema)."""
 
     login: str
@@ -21,7 +21,7 @@ class GitHubOrganization(pydantic.BaseModel):
     description: str | None
 
 
-class GitHubUser(pydantic.BaseModel):
+class GitHubUser(base.BaseModel):
     """GitHub user (simple schema)."""
 
     login: str
@@ -35,7 +35,7 @@ class GitHubUser(pydantic.BaseModel):
     site_admin: bool | None = None
 
 
-class GitHubLabel(pydantic.BaseModel):
+class GitHubLabel(base.BaseModel):
     """GitHub label."""
 
     id: int | None = None
@@ -45,7 +45,7 @@ class GitHubLabel(pydantic.BaseModel):
     color: str
 
 
-class GitHubPullRequest(pydantic.BaseModel):
+class GitHubPullRequest(base.BaseModel):
     """GitHub pull request."""
 
     id: int
@@ -81,7 +81,7 @@ class GitHubPullRequest(pydantic.BaseModel):
     changed_files: int | None = None
 
 
-class GitHubRepository(pydantic.BaseModel):
+class GitHubRepository(base.BaseModel):
     """GitHub repository with key properties."""
 
     # Core required fields
@@ -126,7 +126,7 @@ class GitHubRepository(pydantic.BaseModel):
     custom_properties: dict[str, str | list[str]] | None = None
 
 
-class GitHubWorkflowRun(pydantic.BaseModel):
+class GitHubWorkflowRun(base.BaseModel):
     """GitHub Actions workflow run."""
 
     id: int
@@ -149,7 +149,7 @@ class GitHubWorkflowRun(pydantic.BaseModel):
     updated_at: datetime.datetime | None = None
 
 
-class GitHubWorkflowJob(pydantic.BaseModel):
+class GitHubWorkflowJob(base.BaseModel):
     """GitHub Actions workflow job."""
 
     id: int
@@ -165,7 +165,7 @@ class GitHubWorkflowJob(pydantic.BaseModel):
     html_url: str
 
 
-class GitHubTeam(pydantic.BaseModel):
+class GitHubTeam(base.BaseModel):
     """GitHub team with repository permission."""
 
     id: int
@@ -181,14 +181,14 @@ class GitHubTeam(pydantic.BaseModel):
     repositories_url: str
 
 
-class GitHubTeamPermission(pydantic.BaseModel):
+class GitHubTeamPermission(base.BaseModel):
     """GitHub team permission on a repository."""
 
     team_slug: str
     permission: str  # pull, triage, push, maintain, admin
 
 
-class GitHubEnvironment(pydantic.BaseModel):
+class GitHubEnvironment(base.BaseModel):
     """GitHub repository environment."""
 
     id: int | None = None

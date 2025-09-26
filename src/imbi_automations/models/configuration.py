@@ -25,12 +25,17 @@ class GitLabConfiguration(pydantic.BaseModel):
 class ImbiConfiguration(pydantic.BaseModel):
     api_key: pydantic.SecretStr
     hostname: str
-    github_link: str = 'GitHub Repository'  # Name of GitHub link in Imbi
-    gitlab_link: str = 'GitLab Project'  # Name of GitLab link in Imbi
-    grafana_link: str = 'Grafana Dashboard'  # Name of Grafana link in Imbi
-    pagerduty_link: str = 'PagerDuty'  # Name of PagerDuty link in Imbi
-    sentry_link: str = 'Sentry'  # Name of Sentry link in Imbi
-    sonarqube_link: str = 'SonarQube'  # Name of SonarQube link in Imbi
+    github_identifier: str = 'github'
+    gitlab_identifier: str = 'gitlab'
+    pagerduty_identifier: str = 'pagerduty'
+    sonarqube_identifier: str = 'sonarqube'
+    sentry_identifier: str = 'sentry'
+    github_link: str = 'GitHub Repository'
+    gitlab_link: str = 'GitLab Project'
+    grafana_link: str = 'Grafana Dashboard'
+    pagerduty_link: str = 'PagerDuty'
+    sentry_link: str = 'Sentry'
+    sonarqube_link: str = 'SonarQube'
 
 
 class ClaudeCodeConfiguration(pydantic.BaseModel):
