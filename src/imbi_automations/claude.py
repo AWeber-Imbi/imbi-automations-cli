@@ -190,9 +190,6 @@ class Claude(mixins.WorkflowLoggerMixin):
         agents_dir.mkdir(parents=True, exist_ok=True)
         prompt_path = pathlib.Path(__file__).parent / 'prompts'
 
-        # Copy base CLAUDE.md
-        utils.copy(prompt_path / 'CLAUDE.md', claude_dir / 'CLAUDE.md')
-
         # Copy over agent prompts
         for action in AgentType:
             source = prompt_path / f'{action}.md'
