@@ -77,4 +77,8 @@ When generating content with URLs or references, ensure all Jinja2 template vari
 
 If template variables are not available in your context, use actual values from the repository information.
 
+## RESPONSE FORMAT
+
+
+
 ---
