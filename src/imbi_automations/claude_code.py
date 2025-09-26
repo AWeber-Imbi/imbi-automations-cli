@@ -320,14 +320,17 @@ analysis and actions."""
                         f'{context.previous_failure}'
                     )
 
-                # Debug log the generator prompt content
+                # Debug log the full generator command being sent
+                full_generator_command = (
+                    f'/agent generator\n\n{generator_prompt_content}'
+                )
                 self.logger.debug(
-                    'Invoking generator agent for %s cycle %d:\n%s',
+                    'Sending to generator client for %s cycle %d:\n%s',
                     action.name,
                     cycle,
-                    generator_prompt_content[:500] + '...'
-                    if len(generator_prompt_content) > 500
-                    else generator_prompt_content,
+                    full_generator_command[:500] + '...'
+                    if len(full_generator_command) > 500
+                    else full_generator_command,
                 )
 
                 # Create separate client session for generator
@@ -384,14 +387,17 @@ analysis and actions."""
                         action.validation_prompt, context
                     )
 
-                    # Debug log the validator prompt content
+                    # Debug log the full validator command being sent
+                    full_validator_command = (
+                        f'/agent validator\n\n{validator_prompt_content}'
+                    )
                     self.logger.debug(
-                        'Invoking validator agent for %s cycle %d:\n%s',
+                        'Sending to validator client for %s cycle %d:\n%s',
                         action.name,
                         cycle,
-                        validator_prompt_content[:500] + '...'
-                        if len(validator_prompt_content) > 500
-                        else validator_prompt_content,
+                        full_validator_command[:500] + '...'
+                        if len(full_validator_command) > 500
+                        else full_validator_command,
                     )
 
                     # Create separate validator client session
