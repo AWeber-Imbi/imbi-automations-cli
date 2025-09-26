@@ -5,7 +5,6 @@ import contextlib
 import logging
 import pathlib
 import shutil
-import tempfile
 import typing
 
 LOGGER = logging.getLogger(__name__)
@@ -62,11 +61,15 @@ async def _run_git_command(
 
 
 async def clone_repository(
-    clone_url: str, branch: str | None = None, depth: int | None = 1
-) -> pathlib.Path:
+    working_directory: pathlib.Path,
+    clone_url: str,
+    branch: str | None = None,
+    depth: int | None = 1,
+) -> None:
     """Clone a repository to a temporary directory.
 
     Args:
+        working_directory: Temp directory to clone into
         clone_url: Repository clone URL (HTTPS or SSH)
         branch: Specific branch to clone (optional)
         depth: Clone depth (default: 1 for shallow clone, None for full clone)
@@ -78,49 +81,33 @@ async def clone_repository(
         RuntimeError: If git clone fails
 
     """
-    temp_dir = pathlib.Path(tempfile.mkdtemp(prefix='imbi-automations-'))
-    repo_dir = temp_dir / 'repository'
-
-    # Create extracted directory for git-extract output
-    extracted_dir = temp_dir / 'extracted'
-    extracted_dir.mkdir(exist_ok=True)
+    repo_dir = working_directory / 'repository'
 
     LOGGER.debug('Cloning repository %s to %s', clone_url, repo_dir)
 
-    # Build git clone command
     command = ['git', 'clone']
-
-    if depth is not None:
-        command.extend(['--depth', str(depth)])
-
     if branch:
         command.extend(['--branch', branch])
-
+    if depth is not None:
+        command.extend(['--depth', str(depth)])
     command.extend([clone_url, str(repo_dir)])
 
     try:
         returncode, stdout, stderr = await _run_git_command(
             command,
-            cwd=temp_dir,
+            cwd=working_directory,
             timeout_seconds=600,  # 10 minute timeout
         )
-
-        if returncode != 0:
-            raise RuntimeError(
-                f'Git clone failed (exit code {returncode}): '
-                f'{stderr or stdout}'
-            )
-
-        LOGGER.debug('Successfully cloned repository to %s', repo_dir)
-        return repo_dir
-
-    except Exception as exc:
-        # Clean up on failure
-        if temp_dir.exists():
-            shutil.rmtree(temp_dir, ignore_errors=True)
+    except TimeoutError as exc:
         raise RuntimeError(
             f'Failed to clone repository {clone_url}: {exc}'
         ) from exc
+
+    if returncode != 0:
+        raise RuntimeError(
+            f'Git clone failed (exit code {returncode}): {stderr or stdout}'
+        )
+    LOGGER.debug('Successfully cloned repository to %s', repo_dir)
 
 
 @contextlib.asynccontextmanager
