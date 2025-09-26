@@ -306,10 +306,40 @@ analysis and actions."""
             # Then invoke the agent
             await client.query(command)
 
-            # Collect response messages
+            # Stream response messages and log thinking process
             response_messages = []
             async for message in client.receive_response():
                 response_messages.append(message)
+
+                # Stream intermediate thinking/action as debug logs
+                if message.result:
+                    # Log streaming chunks with basic parsing for tool usage
+                    chunk_preview = (
+                        message.result[:200] + '...'
+                        if len(message.result) > 200
+                        else message.result
+                    )
+
+                    # Detect if this chunk contains tool usage
+                    if any(
+                        tool in message.result.lower()
+                        for tool in [
+                            '<function_calls>',
+                            'read',
+                            'write',
+                            'edit',
+                            'bash',
+                        ]
+                    ):
+                        self.logger.debug(
+                            '[%s action] %s', agent_type.title(), chunk_preview
+                        )
+                    else:
+                        self.logger.debug(
+                            '[%s thinking] %s',
+                            agent_type.title(),
+                            chunk_preview,
+                        )
 
             # Get the final response
             final_response = ''
