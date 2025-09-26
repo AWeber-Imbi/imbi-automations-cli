@@ -51,17 +51,7 @@ You are executing in a workspace with the following structure:
 
 **For successful operations**: Simply complete the task successfully.
 
-**For validation tasks**: When validating generated content:
-- **Response-based feedback** (preferred): Include clear validation results in your response
-  - Use "VALIDATION_PASSED" or "VALIDATION_FAILED" in your response text
-  - Provide detailed explanations of any issues found
-  - List specific remediation steps if validation fails
-
-- **File-based feedback** (legacy support): If the workflow expects it, create failure files
-  - `ACTION_FAILED`: Generic action failure with detailed error information
-  - Include clear description, specific issues, and required fixes
-
-**For generator tasks**: Focus on creating or modifying the requested files correctly.
+**For generator tasks**: Focus on creating or modifying the requested files correctly. The system includes a separate validator agent that will review your work using structured JSON responses.
 
 ## AGENT COLLABORATION
 
@@ -79,6 +69,6 @@ When generating content with URLs or references, ensure all Jinja2 template vari
 ✅ **Correct**: Use actual resolved values
 ❌ **Incorrect**: Leave template syntax unresolved in output
 
-If template variables are not available in your context, use actual values from the repository information or create a failure file explaining the missing context.
+If template variables are not available in your context, use actual values from the repository information.
 
 ---

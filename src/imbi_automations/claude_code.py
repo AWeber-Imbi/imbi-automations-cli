@@ -148,8 +148,26 @@ analysis and actions."""
         else:
             prompt_content = prompt_file_path.read_text(encoding='utf-8')
 
+        # For generator agents, prepend base generator behavior
+        if agent_name == 'generator':
+            base_generator_path = (
+                pathlib.Path(__file__).parent / 'prompts' / 'generator.md'
+            )
+            if base_generator_path.exists():
+                try:
+                    base_generator_content = base_generator_path.read_text(
+                        encoding='utf-8'
+                    )
+                    prompt_content = (
+                        base_generator_content + '\n\n' + prompt_content
+                    )
+                except (OSError, UnicodeDecodeError) as exc:
+                    self.logger.warning(
+                        'Failed to read base generator prompt: %s', exc
+                    )
+
         # For validator agents, prepend base validator behavior
-        if agent_name == 'validator':
+        elif agent_name == 'validator':
             base_validator_path = (
                 pathlib.Path(__file__).parent / 'prompts' / 'base_validator.md'
             )
