@@ -9,6 +9,12 @@ import pydantic
 LOGGER = logging.getLogger(__name__)
 
 
+def copy(source: pathlib.Path, destination: pathlib.Path) -> None:
+    """Copy a file from source to destination."""
+    LOGGER.debug('Copying %s to %s', source, destination)
+    destination.write_bytes(source.read_bytes())
+
+
 class Utils:
     """Utility client for file operations and other utility functions."""
 
