@@ -8,7 +8,7 @@ import typing
 import colorlog
 import pydantic
 
-from imbi_automations import engine, models, utils, version
+from imbi_automations import controller, models, utils, version
 
 LOGGER = logging.getLogger(__name__)
 
@@ -37,40 +37,6 @@ def configure_logging(debug: bool) -> None:
     # Reduce verbosity of HTTP libraries
     for logger_name in ('anthropic', 'httpcore', 'httpx'):
         logging.getLogger(logger_name).setLevel(logging.WARNING)
-
-
-def determine_iterator_type(
-    args: argparse.Namespace,
-) -> engine.AutomationIterator:
-    """Determine the iterator type based on CLI arguments.
-
-    Args:
-        args: Parsed command line arguments
-
-    Returns:
-        AutomationIterator enum value corresponding to the target type
-
-    """
-    if args.project_id:
-        return engine.AutomationIterator.imbi_project
-    elif args.project_type:
-        return engine.AutomationIterator.imbi_project_types
-    elif args.all_projects:
-        return engine.AutomationIterator.imbi_projects
-    elif args.github_repository:
-        return engine.AutomationIterator.github_project
-    elif args.github_organization:
-        return engine.AutomationIterator.github_organization
-    elif args.all_github_repositories:
-        return engine.AutomationIterator.github_repositories
-    elif args.gitlab_repository:
-        return engine.AutomationIterator.gitlab_project
-    elif args.gitlab_group:
-        return engine.AutomationIterator.gitlab_group
-    elif args.all_gitlab_repositories:
-        return engine.AutomationIterator.gitlab_repositories
-    else:
-        raise ValueError('No valid target argument provided')
 
 
 def load_configuration(config_file: typing.TextIO) -> models.Configuration:
@@ -206,7 +172,6 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         help='Process all GitLab repositories across all organizations',
     )
 
-    # Optional modifiers
     parser.add_argument(
         '--start-from-project',
         metavar='ID_OR_SLUG',
@@ -214,6 +179,19 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         'and including this project (accepts project ID or slug)',
     )
 
+    parser.add_argument(
+        '--max-concurrency',
+        type=int,
+        default=1,
+        help='How many concurrent tasks to run at a time',
+    )
+
+    parser.add_argument(
+        '--exit-on-error',
+        action='store_true',
+        help='Exit immediately when any action fails '
+        '(default: continue with other projects)',
+    )
     parser.add_argument(
         '-v',
         '--verbose',
@@ -224,12 +202,6 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         '--debug',
         action='store_true',
         help='Enable debug logging (shows all debug messages)',
-    )
-    parser.add_argument(
-        '--exit-on-error',
-        action='store_true',
-        help='Exit immediately when any action fails '
-        '(default: continue with other projects)',
     )
     parser.add_argument('-V', '--version', action='version', version=version)
     return parser.parse_args(args)
@@ -243,13 +215,10 @@ def main() -> None:
     args.config[0].close()
 
     LOGGER.info('Imbi Automations v%s starting', version)
-    ae = engine.AutomationEngine(
-        args=args,
-        configuration=config,
-        iterator=determine_iterator_type(args),
-        workflow=args.workflow,
+    automation_controller = controller.Automation(
+        args=args, configuration=config, workflow=args.workflow
     )
     try:
-        asyncio.run(ae.run())
+        asyncio.run(automation_controller.run())
     except KeyboardInterrupt:
         LOGGER.info('Interrupted, exiting')
