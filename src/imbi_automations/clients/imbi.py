@@ -4,18 +4,20 @@ import typing
 
 import httpx
 
-from imbi_automations import http, models
+from imbi_automations import models
+
+from . import http
 
 LOGGER = logging.getLogger(__name__)
 
 
-class Imbi(http.BaseURLClient):
+class Imbi(http.BaseURLHTTPClient):
     def __init__(
         self,
         config: models.ImbiConfiguration,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
-        super().__init__(transport)
+        super().__init__(transport=transport)
         self._base_url = f'https://{config.hostname}'
         self.add_header('Private-Token', config.api_key.get_secret_value())
         self._project_types: list[models.ImbiProjectType] = []

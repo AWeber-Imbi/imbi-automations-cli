@@ -3,12 +3,14 @@ import typing
 
 import httpx
 
-from imbi_automations import http, models
+from imbi_automations import errors, models
+
+from . import http
 
 LOGGER = logging.getLogger(__name__)
 
 
-class GitHub(http.BaseURLClient):
+class GitHub(http.BaseURLHTTPClient):
     def __init__(
         self,
         config: models.GitHubConfiguration,
@@ -55,7 +57,7 @@ class GitHub(http.BaseURLClient):
 
             # Check if it's specifically a rate limit error
             if 'rate limit exceeded' in error_message.lower():
-                raise models.GitHubRateLimitError(error_message)
+                raise errors.GitHubRateLimitError(error_message)
             else:
                 LOGGER.error(
                     'GitHub API returned 403 Forbidden for repository '
@@ -64,7 +66,7 @@ class GitHub(http.BaseURLClient):
                     repo_name,
                     error_message,
                 )
-                raise models.GitHubNotFoundError(
+                raise errors.GitHubNotFoundError(
                     f'Access denied for repository {org}/{repo_name}'
                 )
         elif not response.is_success:
@@ -104,14 +106,14 @@ class GitHub(http.BaseURLClient):
 
             # Check if it's specifically a rate limit error
             if 'rate limit exceeded' in message.lower():
-                raise models.GitHubRateLimitError(message)
+                raise errors.GitHubRateLimitError(message)
             else:
                 LOGGER.warning(
                     'Access forbidden for repository ID %s (403): %s',
                     repo_id,
                     message,
                 )
-                raise models.GitHubNotFoundError(
+                raise errors.GitHubNotFoundError(
                     f'Access denied for repository ID {repo_id}'
                 )
         elif not response.is_success:
@@ -225,8 +227,8 @@ class GitHub(http.BaseURLClient):
         # Extract org and repo name from repository
         org, repo_name = repository.full_name.split('/', 1)
 
-        latest_run = await self.get_latest_workflow_run(org, repo_name)
-        return latest_run.status if latest_run else None
+        last_run = await self.get_latest_workflow_run(org, repo_name)
+        return last_run.conclusion or last_run.status if last_run else None
 
     async def get_repository_identifier(
         self, org: str, repo_name: str, branch: str | None = None
@@ -1252,7 +1254,7 @@ class GitHub(http.BaseURLClient):
         except httpx.HTTPError as exc:
             if exc.response.status_code == http.HTTPStatus.NOT_FOUND:
                 LOGGER.debug('Repository %s/%s not found (404)', org, repo)
-                raise models.GitHubNotFoundError(
+                raise errors.GitHubNotFoundError(
                     f'Repository {org}/{repo} not found'
                 ) from exc
             else:

@@ -3,12 +3,14 @@ import urllib.parse
 
 import httpx
 
-from imbi_automations import http, models
+from imbi_automations import models
+
+from . import http
 
 LOGGER = logging.getLogger(__name__)
 
 
-class GitLab(http.BaseURLClient):
+class GitLab(http.BaseURLHTTPClient):
     def __init__(
         self,
         config: models.GitLabConfiguration,

@@ -15,7 +15,7 @@ LOGGER = logging.getLogger(__name__)
 HTTPStatus = http.HTTPStatus
 
 
-class Client:
+class HTTPClient:
     """Wrapper for httpx that sets up SSL verification and headers."""
 
     _headers: dict[str, str] = {
@@ -24,7 +24,12 @@ class Client:
     }
     _instances: dict[type, typing.Self] = {}
 
-    def __init__(self, transport: httpx.BaseTransport | None = None) -> None:
+    def __init__(
+        self,
+        transport: httpx.BaseTransport | None = None,
+        *args: typing.Any,
+        **kwargs: typing.Any,
+    ) -> None:
         ctx = truststore.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
         self.http_client = httpx.AsyncClient(
             headers=self._headers,
@@ -35,11 +40,14 @@ class Client:
 
     @classmethod
     def get_instance(
-        cls, transport: httpx.BaseTransport | None = None
+        cls,
+        transport: httpx.BaseTransport | None = None,
+        *args: typing.Any,
+        **kwargs: typing.Any,
     ) -> typing.Self:
         """Implement singleton behavior, return the instance for this class."""
         if cls not in cls._instances:
-            cls._instances[cls] = cls(transport)
+            cls._instances[cls] = cls(*args, **kwargs, transport=transport)
         return cls._instances[cls]
 
     def __getattr__(self, name: str) -> typing.Any:
@@ -59,7 +67,7 @@ class Client:
         cls._instances = {}
 
 
-class BaseURLClient(Client):
+class BaseURLHTTPClient(HTTPClient):
     """Base client for APIs that use a common base URL.
 
     Subclasses should override the `_base_url` class variable to set
