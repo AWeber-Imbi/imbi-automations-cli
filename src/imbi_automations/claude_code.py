@@ -263,7 +263,7 @@ tools: {', '.join(tools)}
 
                 # Run generator agent with rendered prompt
                 generator_prompt_content = self._render_prompt_for_agents(
-                    action.prompt, context, 'generator'
+                    action.prompt, context
                 )
 
                 if cycle > 1 and context.previous_failure:
@@ -333,7 +333,7 @@ tools: {', '.join(tools)}
 
                     # Run validator agent with rendered prompt
                     validator_prompt_content = self._render_prompt_for_agents(
-                        action.validation_prompt, context, 'validator'
+                        action.validation_prompt, context
                     )
 
                     # Debug log the validator prompt content
