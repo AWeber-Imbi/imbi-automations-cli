@@ -33,6 +33,9 @@ class ClaudeCode:
         self.working_directory = working_directory
         self.workflow_directory = workflow_directory
         self.logger = LOGGER  # Default logger
+        self._cached_settings_file: pathlib.Path | None = (
+            None  # Cache agent setup
+        )
 
     def _set_workflow_logger(self, context: models.WorkflowContext) -> None:
         """Set logger name to workflow directory name from context."""
@@ -42,7 +45,30 @@ class ClaudeCode:
 
     def _create_context_message(self, context: models.WorkflowContext) -> str:
         """Create structured context message with project data."""
-        return f"""# Project Context Data
+        context_template_path = (
+            pathlib.Path(__file__).parent / 'prompts' / 'context.md.j2'
+        )
+
+        if context_template_path.exists():
+            template_content = context_template_path.read_text(
+                encoding='utf-8'
+            )
+            jinja_env = jinja2.Environment(
+                autoescape=True,
+                variable_start_string='{{',
+                variable_end_string='}}',
+                trim_blocks=True,
+                lstrip_blocks=True,
+            )
+            template = jinja_env.from_string(template_content)
+            return template.render(
+                context_json=context.model_dump_json(
+                    indent=2, exclude={'actions'}
+                )
+            )
+        else:
+            # Fallback to inline template if file doesn't exist
+            return f"""# Project Context Data
 
 Here is the complete structured context for this workflow execution:
 
@@ -65,6 +91,10 @@ analysis and actions."""
         Returns:
             Path to generated settings.json file
         """
+        # Return cached settings if already created
+        if self._cached_settings_file and self._cached_settings_file.exists():
+            return self._cached_settings_file
+
         # Set workflow-specific logger
         self._set_workflow_logger(context)
 
@@ -76,11 +106,7 @@ analysis and actions."""
         # Create generator agent file
         if action.prompt:
             generator_content = self._create_agent_file(
-                action.prompt,
-                'generator',
-                'Generates and modifies files according to specifications',
-                ['Read', 'Write', 'Edit', 'Bash'],
-                context,
+                action.prompt, 'generator', context
             )
             generator_file = agents_dir / 'generator.md'
             generator_file.write_text(generator_content, encoding='utf-8')
@@ -88,20 +114,19 @@ analysis and actions."""
         # Create validator agent file
         if action.validation_prompt:
             validator_content = self._create_agent_file(
-                action.validation_prompt,
-                'validator',
-                'Validates generated content and provides feedback',
-                ['Read', 'Bash'],
-                context,
+                action.validation_prompt, 'validator', context
             )
             validator_file = agents_dir / 'validator.md'
             validator_file.write_text(validator_content, encoding='utf-8')
 
-        # Create custom settings.json
+        # Create custom settings.json - disable all global settings
         settings = {
             'agentsPath': str(agents_dir),
             'mcpServers': {},
             'toolsConfig': {'allowedTools': ['Read', 'Write', 'Edit', 'Bash']},
+            'hooks': {},  # Disable user hooks
+            'outputStyle': 'plain',  # Disable custom output styles
+            'settingSources': ['project', 'local'],  # Exclude user settings
         }
 
         settings_file = claude_dir / 'settings.json'
@@ -109,18 +134,31 @@ analysis and actions."""
             json.dumps(settings, indent=2), encoding='utf-8'
         )
 
+        # Copy CLAUDE.md from prompts directory to override user settings
+        claude_md_source = (
+            pathlib.Path(__file__).parent / 'prompts' / 'CLAUDE.md'
+        )
+        claude_md_file = claude_dir / 'CLAUDE.md'
+
+        if claude_md_source.exists():
+            claude_md_content = claude_md_source.read_text(encoding='utf-8')
+            claude_md_file.write_text(claude_md_content, encoding='utf-8')
+        else:
+            self.logger.warning('CLAUDE.md not found at %s', claude_md_source)
+
         self.logger.debug('Created Claude agents setup at %s', claude_dir)
+
+        # Cache the settings file for reuse
+        self._cached_settings_file = settings_file
         return settings_file
 
     def _create_agent_file(
         self,
         prompt_file: str,
         agent_name: str,
-        description: str,
-        tools: list[str],
         context: models.WorkflowContext,
     ) -> str:
-        """Create agent file with YAML frontmatter and rendered prompt."""
+        """Create agent file content with base and workflow prompts."""
         # Get the prompt file path from workflow directory
         if not self.workflow_directory:
             raise RuntimeError(
@@ -184,16 +222,8 @@ analysis and actions."""
                         'Failed to read base validator prompt: %s', exc
                     )
 
-        # Create agent file with YAML frontmatter
-        agent_content = f"""---
-name: {agent_name}
-description: {description}
-tools: {', '.join(tools)}
----
-
-{prompt_content}
-"""
-        return agent_content
+        # YAML frontmatter is now included in the base prompt files
+        return prompt_content
 
     def _render_prompt_for_agents(
         self, prompt_file: str, context: models.WorkflowContext
@@ -246,7 +276,7 @@ tools: {', '.join(tools)}
         """
         settings_file = self.setup_agents_for_action(action, context)
 
-        # Configure SDK with custom settings
+        # Configure SDK with custom settings - isolate from user environment
         options = claude_code_sdk.ClaudeCodeOptions(
             settings=str(settings_file),  # Use our custom settings
             cwd=self.working_directory,
