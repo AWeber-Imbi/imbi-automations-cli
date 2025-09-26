@@ -312,17 +312,19 @@ analysis and actions."""
                 response_messages.append(message)
 
                 # Stream intermediate thinking/action as debug logs
-                if message.result:
+                # Handle different message types safely
+                message_content = getattr(message, 'result', None)
+                if message_content:
                     # Log streaming chunks with basic parsing for tool usage
                     chunk_preview = (
-                        message.result[:200] + '...'
-                        if len(message.result) > 200
-                        else message.result
+                        message_content[:200] + '...'
+                        if len(message_content) > 200
+                        else message_content
                     )
 
                     # Detect if this chunk contains tool usage
                     if any(
-                        tool in message.result.lower()
+                        tool in message_content.lower()
                         for tool in [
                             '<function_calls>',
                             'read',
