@@ -290,25 +290,20 @@ analysis and actions."""
                 f'{context.previous_failure}'
             )
 
-        # Debug log the full command being sent
-        full_command = f'/agent {agent_type}\n\n{agent_prompt_content}'
+        # Execute the agent
+        command = f'/agent {agent_type}\n\n{agent_prompt_content}'
         self.logger.debug(
             'Sending to %s client:\n%s',
             agent_type,
-            full_command[:500] + '...'
-            if len(full_command) > 500
-            else full_command,
+            command[:500] + '...' if len(command) > 500 else command,
         )
 
-        # Execute the agent
         async with claude_code_sdk.ClaudeSDKClient(options=options) as client:
             # First, inject structured context data
             context_message = self._create_context_message(context)
             await client.query(context_message)
 
             # Then invoke the agent
-            command = f'/agent {agent_type}\n\n{agent_prompt_content}'
-            self.logger.debug('About to send to SDK: %s', command[:100])
             await client.query(command)
 
             # Collect response messages
@@ -368,153 +363,155 @@ analysis and actions."""
             'total_duration': 0,
         }
 
-        try:
-            for cycle in range(1, action.max_cycles + 1):
-                self.logger.info(
-                    'Agent cycle %d/%d for action %s',
-                    cycle,
-                    action.max_cycles,
-                    action.name,
-                )
+        # Main execution cycle - only risky operations in try blocks
+        for cycle in range(1, action.max_cycles + 1):
+            self.logger.info(
+                'Agent cycle %d/%d for action %s',
+                cycle,
+                action.max_cycles,
+                action.name,
+            )
 
-                result['cycles'] = cycle
+            result['cycles'] = cycle
 
-                # Execute generator agent
+            # Execute generator agent - risky operation
+            try:
                 generator_result = await self.execute_agent(
                     'generator', action.prompt, context, options
                 )
+            except claude_code_sdk.ClaudeSDKError as exc:
+                result['status'] = 'failed'
+                result['error'] = str(exc)
+                raise
 
-                self.logger.debug(
-                    'Generator output for %s cycle %d:\n%s',
-                    action.name,
-                    cycle,
-                    generator_result['result'],
-                )
+            # Safe operations - logging and result processing
+            self.logger.debug(
+                'Generator output for %s cycle %d:\n%s',
+                action.name,
+                cycle,
+                generator_result['result'],
+            )
 
-                result['generator_results'].append(generator_result)
-                result['total_cost'] += generator_result.get(
-                    'total_cost_usd', 0
-                )
-                result['total_duration'] += generator_result.get(
-                    'duration_ms', 0
-                )
+            result['generator_results'].append(generator_result)
+            result['total_cost'] += generator_result.get('total_cost_usd', 0)
+            result['total_duration'] += generator_result.get('duration_ms', 0)
 
-                # Execute validator agent if validation prompt exists
-                if action.validation_prompt:
+            # Execute validator agent if validation prompt exists
+            if action.validation_prompt:
+                # Execute validator - risky operation
+                try:
                     validator_result = await self.execute_agent(
                         'validator', action.validation_prompt, context, options
                     )
+                except claude_code_sdk.ClaudeSDKError as exc:
+                    result['status'] = 'failed'
+                    result['error'] = str(exc)
+                    raise
 
-                    self.logger.debug(
-                        'Validator output for %s cycle %d:\n%s',
+                # Safe operations - logging and result processing
+                self.logger.debug(
+                    'Validator output for %s cycle %d:\n%s',
+                    action.name,
+                    cycle,
+                    validator_result['result'],
+                )
+
+                result['validator_results'].append(validator_result)
+                result['total_cost'] += validator_result.get(
+                    'total_cost_usd', 0
+                )
+                result['total_duration'] += validator_result.get(
+                    'duration_ms', 0
+                )
+
+                # Parse and validate JSON response - risky operation
+                validator_output = validator_result.get('result', '')
+
+                try:
+                    # Extract JSON from response (handle markdown)
+                    json_text = validator_output.strip()
+                    if '```json' in json_text:
+                        # Extract from markdown code block
+                        start = json_text.find('```json') + 7
+                        end = json_text.find('```', start)
+                        json_text = json_text[start:end].strip()
+                    elif json_text.startswith('```') and json_text.endswith(
+                        '```'
+                    ):
+                        # Remove plain code block markers
+                        json_text = json_text[3:-3].strip()
+
+                    validation_result = json.loads(json_text)
+                    validation_status = validation_result.get(
+                        'validation_status'
+                    )
+                    validation_errors = validation_result.get('errors', [])
+                except (json.JSONDecodeError, KeyError) as exc:
+                    # JSON parsing failed - this is a configuration error
+                    self.logger.error(
+                        'Validator invalid JSON for %s cycle %d. '
+                        'Parse error: %s. Validator output: %s',
                         action.name,
                         cycle,
-                        validator_result['result'],
+                        exc,
+                        validator_output[:300],
                     )
+                    result['status'] = 'failed'
+                    result['error'] = f'Validator provided invalid JSON: {exc}'
+                    raise RuntimeError(
+                        'Validator failed to provide valid JSON response'
+                    ) from exc
 
-                    result['validator_results'].append(validator_result)
-                    result['total_cost'] += validator_result.get(
-                        'total_cost_usd', 0
-                    )
-                    result['total_duration'] += validator_result.get(
-                        'duration_ms', 0
-                    )
+                # Safe operations - process validation result
+                self.logger.info(
+                    'Validator JSON result for %s cycle %d: %s',
+                    action.name,
+                    cycle,
+                    validation_status,
+                )
 
-                    # Parse JSON validation result
-                    validator_output = validator_result.get('result', '')
-
-                    try:
-                        # Extract JSON from response (handle markdown)
-                        json_text = validator_output.strip()
-                        if '```json' in json_text:
-                            # Extract from markdown code block
-                            start = json_text.find('```json') + 7
-                            end = json_text.find('```', start)
-                            json_text = json_text[start:end].strip()
-                        elif json_text.startswith(
-                            '```'
-                        ) and json_text.endswith('```'):
-                            # Remove plain code block markers
-                            json_text = json_text[3:-3].strip()
-
-                        validation_result = json.loads(json_text)
-                        validation_status = validation_result.get(
-                            'validation_status'
-                        )
-                        validation_errors = validation_result.get('errors', [])
-
-                        self.logger.info(
-                            'Validator JSON result for %s cycle %d: %s',
-                            action.name,
-                            cycle,
-                            validation_status,
-                        )
-
-                        if validation_status == 'VALIDATION_PASSED':
-                            self.logger.debug(
-                                'Agent validation passed for %s in cycle %d',
-                                action.name,
-                                cycle,
-                            )
-                            result['status'] = 'success'
-                            return result
-                        elif validation_status == 'VALIDATION_FAILED':
-                            error_details = '; '.join(validation_errors)
-                            self.logger.warning(
-                                'Validation failed for %s cycle %d: %s',
-                                action.name,
-                                cycle,
-                                error_details,
-                            )
-                            if cycle < action.max_cycles:
-                                context.previous_failure = error_details
-                                continue
-                            else:
-                                result['status'] = 'failed'
-                                result['final_failure'] = error_details
-                                raise RuntimeError(
-                                    f'Validation failed after '
-                                    f'{action.max_cycles} cycles'
-                                )
-                        else:
-                            # Invalid validation status
-                            raise ValueError(
-                                f'Invalid validation_status: '
-                                f'{validation_status}'
-                            )
-
-                    except (json.JSONDecodeError, KeyError, ValueError) as exc:
-                        # JSON parsing failed - this is a configuration error
-                        self.logger.error(
-                            'Validator invalid JSON for %s cycle %d. '
-                            'Parse error: %s. Validator output: %s',
-                            action.name,
-                            cycle,
-                            exc,
-                            validator_output[:300],
-                        )
-
-                        # Configuration error, not validation failure
-                        result['status'] = 'failed'
-                        result['error'] = (
-                            f'Validator provided invalid JSON: {exc}'
-                        )
-                        raise RuntimeError(
-                            'Validator failed to provide valid JSON response'
-                        ) from exc
-                else:
-                    # No validation prompt - generator only workflow
+                if validation_status == 'VALIDATION_PASSED':
                     self.logger.debug(
-                        'No validation prompt for %s, completing after '
-                        'generator',
+                        'Agent validation passed for %s in cycle %d',
                         action.name,
+                        cycle,
                     )
                     result['status'] = 'success'
                     return result
-
-        except claude_code_sdk.ClaudeSDKError as exc:
-            result['status'] = 'failed'
-            result['error'] = str(exc)
-            raise
+                elif validation_status == 'VALIDATION_FAILED':
+                    error_details = '; '.join(validation_errors)
+                    self.logger.warning(
+                        'Validation failed for %s cycle %d: %s',
+                        action.name,
+                        cycle,
+                        error_details,
+                    )
+                    if cycle < action.max_cycles:
+                        context.previous_failure = error_details
+                        continue
+                    else:
+                        result['status'] = 'failed'
+                        result['final_failure'] = error_details
+                        raise RuntimeError(
+                            f'Validation failed after '
+                            f'{action.max_cycles} cycles'
+                        )
+                else:
+                    # Invalid validation status
+                    result['status'] = 'failed'
+                    result['error'] = (
+                        f'Invalid validation_status: {validation_status}'
+                    )
+                    raise ValueError(
+                        f'Invalid validation_status: {validation_status}'
+                    )
+            else:
+                # No validation prompt - generator only workflow
+                self.logger.debug(
+                    'No validation prompt for %s, completing after generator',
+                    action.name,
+                )
+                result['status'] = 'success'
+                return result
 
         return result
