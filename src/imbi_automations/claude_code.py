@@ -203,9 +203,14 @@ tools: {', '.join(tools)}
                 lstrip_blocks=True,
             )
             template = jinja_env.from_string(template_content)
-            return template.render(context.model_dump())
+            prompt_content = template.render(context.model_dump())
         else:
-            return prompt_file_path.read_text(encoding='utf-8')
+            prompt_content = prompt_file_path.read_text(encoding='utf-8')
+
+        # Note: Base validator behavior is already included in the agent file
+        # created by _create_agent_file, so we don't need to add it here again
+
+        return prompt_content
 
     async def execute_agents(
         self, action: models.WorkflowAction, context: models.WorkflowContext
@@ -258,7 +263,7 @@ tools: {', '.join(tools)}
 
                 # Run generator agent with rendered prompt
                 generator_prompt_content = self._render_prompt_for_agents(
-                    action.prompt, context
+                    action.prompt, context, 'generator'
                 )
 
                 if cycle > 1 and context.previous_failure:
@@ -266,6 +271,16 @@ tools: {', '.join(tools)}
                         f'\n\nPrevious validation feedback:\n'
                         f'{context.previous_failure}'
                     )
+
+                # Debug log the generator prompt content
+                self.logger.debug(
+                    'Invoking generator agent for %s cycle %d:\n%s',
+                    action.name,
+                    cycle,
+                    generator_prompt_content[:500] + '...'
+                    if len(generator_prompt_content) > 500
+                    else generator_prompt_content,
+                )
 
                 # Create separate client session for generator
                 async with claude_code_sdk.ClaudeSDKClient(
@@ -275,8 +290,10 @@ tools: {', '.join(tools)}
                     context_message = self._create_context_message(context)
                     await generator_client.query(context_message)
 
-                    # Then send the rendered prompt
-                    await generator_client.query(generator_prompt_content)
+                    # Then invoke the generator agent with the rendered prompt
+                    await generator_client.query(
+                        f'/agent generator\n\n{generator_prompt_content}'
+                    )
 
                     # Collect generator response - use only last message
                     response_messages = []
@@ -316,7 +333,17 @@ tools: {', '.join(tools)}
 
                     # Run validator agent with rendered prompt
                     validator_prompt_content = self._render_prompt_for_agents(
-                        action.validation_prompt, context
+                        action.validation_prompt, context, 'validator'
+                    )
+
+                    # Debug log the validator prompt content
+                    self.logger.debug(
+                        'Invoking validator agent for %s cycle %d:\n%s',
+                        action.name,
+                        cycle,
+                        validator_prompt_content[:500] + '...'
+                        if len(validator_prompt_content) > 500
+                        else validator_prompt_content,
                     )
 
                     # Create separate validator client session
@@ -327,8 +354,10 @@ tools: {', '.join(tools)}
                         context_message = self._create_context_message(context)
                         await validator_client.query(context_message)
 
-                        # Then send the rendered prompt
-                        await validator_client.query(validator_prompt_content)
+                        # Then invoke the validator agent
+                        await validator_client.query(
+                            f'/agent validator\n\n{validator_prompt_content}'
+                        )
 
                         # Collect validator response for JSON parsing
                         response_messages = []

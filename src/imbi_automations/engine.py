@@ -1046,7 +1046,10 @@ class AutomationEngine:
         except (
             models.GitHubRateLimitError,
             models.GitHubNotFoundError,
-            Exception,
+            httpx.HTTPError,
+            httpx.RequestError,
+            ValueError,
+            RuntimeError,
         ) as exc:
             LOGGER.debug(
                 'Project %d (%s) GitHub filter check failed: %s',
