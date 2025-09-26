@@ -1,6 +1,5 @@
 import enum
 import pathlib
-import typing
 
 import pydantic
 
@@ -122,30 +121,60 @@ class WorkflowCondition(pydantic.BaseModel):
 
 
 class WorkflowFilter(pydantic.BaseModel):
-    project_ids: list[int] = pydantic.Field(default_factory=list)
-    project_types: list[str] = pydantic.Field(default_factory=list)
+    project_ids: set[int] = pydantic.Field(default_factory=set)
+    project_types: set[str] = pydantic.Field(default_factory=set)
     project_facts: dict[str, str] = pydantic.Field(default_factory=dict)
-    project_environments: list[str] = pydantic.Field(default_factory=list)
+    project_environments: set[str] = pydantic.Field(default_factory=set)
     requires_github_identifier: bool = False
-    exclude_github_workflow_status: list[str] = pydantic.Field(
-        default_factory=list
+    exclude_github_workflow_status: set[str] = pydantic.Field(
+        default_factory=set
     )
+
+
+class WorkflowGitCloneType(enum.StrEnum):
+    """Enumeration of supported git clone types."""
+
+    http = 'http'
+    ssh = 'ssh'
+
+
+class WorkflowGit(pydantic.BaseModel):
+    """Configuration for a source repository."""
+
+    clone: bool = True
+    shallow: bool = True
+    starting_branch: str | None = None
+    commit_author: str = 'Authored-By: Imbi Automations <noreply@aweber.com>'
+    ci_skip_checks: bool = False
+    clone_type: WorkflowGitCloneType = WorkflowGitCloneType.ssh
+
+
+class WorkflowGitHub(pydantic.BaseModel):
+    create_pull_request: bool = True
+
+
+class WorkflowGitLab(pydantic.BaseModel):
+    create_merge_request: bool = True
 
 
 class WorkflowConfiguration(pydantic.BaseModel):
     name: str
     description: str | None = None
+    git: WorkflowGit = pydantic.Field(default_factory=WorkflowGit)
+    github: WorkflowGitHub = pydantic.Field(default_factory=WorkflowGitHub)
+    gitlab: WorkflowGitLab = pydantic.Field(default_factory=WorkflowGitLab)
     filter: WorkflowFilter | None = None
-    ci_skip_checks: bool = False
-    clone_repository: bool = True
-    shallow_clone: bool = True
-    commit_author_trailer: str = (
-        'Authored-By: Imbi Automations <noreply@aweber.com>'
-    )
+
     condition_type: WorkflowConditionType = WorkflowConditionType.all
     conditions: list[WorkflowCondition] = pydantic.Field(default_factory=list)
     create_pull_request: bool = True
     actions: list[WorkflowAction] = pydantic.Field(default_factory=list)
+
+
+class WorkflowActionResult(pydantic.BaseModel):
+    """Result of a workflow action."""
+
+    name: str
 
 
 class Workflow(pydantic.BaseModel):
@@ -153,33 +182,11 @@ class Workflow(pydantic.BaseModel):
     configuration: WorkflowConfiguration
 
 
-class WorkflowRun(pydantic.BaseModel):
-    workflow: Workflow
-    working_directory: pathlib.Path | None = None
-    github_repository: github.GitHubRepository | None = None
-    gitlab_project: gitlab.GitLabProject | None = None
-    imbi_project: imbi.ImbiProject
-
-
 class WorkflowContext(pydantic.BaseModel):
     """Template context for workflow execution with type safety."""
 
-    # Core workflow objects
     workflow: Workflow
-    workflow_run: WorkflowRun
-
-    # Repository/project information
     github_repository: github.GitHubRepository | None = None
     gitlab_project: gitlab.GitLabProject | None = None
     imbi_project: imbi.ImbiProject
-
-    # Execution context
     working_directory: pathlib.Path | None = None
-    actions: typing.Any = None  # ActionResults object from engine
-
-    # Runtime state (added during execution)
-    previous_failure: str | None = None
-
-    class Config:
-        # Allow arbitrary types for actions (ActionResults)
-        arbitrary_types_allowed = True
