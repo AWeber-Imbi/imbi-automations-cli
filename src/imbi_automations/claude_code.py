@@ -169,7 +169,7 @@ analysis and actions."""
         # For validator agents, prepend base validator behavior
         elif agent_name == 'validator':
             base_validator_path = (
-                pathlib.Path(__file__).parent / 'prompts' / 'base_validator.md'
+                pathlib.Path(__file__).parent / 'prompts' / 'validator.md'
             )
             if base_validator_path.exists():
                 try:
