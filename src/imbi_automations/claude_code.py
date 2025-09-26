@@ -260,6 +260,76 @@ analysis and actions."""
 
         return prompt_content
 
+    async def execute_agent(
+        self,
+        agent_type: str,
+        prompt_file: str,
+        context: models.WorkflowContext,
+        options: claude_code_sdk.ClaudeCodeOptions,
+    ) -> dict[str, typing.Any]:
+        """Execute a single agent (generator or validator) and return results.
+
+        Args:
+            agent_type: 'generator' or 'validator'
+            prompt_file: Path to the agent's prompt file
+            context: Workflow context
+            options: Claude Code SDK options
+
+        Returns:
+            Dictionary with agent execution results
+        """
+        # Render the agent-specific prompt
+        agent_prompt_content = self._render_prompt_for_agents(
+            prompt_file, context
+        )
+
+        # Add previous failure context for generator on retry cycles
+        if agent_type == 'generator' and context.previous_failure:
+            agent_prompt_content += (
+                f'\n\nPrevious validation feedback:\n'
+                f'{context.previous_failure}'
+            )
+
+        # Debug log the full command being sent
+        full_command = f'/agent {agent_type}\n\n{agent_prompt_content}'
+        self.logger.debug(
+            'Sending to %s client:\n%s',
+            agent_type,
+            full_command[:500] + '...'
+            if len(full_command) > 500
+            else full_command,
+        )
+
+        # Execute the agent
+        async with claude_code_sdk.ClaudeSDKClient(options=options) as client:
+            # First, inject structured context data
+            context_message = self._create_context_message(context)
+            await client.query(context_message)
+
+            # Then invoke the agent
+            command = f'/agent {agent_type}\n\n{agent_prompt_content}'
+            self.logger.debug('About to send to SDK: %s', command[:100])
+            await client.query(command)
+
+            # Collect response messages
+            response_messages = []
+            async for message in client.receive_response():
+                response_messages.append(message)
+
+            # Get the final response
+            final_response = ''
+            if response_messages:
+                message_result = response_messages[-1].result
+                final_response = (
+                    message_result if message_result is not None else ''
+                )
+
+            return {
+                'result': final_response,
+                'status': 'success',
+                'agent_type': agent_type,
+            }
+
     async def execute_agents(
         self, action: models.WorkflowAction, context: models.WorkflowContext
     ) -> dict[str, typing.Any]:
@@ -309,164 +379,49 @@ analysis and actions."""
 
                 result['cycles'] = cycle
 
-                # Run generator agent with rendered prompt
-                generator_prompt_content = self._render_prompt_for_agents(
-                    action.prompt, context
+                # Execute generator agent
+                generator_result = await self.execute_agent(
+                    'generator', action.prompt, context, options
                 )
 
-                if cycle > 1 and context.previous_failure:
-                    generator_prompt_content += (
-                        f'\n\nPrevious validation feedback:\n'
-                        f'{context.previous_failure}'
-                    )
-
-                # Debug log the full generator command being sent
-                full_generator_command = (
-                    f'/agent generator\n\n{generator_prompt_content}'
-                )
                 self.logger.debug(
-                    'Sending to generator client for %s cycle %d:\n%s',
+                    'Generator output for %s cycle %d:\n%s',
                     action.name,
                     cycle,
-                    full_generator_command[:500] + '...'
-                    if len(full_generator_command) > 500
-                    else full_generator_command,
+                    generator_result['result'],
                 )
 
-                # Create separate client session for generator
-                async with claude_code_sdk.ClaudeSDKClient(
-                    options=options
-                ) as generator_client:
-                    # First, inject structured context data
-                    context_message = self._create_context_message(context)
-                    await generator_client.query(context_message)
+                result['generator_results'].append(generator_result)
+                result['total_cost'] += generator_result.get(
+                    'total_cost_usd', 0
+                )
+                result['total_duration'] += generator_result.get(
+                    'duration_ms', 0
+                )
 
-                    # Then invoke the generator agent with the rendered prompt
-                    generator_command = (
-                        f'/agent generator\n\n{generator_prompt_content}'
-                    )
-                    self.logger.debug(
-                        'About to send to SDK: %s', generator_command[:100]
-                    )
-                    await generator_client.query(generator_command)
-
-                    # Collect generator response - use only last message
-                    response_messages = []
-                    async for message in generator_client.receive_response():
-                        response_messages.append(message)
-
-                    # Get the last message's result (the final response)
-                    final_response = ''
-                    if response_messages:
-                        message_result = response_messages[-1].result
-                        final_response = (
-                            message_result
-                            if message_result is not None
-                            else ''
-                        )
-
-                    generator_task_result = {
-                        'result': final_response,
-                        'status': 'success',
-                    }
-
-                    # Debug log the full generator output
-                    self.logger.debug(
-                        'Generator output for %s cycle %d:\n%s',
-                        action.name,
-                        cycle,
-                        generator_task_result['result'],
+                # Execute validator agent if validation prompt exists
+                if action.validation_prompt:
+                    validator_result = await self.execute_agent(
+                        'validator', action.validation_prompt, context, options
                     )
 
-                    result['generator_results'].append(generator_task_result)
-                    result['total_cost'] += generator_task_result.get(
-                        'total_cost_usd', 0
-                    )
-                    result['total_duration'] += generator_task_result.get(
-                        'duration_ms', 0
-                    )
-
-                    # Run validator agent with rendered prompt
-                    validator_prompt_content = self._render_prompt_for_agents(
-                        action.validation_prompt, context
-                    )
-
-                    # Debug log the full validator command being sent
-                    full_validator_command = (
-                        f'/agent validator\n\n{validator_prompt_content}'
-                    )
-                    self.logger.debug(
-                        'Sending to validator client for %s cycle %d:\n%s',
-                        action.name,
-                        cycle,
-                        full_validator_command[:500] + '...'
-                        if len(full_validator_command) > 500
-                        else full_validator_command,
-                    )
-
-                    # Create separate validator client session
-                    async with claude_code_sdk.ClaudeSDKClient(
-                        options=options
-                    ) as validator_client:
-                        # First, inject structured context data
-                        context_message = self._create_context_message(context)
-                        await validator_client.query(context_message)
-
-                        # Then invoke the validator agent
-                        validator_command = (
-                            f'/agent validator\n\n{validator_prompt_content}'
-                        )
-                        self.logger.debug(
-                            'About to send to SDK: %s', validator_command[:100]
-                        )
-                        await validator_client.query(validator_command)
-
-                        # Collect validator response for JSON parsing
-                        response_messages = []
-
-                        async for (
-                            message
-                        ) in validator_client.receive_response():
-                            response_messages.append(message)
-
-                        # Get final response for JSON parsing
-                        final_response = ''
-                        if response_messages:
-                            message_result = response_messages[-1].result
-                            final_response = (
-                                message_result
-                                if message_result is not None
-                                else ''
-                            )
-
-                        validator_task_result = {
-                            'result': final_response,
-                            'status': 'success',
-                        }
-
-                        result['validator_results'].append(
-                            validator_task_result
-                        )
-                        result['total_cost'] += validator_task_result.get(
-                            'total_cost_usd', 0
-                        )
-                        result['total_duration'] += validator_task_result.get(
-                            'duration_ms', 0
-                        )
-
-                        # Check validator result for JSON parsing
-                    validator_output = validator_task_result.get('result', '')
-
-                    # Debug log the validator output
                     self.logger.debug(
                         'Validator output for %s cycle %d:\n%s',
                         action.name,
                         cycle,
-                        validator_output,
+                        validator_result['result'],
                     )
 
-                    # Parse JSON validation result - no fallback
-                    validator_output = validator_task_result.get('result', '')
+                    result['validator_results'].append(validator_result)
+                    result['total_cost'] += validator_result.get(
+                        'total_cost_usd', 0
+                    )
+                    result['total_duration'] += validator_result.get(
+                        'duration_ms', 0
+                    )
+
+                    # Parse JSON validation result
+                    validator_output = validator_result.get('result', '')
 
                     try:
                         # Extract JSON from response (handle markdown)
@@ -547,6 +502,15 @@ analysis and actions."""
                         raise RuntimeError(
                             'Validator failed to provide valid JSON response'
                         ) from exc
+                else:
+                    # No validation prompt - generator only workflow
+                    self.logger.debug(
+                        'No validation prompt for %s, completing after '
+                        'generator',
+                        action.name,
+                    )
+                    result['status'] = 'success'
+                    return result
 
         except claude_code_sdk.ClaudeSDKError as exc:
             result['status'] = 'failed'
