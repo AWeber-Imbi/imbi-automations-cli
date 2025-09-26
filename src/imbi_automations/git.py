@@ -81,6 +81,10 @@ async def clone_repository(
     temp_dir = pathlib.Path(tempfile.mkdtemp(prefix='imbi-automations-'))
     repo_dir = temp_dir / 'repository'
 
+    # Create extracted directory for git-extract output
+    extracted_dir = temp_dir / 'extracted'
+    extracted_dir.mkdir(exist_ok=True)
+
     LOGGER.debug('Cloning repository %s to %s', clone_url, repo_dir)
 
     # Build git clone command
@@ -231,6 +235,7 @@ async def commit_changes(
     message: str,
     author_name: str | None = None,
     author_email: str | None = None,
+    author_trailer: str | None = None,
 ) -> str:
     """Commit staged changes to git repository.
 
@@ -239,6 +244,7 @@ async def commit_changes(
         message: Commit message
         author_name: Optional commit author name
         author_email: Optional commit author email
+        author_trailer: Optional authored-by trailer to append
 
     Returns:
         Commit SHA hash
@@ -250,6 +256,10 @@ async def commit_changes(
     # Ensure commit message has imbi-automations prefix
     if not message.startswith('imbi-automations:'):
         message = f'imbi-automations: {message}'
+
+    # Append author trailer if provided
+    if author_trailer:
+        message = f'{message}\n\n{author_trailer}'
 
     LOGGER.debug('Committing changes with message: %s', message)
 

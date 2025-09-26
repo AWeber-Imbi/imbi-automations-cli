@@ -209,19 +209,35 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
     # Optional modifiers
     parser.add_argument(
         '--start-from-project',
-        metavar='SLUG',
+        metavar='ID_OR_SLUG',
         help='When processing multiple projects, skip all projects up to '
-        'and including this project slug',
+        'and including this project (accepts project ID or slug)',
     )
 
-    parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument(
+        '-v',
+        '--verbose',
+        action='store_true',
+        help='Show action start/end INFO messages',
+    )
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='Enable debug logging (shows all debug messages)',
+    )
+    parser.add_argument(
+        '--exit-on-error',
+        action='store_true',
+        help='Exit immediately when any action fails '
+        '(default: continue with other projects)',
+    )
     parser.add_argument('-V', '--version', action='version', version=version)
     return parser.parse_args(args)
 
 
 def main() -> None:
     args = parse_args()
-    configure_logging(args.verbose)
+    configure_logging(args.debug)
 
     config = load_configuration(args.config[0])
     args.config[0].close()

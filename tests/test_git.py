@@ -206,10 +206,14 @@ class TestGitModule(base.AsyncTestCase):
         self.assertIn('STDOUT: log output', log.output[1])
         self.assertIn('STDERR: warning', log.output[2])
 
+    @mock.patch('pathlib.Path.mkdir')
     @mock.patch('imbi_automations.git._run_git_command')
     @mock.patch('tempfile.mkdtemp')
     async def test_clone_repository_success(
-        self, mock_mkdtemp: mock.Mock, mock_run_git: mock.Mock
+        self,
+        mock_mkdtemp: mock.Mock,
+        mock_run_git: mock.Mock,
+        mock_mkdir: mock.Mock,
     ) -> None:
         """Test successful repository cloning."""
         # Mock temporary directory creation
@@ -242,10 +246,14 @@ class TestGitModule(base.AsyncTestCase):
             timeout_seconds=600,
         )
 
+    @mock.patch('pathlib.Path.mkdir')
     @mock.patch('imbi_automations.git._run_git_command')
     @mock.patch('tempfile.mkdtemp')
     async def test_clone_repository_no_branch_no_depth(
-        self, mock_mkdtemp: mock.Mock, mock_run_git: mock.Mock
+        self,
+        mock_mkdtemp: mock.Mock,
+        mock_run_git: mock.Mock,
+        mock_mkdir: mock.Mock,
     ) -> None:
         """Test repository cloning without branch or depth specification."""
         mock_temp_dir = '/tmp/imbi-automations-test456'  # noqa: S108
@@ -271,6 +279,7 @@ class TestGitModule(base.AsyncTestCase):
             timeout_seconds=600,
         )
 
+    @mock.patch('pathlib.Path.mkdir')
     @mock.patch('pathlib.Path.exists')
     @mock.patch('shutil.rmtree')
     @mock.patch('imbi_automations.git._run_git_command')
@@ -281,6 +290,7 @@ class TestGitModule(base.AsyncTestCase):
         mock_run_git: mock.Mock,
         mock_rmtree: mock.Mock,
         mock_exists: mock.Mock,
+        mock_mkdir: mock.Mock,
     ) -> None:
         """Test repository cloning failure and cleanup."""
         mock_temp_dir = '/tmp/imbi-automations-test789'  # noqa: S108

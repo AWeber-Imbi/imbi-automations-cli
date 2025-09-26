@@ -4,169 +4,271 @@ Workflows are the core of Imbi Automations, defining a series of actions to be e
 
 ## Workflow Structure
 
-Workflows are organized in directories with the following structure:
+Each workflow is a directory containing a `config.toml` file and supporting files:
 
 ```
 workflows/
-├── sync-github-metadata/
-│   ├── workflow.toml              # Workflow definition
-│   ├── transformations/           # Transformation steps
-│   │   ├── ai-editor/priority-75-update-readme/
-│   │   ├── templates/priority-50-add-codeowners/
-│   │   └── shell/priority-25-run-tests/
-│   └── conditions/                # Workflow applicability
+├── python39-project-fix/
+│   ├── config.toml                    # Workflow configuration
+│   ├── generate_pyproject_prompt.md.j2  # Claude Code prompts
+│   ├── validate_migration_prompt.md.j2
+│   └── Dockerfile-consumer            # Template files
 ```
 
-## Workflow Configuration
-
-### Basic Configuration
+## Basic Workflow Configuration
 
 ```toml
-name = "sync-github-metadata"
-description = "Synchronize repository metadata with GitHub"
+name = "Python 3.9 Project Fix"
+description = "Multi-step workflow to update and fix Python 3.9 projects"
 clone_repository = true
-ci_skip_checks = false
-```
+create_pull_request = true
 
-#### Configuration Fields
+[filter]
+project_types = ["apis", "consumers"]
+requires_github_identifier = true
 
-- **name**: Unique identifier for the workflow
-- **description**: Human-readable description
-- **clone_repository**: Whether to clone repositories for file operations
-- **ci_skip_checks**: Add `[ci skip]` to commit messages
-
-### Actions
-
-Actions define the operations to be performed:
-
-```toml
-[[actions]]
-name = "check-status"
-type = "callable"
-
-[actions.value]
-client = "github"
-method = "get_sonarqube_job_status"
-kwargs.org = "{{ github_repository.owner.login }}"
-kwargs.repo_name = "{{ github_repository.name }}"
-kwargs.branch = "main"
+[[conditions]]
+remote_file_exists = "setup.cfg"
 
 [[actions]]
-name = "update-file"
-type = "callable"
-condition = "actions['check-status']['result'] == 'failure'"
-
-[actions.value]
-client = "utils"
-method = "append_file"
-kwargs.file = "/tmp/failing-projects.txt"
-kwargs.value = "{{ github_repository.html_url + '\n' }}"
+name = "generate-config"
+type = "claude"
+prompt_file = "generate_prompt.md.j2"
 ```
 
-#### Action Types
+## Configuration Options
 
-1. **callable**: Execute client method calls
-2. **templates**: Copy and render Jinja2 templates
-3. **file**: Perform file operations (rename, remove, regex)
+### Workflow Settings
+- **`name`** (required): Workflow identifier
+- **`description`**: Human-readable description
+- **`clone_repository`**: Whether to clone repos (default: true)
+- **`create_pull_request`**: Create PR after execution (default: true)
+- **`ci_skip_checks`**: Add `[ci skip]` to commits (default: false)
+- **`shallow_clone`**: Use shallow git clone (default: true)
 
-## Conditional Execution
-
-Actions can be conditionally executed based on previous results:
+### Project Filtering
+Filter which projects the workflow targets:
 
 ```toml
-[[actions]]
-name = "conditional-action"
-type = "callable"
-condition = "actions['previous-action']['result'] == 'failure'"
+[filter]
+project_ids = [123, 456]                           # Specific project IDs
+project_types = ["apis", "consumers", "daemons"]   # Project types
+project_facts = {"Programming Language" = "Python 3.9"}  # Exact fact matching
+requires_github_identifier = true                  # Must have GitHub repo
+exclude_github_workflow_status = ["success"]       # Skip if CI passing
 ```
 
-### Condition Examples
+## Conditions
+
+Define when workflows should execute for a project:
+
+### Remote Conditions (Pre-Clone)
+More efficient - checked via GitHub API before cloning:
 
 ```toml
-# Execute only if previous action succeeded
-condition = "actions['check-status']['result'] == 'success'"
+[[conditions]]
+remote_file_exists = "setup.cfg"
 
-# Execute only if previous action failed
-condition = "actions['sonar-check']['result'] == 'failure'"
+[[conditions]]
+remote_file_not_exists = "pyproject.toml"
 
-# Execute only if result contains specific text
-condition = "'error' in str(actions['analyze']['result'])"
-
-# Complex boolean conditions
-condition = "actions['test']['result'] == 'success' and actions['lint']['result'] == 'success'"
+[[conditions]]
+remote_file_contains = "version.*3\\.9"
+remote_file = ".python-version"
 ```
 
-## Template Context
-
-Actions have access to template context variables:
-
-### Available Variables
-
-- **github_repository**: GitHub repository data
-- **gitlab_project**: GitLab project data
-- **imbi_project**: Imbi project metadata
-- **workflow**: Current workflow configuration
-- **workflow_run**: Runtime data
-- **actions**: Results from previous actions
-
-### Template Examples
+### Local Conditions (Post-Clone)
+Checked after repository is cloned:
 
 ```toml
-# Repository information
-value = "{{ github_repository.name }}"
-value = "{{ github_repository.owner.login }}"
-value = "{{ github_repository.html_url }}"
-
-# Project metadata
-value = "{{ imbi_project.name }}"
-value = "{{ imbi_project.namespace_slug }}"
-
-# Action results
-value = "{{ actions['previous-action']['result'] }}"
-
-# Complex templates
-value = "{{ imbi_project.name + ',' + github_repository.html_url + '\n' }}"
-```
-
-## Workflow Conditions
-
-Define when workflows should run:
-
-```toml
-condition_type = "all"  # or "any"
-
 [[conditions]]
 file_exists = "package.json"
 
 [[conditions]]
-file_not_exists = ".python-version"
+file_contains = "test.*script"
+file = "package.json"
 ```
 
-### Condition Types
+## Actions
 
-- **all**: All conditions must be true
-- **any**: At least one condition must be true
+Actions are the workflow steps, executed sequentially:
 
-### Supported Conditions
-
-- **file_exists**: File or directory exists
-- **file_not_exists**: File or directory does not exist
-
-## Workflow Filters
-
-Filter which projects workflows apply to:
+### Client Method Calls (Default)
+Execute methods on GitHub, GitLab, or Imbi clients:
 
 ```toml
-[filter]
-project_ids = [123, 456, 789]
-project_types = ["python-service", "react-app"]
+[[actions]]
+name = "sync-environments"
+
+[actions.value]
+client = "github"
+method = "sync_project_environments"
+
+[actions.value.kwargs]
+org = "{{ github_repository.owner.login }}"
+repo = "{{ github_repository.name }}"
+```
+
+### Claude Code Integration
+AI-powered code analysis and transformation:
+
+```toml
+[[actions]]
+name = "migrate-config"
+type = "claude"
+prompt_file = "migration_prompt.md.j2"
+timeout = 600
+on_failure = "prepare-migration"
+```
+
+### Shell Commands
+Execute shell commands in the working directory:
+
+```toml
+[[actions]]
+name = "run-tests"
+type = "shell"
+command = "pytest --cov=src"
+```
+
+### File Operations
+Copy, rename, or remove files:
+
+```toml
+[[actions]]
+name = "copy-config"
+type = "file"
+command = "copy"
+source = "template.yml"
+destination = "config.yml"
+```
+
+### AI Editor
+Focused file editing with AI:
+
+```toml
+[[actions]]
+name = "update-readme"
+type = "ai-editor"
+prompt_file = "readme_prompt.md"
+target_file = "README.md"
+```
+
+### Git Operations
+Extract or revert files from git history:
+
+```toml
+[[actions]]
+name = "extract-original"
+type = "git-extract"
+keyword = "g2g-migration"
+source = "Dockerfile"
+target_path = "Dockerfile.original"
+```
+
+## Failure Handling and Retries
+
+### Failure Files
+Claude Code actions can signal failure by creating files:
+- `ACTION_FAILED`: Generic action failure
+- `{ACTION_NAME}_FAILED`: Action-specific failure
+
+### Restart on Failure
+Actions can restart from earlier actions when they fail:
+
+```toml
+[[actions]]
+name = "validate-migration"
+type = "claude"
+prompt_file = "validate.md.j2"
+on_failure = "generate-migration"  # Restart from generation if validation fails
+```
+
+- Each action can fail up to 3 times before aborting
+- Restart actions receive `previous_failure` context
+- Enables self-healing workflows that learn from mistakes
+
+## Template Context
+
+All prompt files and action configurations support Jinja2 templating:
+
+### Project Information
+```jinja2
+{{ imbi_project.name }}          # Project name
+{{ imbi_project.project_type }}  # Project type (apis, consumers, etc.)
+{{ imbi_project.slug }}          # Project slug
+{{ github_repository.html_url }} # GitHub repository URL
+```
+
+### Previous Action Results
+```jinja2
+{{ actions['previous-action']['result'] }}
+```
+
+### Conditional Templates
+```jinja2
+{% if github_repository -%}
+Repository: {{ github_repository.full_name }}
+{% endif %}
+```
+
+## Action Conditions
+
+Individual actions can have conditions:
+
+```toml
+[[actions]]
+name = "conditional-action"
+type = "shell"
+command = "echo 'Running only if conditions met'"
+
+[[actions.conditions]]
+file_exists = "setup.cfg"
+
+[[actions.conditions]]
+file_not_exists = "pyproject.toml"
 ```
 
 ## Best Practices
 
-1. **Descriptive Names**: Use clear, descriptive workflow names
-2. **Modular Actions**: Keep actions focused on single responsibilities
-3. **Error Handling**: Use conditions to handle different scenarios
-4. **Documentation**: Include clear descriptions for complex workflows
-5. **Testing**: Test workflows on small sets before broad deployment
-6. **Idempotency**: Design workflows to be safely re-runnable
+1. **Use Jinja2 templates** (`.md.j2`) for all Claude Code prompts to provide project-specific context
+2. **Remote conditions first** - More efficient than local conditions
+3. **Conditional actions** - Use conditions to skip unnecessary actions
+4. **Failure handling** - Configure `on_failure` for critical action sequences
+5. **Descriptive names** - Use clear action and workflow names
+6. **Modular design** - Keep actions focused on single responsibilities
+7. **Test incrementally** - Start with single projects before running on all projects
+
+## Example: Complete Migration Workflow
+
+```toml
+name = "Python Migration"
+description = "Migrate Python projects to modern standards"
+clone_repository = true
+create_pull_request = true
+
+[filter]
+project_types = ["apis", "consumers"]
+project_facts = {"Programming Language" = "Python 3.9"}
+
+[[conditions]]
+remote_file_exists = "setup.cfg"
+
+[[actions]]
+name = "generate-config"
+type = "claude"
+prompt_file = "generate.md.j2"
+
+[[actions]]
+name = "validate-config"
+type = "claude"
+prompt_file = "validate.md.j2"
+on_failure = "generate-config"
+
+[[actions]]
+name = "cleanup"
+type = "shell"
+command = "rm -f legacy-files"
+```
+
+This workflow demonstrates project filtering, conditions, Claude Code integration with failure handling, and cleanup operations.

@@ -9,6 +9,20 @@ import pydantic
 # Exception Classes
 
 
+class ActionFailureException(Exception):
+    """Exception raised when an action fails with on_failure configuration."""
+
+    def __init__(
+        self, action_name: str, restart_from: str, failure_details: str
+    ) -> None:
+        self.action_name = action_name
+        self.restart_from = restart_from
+        self.failure_details = failure_details
+        super().__init__(
+            f'Action {action_name} failed, restart from {restart_from}'
+        )
+
+
 class GitHubRateLimitError(Exception):
     """Raised when GitHub API rate limit is exceeded."""
 
@@ -63,6 +77,15 @@ class ImbiConfiguration(pydantic.BaseModel):
 class ClaudeCodeConfiguration(pydantic.BaseModel):
     executable: str = 'claude'  # Claude Code executable path
     base_prompt: pathlib.Path | None = None
+
+    def __init__(self, **kwargs: typing.Any) -> None:
+        super().__init__(**kwargs)
+        # Set default base_prompt to claude.md in prompts directory
+        # if not specified
+        if self.base_prompt is None:
+            self.base_prompt = (
+                pathlib.Path(__file__).parent / 'prompts' / 'claude.md'
+            )
 
 
 class Configuration(pydantic.BaseModel):
@@ -536,9 +559,15 @@ class WorkflowAction(pydantic.BaseModel):
     replacement: str | None = None
 
     # Claude action fields
-    prompt_file: str | None = None
+    prompt_file: str | None = None  # Legacy single prompt (deprecated)
+    prompt: str | None = None  # Primary prompt file (generator for agents)
+    validation_prompt: str | None = (
+        None  # Validator prompt file (enables agent mode)
+    )
     timeout: int = 3600
     max_retries: int | None = None
+    on_failure: str | None = None  # Action name to restart from on failure
+    max_cycles: int = 3  # Maximum generation→validation cycles
 
     # AI Editor action fields
     target_file: str | None = None
@@ -588,6 +617,9 @@ class WorkflowConfiguration(pydantic.BaseModel):
     ci_skip_checks: bool = False
     clone_repository: bool = True
     shallow_clone: bool = True
+    commit_author_trailer: str = (
+        'Authored-By: Imbi Automations <noreply@aweber.com>'
+    )
     condition_type: WorkflowConditionType = WorkflowConditionType.all
     conditions: list[WorkflowCondition] = pydantic.Field(default_factory=list)
     create_pull_request: bool = True
@@ -605,3 +637,27 @@ class WorkflowRun(pydantic.BaseModel):
     github_repository: GitHubRepository | None = None
     gitlab_project: GitLabProject | None = None
     imbi_project: ImbiProject
+
+
+class WorkflowContext(pydantic.BaseModel):
+    """Template context for workflow execution with type safety."""
+
+    # Core workflow objects
+    workflow: Workflow
+    workflow_run: WorkflowRun
+
+    # Repository/project information
+    github_repository: GitHubRepository | None = None
+    gitlab_project: GitLabProject | None = None
+    imbi_project: ImbiProject
+
+    # Execution context
+    working_directory: pathlib.Path | None = None
+    actions: typing.Any = None  # ActionResults object from engine
+
+    # Runtime state (added during execution)
+    previous_failure: str | None = None
+
+    class Config:
+        # Allow arbitrary types for actions (ActionResults)
+        arbitrary_types_allowed = True

@@ -108,7 +108,10 @@ async def extract_file_from_docker_image(
                     image_name,
                 )
                 return None
-            elif 'unable to find image' in stderr_str.lower() or 'not found' in stderr_str.lower():
+            elif (
+                'unable to find image' in stderr_str.lower()
+                or 'not found' in stderr_str.lower()
+            ):
                 LOGGER.error(
                     'Docker image %s not available locally or accessible: %s',
                     image_name,

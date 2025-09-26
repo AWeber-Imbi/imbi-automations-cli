@@ -98,6 +98,8 @@ class AutomationEngine:
             imbi_client=self.imbi,
             claude_code_config=configuration.claude_code,
             anthropic_config=configuration.anthropic,
+            verbose=getattr(args, 'verbose', False),
+            exit_on_error=getattr(args, 'exit_on_error', False),
         )
 
         # Initialize workflow execution counter
@@ -197,6 +199,21 @@ class AutomationEngine:
                     type(e).__name__,
                     str(e),
                 )
+                # Check if we should exit on error
+                if getattr(self.args, 'exit_on_error', False):
+                    LOGGER.error(
+                        'Exiting due to --exit-on-error flag. '
+                        'Failed on project %d (%s) - "%s". '
+                        'Resume from next: --start-from-project %s (or %d). '
+                        'To retry this project: --start-from-project %d',
+                        project.id,
+                        project.slug,
+                        project.name,
+                        project.slug,
+                        project.id,
+                        project.id,
+                    )
+                    break
                 # Continue processing other projects
 
     async def _process_imbi_project(self) -> None:
@@ -260,35 +277,63 @@ class AutomationEngine:
                     type(e).__name__,
                     str(e),
                 )
+                # Check if we should exit on error
+                if getattr(self.args, 'exit_on_error', False):
+                    LOGGER.error(
+                        'Exiting due to --exit-on-error flag. '
+                        'Failed on project %d (%s) - "%s". '
+                        'Resume from next: --start-from-project %s (or %d). '
+                        'To retry this project: --start-from-project %d',
+                        project.id,
+                        project.slug,
+                        project.name,
+                        project.slug,
+                        project.id,
+                        project.id,
+                    )
+                    break
                 # Continue processing other projects
 
     def _filter_projects_from_start(
-        self, projects: list[models.ImbiProject], start_from_slug: str
+        self, projects: list[models.ImbiProject], start_from_identifier: str
     ) -> list[models.ImbiProject]:
-        """Filter projects to start from a specific project slug.
+        """Filter projects to start from a specific project ID or slug.
 
         Args:
             projects: List of Imbi projects
-            start_from_slug: Project slug to start from (exclusive)
+            start_from_identifier: Project ID or slug to start from (exclusive)
 
         Returns:
-            Filtered list of projects starting after the specified slug
+            Filtered list of projects starting after the specified project
 
         """
         original_count = len(projects)
 
-        # Find the index of the start_from_project
-        start_index = None
-        for i, project in enumerate(projects):
-            if project.slug == start_from_slug:
-                start_index = i + 1  # Start from the next project
-                break
+        # Try to parse as project ID first, then fall back to slug
+        try:
+            start_from_id = int(start_from_identifier)
+            # Search by project ID
+            start_index = None
+            for i, project in enumerate(projects):
+                if project.id == start_from_id:
+                    start_index = i + 1  # Start from the next project
+                    break
+            identifier_type = 'ID'
+        except ValueError:
+            # Search by project slug
+            start_index = None
+            for i, project in enumerate(projects):
+                if project.slug == start_from_identifier:
+                    start_index = i + 1  # Start from the next project
+                    break
+            identifier_type = 'slug'
 
         if start_index is None:
             LOGGER.warning(
-                'Start project slug "%s" not found in project list, '
+                'Start project %s "%s" not found in project list, '
                 'processing all %d projects',
-                start_from_slug,
+                identifier_type,
+                start_from_identifier,
                 original_count,
             )
             return projects
@@ -299,7 +344,7 @@ class AutomationEngine:
         LOGGER.debug(
             'Starting from project "%s": skipping %d projects, '
             'processing %d projects',
-            start_from_slug,
+            start_from_identifier,
             skipped_count,
             len(filtered_projects),
         )
@@ -1072,6 +1117,8 @@ class WorkflowEngine:
         imbi_client: imbi.Imbi | None = None,
         claude_code_config: models.ClaudeCodeConfiguration | None = None,
         anthropic_config: models.AnthropicConfiguration | None = None,
+        verbose: bool = False,
+        exit_on_error: bool = False,
     ) -> None:
         self.github = github_client
         self.gitlab = gitlab_client
@@ -1080,6 +1127,11 @@ class WorkflowEngine:
         self.claude_code: claude_code.ClaudeCode | None = None
         self._claude_code_config = claude_code_config
         self._anthropic_config = anthropic_config
+        self.verbose = verbose
+        self.exit_on_error = exit_on_error
+
+        # Track step-level failure counts for on_failure mechanism
+        self._step_failure_counts: dict[str, int] = {}
 
         # Initialize Jinja2 environment
         self.jinja_env = jinja2.Environment(
@@ -1106,47 +1158,38 @@ class WorkflowEngine:
         workflow_dir_name = workflow_path.name
         self.logger = logging.getLogger(workflow_dir_name)
 
-    def _get_project_info_string(
-        self, workflow_run: models.WorkflowRun | None
-    ) -> str:
+    def _get_project_info_string(self, context: models.WorkflowContext) -> str:
         """Get project information string for logging.
 
         Args:
-            workflow_run: Workflow run containing project information
+            context: Workflow context containing project information
 
         Returns:
             Formatted project information string
         """
-        if workflow_run and workflow_run.imbi_project:
-            project = workflow_run.imbi_project
+        if context.imbi_project:
+            project = context.imbi_project
             return f'{project.name} ({project.project_type})'
         return 'Unknown Project'
 
     def _create_template_context(
         self, run: models.WorkflowRun
-    ) -> dict[str, typing.Any]:
+    ) -> models.WorkflowContext:
         """Create template context from workflow run data."""
-        context = {
-            'workflow': run.workflow,
-            'workflow_run': run,
-            'actions': self.action_results,
-        }
-
-        if run.github_repository:
-            context['github_repository'] = run.github_repository
-        if run.gitlab_project:
-            context['gitlab_project'] = run.gitlab_project
-        if run.imbi_project:
-            context['imbi_project'] = run.imbi_project
-        if run.working_directory:
-            context['working_directory'] = run.working_directory
-
-        return context
+        return models.WorkflowContext(
+            workflow=run.workflow,
+            workflow_run=run,
+            github_repository=run.github_repository,
+            gitlab_project=run.gitlab_project,
+            imbi_project=run.imbi_project,
+            working_directory=run.working_directory,
+            actions=self.action_results,
+        )
 
     def _render_template_kwargs(
         self,
         kwargs: models.WorkflowActionKwargs,
-        context: dict[str, typing.Any],
+        context: models.WorkflowContext | dict[str, typing.Any],
     ) -> dict[str, typing.Any]:
         """Render Jinja2 templates in action kwargs."""
         rendered = {}
@@ -1154,13 +1197,20 @@ class WorkflowEngine:
         for key, value in kwargs.model_dump().items():
             if isinstance(value, str) and '{{' in value:
                 self.logger.debug('Rendering template for %s: %s', key, value)
+                # Handle dict/WorkflowContext for backward compatibility
+                if isinstance(context, dict):
+                    context_dict = context
+                    actions = context.get('actions')
+                else:
+                    context_dict = context.model_dump()
+                    actions = context.actions
+
                 self.logger.debug(
-                    'Available context keys: %s', list(context.keys())
+                    'Available context keys: %s', list(context_dict.keys())
                 )
-                if 'actions' in context:
+                if actions:
                     self.logger.debug(
-                        'Available actions: %s',
-                        list(context['actions'].keys()),
+                        'Available actions: %s', list(actions.keys())
                     )
                 # Check if this is a direct reference to an action result
                 if value.strip().startswith(
@@ -1175,10 +1225,8 @@ class WorkflowEngine:
                     )
                     if action_match:
                         action_name = action_match.group(1)
-                        if action_name in context.get('actions', {}):
-                            rendered[key] = context['actions'][action_name][
-                                'result'
-                            ]
+                        if actions and action_name in actions:
+                            rendered[key] = actions[action_name]['result']
                             self.logger.debug(
                                 'Rendered %s: direct action result → %s',
                                 key,
@@ -1187,7 +1235,7 @@ class WorkflowEngine:
                             continue
 
                 template = self.jinja_env.from_string(value)
-                rendered_value = template.render(context)
+                rendered_value = template.render(context_dict)
                 # Try to convert back to original type if it was a number
                 if rendered_value.isdigit():
                     rendered[key] = int(rendered_value)
@@ -1216,18 +1264,16 @@ class WorkflowEngine:
             raise ValueError(f'Client not available: {client_name}')
         return client
 
+    @staticmethod
     def _apply_value_mapping(
-        self, value: typing.Any, mapping: dict[str, str] | None
+        value: typing.Any, mapping: dict[str, str] | None
     ) -> typing.Any:
         """Apply value mapping transformation."""
-        if not mapping:
-            return value
-
         str_value = str(value) if value is not None else 'null'
-        return mapping.get(str_value, value)
+        return mapping.get(str_value, value) if mapping else value
 
     async def _execute_action(
-        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+        self, action: models.WorkflowAction, context: models.WorkflowContext
     ) -> typing.Any:
         """Execute a single workflow action based on its type."""
         self.logger.debug(
@@ -1264,7 +1310,7 @@ class WorkflowEngine:
                 raise ValueError(f'Unsupported action type: {action.type}')
 
     async def _execute_callable_action(
-        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+        self, action: models.WorkflowAction, context: models.WorkflowContext
     ) -> typing.Any:
         """Execute a callable workflow action (client method call)."""
 
@@ -1303,7 +1349,7 @@ class WorkflowEngine:
         self.action_results[action.name] = {'result': mapped_result}
 
         # Update context for any subsequent template rendering
-        context['actions'] = self.action_results
+        context.actions = self.action_results
 
         # Execute target if configured (only for callable actions)
         if action.target and isinstance(
@@ -1337,22 +1383,20 @@ class WorkflowEngine:
         return mapped_result
 
     async def _execute_templates_action(
-        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+        self, action: models.WorkflowAction, context: models.WorkflowContext
     ) -> typing.Any:
         """Execute templates action by copying files from templates dir."""
         import os
         import shutil
 
-        workflow_run = context['workflow_run']
-
-        if not workflow_run.working_directory:
+        if not context.workflow_run.working_directory:
             raise RuntimeError(
                 f'Templates action {action.name} requires cloned repository '
                 f'(working_directory)'
             )
 
         # Get the templates directory path
-        templates_dir = workflow_run.workflow.path / 'templates'
+        templates_dir = context.workflow_run.workflow.path / 'templates'
 
         if not templates_dir.exists() or not templates_dir.is_dir():
             self.logger.warning(
@@ -1361,13 +1405,13 @@ class WorkflowEngine:
                 templates_dir,
             )
             self.action_results[action.name] = {'result': 'no_templates'}
-            context['actions'] = self.action_results
+            context.actions = self.action_results
             return 'no_templates'
 
         self.logger.info(
             'Copying templates from %s to %s',
             templates_dir,
-            workflow_run.working_directory,
+            context.workflow_run.working_directory,
         )
 
         copied_files = []
@@ -1393,14 +1437,15 @@ class WorkflowEngine:
                     # Target is a subdirectory path
                     target_base_path = pathlib.Path(action.target.lstrip('/'))
                     target_file = (
-                        workflow_run.working_directory
+                        context.workflow_run.working_directory
                         / target_base_path
                         / target_rel_path
                     )
                 else:
                     # Default to repository root
                     target_file = (
-                        workflow_run.working_directory / target_rel_path
+                        context.workflow_run.working_directory
+                        / target_rel_path
                     )
 
                 try:
@@ -1435,7 +1480,7 @@ class WorkflowEngine:
             try:
                 # Stage the copied files
                 await git.add_files(
-                    workflow_run.working_directory, copied_files
+                    context.workflow_run.working_directory, copied_files
                 )
 
                 # Create commit message with proper formatting
@@ -1447,19 +1492,17 @@ class WorkflowEngine:
                     commit_message += '\n'.join(f'- {f}' for f in copied_files)
 
                 # Add ci skip if configured
-                if workflow_run.workflow.configuration.ci_skip_checks:
+                config = context.workflow_run.workflow.configuration
+                if config.ci_skip_checks:
                     commit_message += '\n\n[ci skip]'
-
-                commit_message += (
-                    '\n\nAuthored-By: Imbi Automations <noreply@aweber.com>'
-                )
 
                 # Commit the changes
                 commit_sha = await git.commit_changes(
-                    working_directory=workflow_run.working_directory,
+                    working_directory=context.workflow_run.working_directory,
                     message=commit_message,
                     author_name='Imbi Automations',
                     author_email='noreply@aweber.com',
+                    author_trailer=context.workflow_run.workflow.configuration.commit_author_trailer,
                 )
 
                 self.logger.info(
@@ -1509,12 +1552,12 @@ class WorkflowEngine:
         }
 
         self.action_results[action.name] = {'result': result}
-        context['actions'] = self.action_results
+        context.actions = self.action_results
 
         return result
 
     async def _execute_file_action(
-        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+        self, action: models.WorkflowAction, context: models.WorkflowContext
     ) -> typing.Any:
         """Execute a file workflow action (rename, remove, etc.)."""
 
@@ -1528,14 +1571,13 @@ class WorkflowEngine:
                 f'File action {action.name} missing required source'
             )
 
-        # Get working directory from context
-        workflow_run = context.get('workflow_run')
-        if not workflow_run or not workflow_run.working_directory:
+        # Check working directory
+        if not context.workflow_run.working_directory:
             raise RuntimeError(
                 f'File action {action.name} requires working directory'
             )
 
-        working_directory = workflow_run.working_directory
+        working_directory = context.workflow_run.working_directory
         source_path = working_directory / action.source
 
         self.logger.debug(
@@ -1609,7 +1651,7 @@ class WorkflowEngine:
 
                 # Source path is relative to workflow directory
                 workflow_source_path = (
-                    workflow_run.workflow.path / action.source
+                    context.workflow_run.workflow.path / action.source
                 )
 
                 # Destination path is relative to working directory
@@ -1681,7 +1723,8 @@ class WorkflowEngine:
                     )
 
                 # Add ci skip if configured
-                if workflow_run.workflow.configuration.ci_skip_checks:
+                config = context.workflow_run.workflow.configuration
+                if config.ci_skip_checks:
                     commit_message += '\n\n[ci skip]'
 
                 commit_message += (
@@ -1719,7 +1762,7 @@ class WorkflowEngine:
 
         # Store result for future template references
         self.action_results[action.name] = {'result': result}
-        context['actions'] = self.action_results
+        context.actions = self.action_results
 
         return result
 
@@ -1727,7 +1770,7 @@ class WorkflowEngine:
         self,
         template_file: pathlib.Path,
         target_file: pathlib.Path,
-        context: dict[str, typing.Any],
+        context: models.WorkflowContext,
     ) -> None:
         """Render a Jinja2 template file and write to target location.
 
@@ -1763,163 +1806,194 @@ class WorkflowEngine:
             ) from exc
 
     async def _execute_claude_action(
-        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+        self, action: models.WorkflowAction, context: models.WorkflowContext
     ) -> typing.Any:
-        """Execute a claude workflow action (AI-powered transformation)."""
+        """Execute claude-agents workflow action using proper Task API."""
 
-        if not action.prompt_file:
+        if not action.prompt:
             raise ValueError(
-                f'Claude action {action.name} requires prompt_file'
+                f'Claude agents action {action.name} requires prompt'
+            )
+        if not action.validation_prompt:
+            raise ValueError(
+                f'Action {action.name} requires validation_prompt'
             )
 
-        workflow_run = context['workflow_run']
-
-        if not workflow_run.working_directory:
-            raise RuntimeError(
-                f'Claude action {action.name} requires cloned repository '
-                f'(working_directory)'
-            )
-
-        # Get the prompt file path (relative to workflow directory)
-        prompt_file_path = workflow_run.workflow.path / action.prompt_file
-
-        if not prompt_file_path.exists():
-            raise FileNotFoundError(
-                f'Prompt file not found for action {action.name}: '
-                f'{prompt_file_path}'
-            )
-
-        # Read and potentially render prompt content
-        try:
-            if prompt_file_path.suffix == '.j2':
-                # Render Jinja2 template
-                template_content = prompt_file_path.read_text(encoding='utf-8')
-                template = self.jinja_env.from_string(template_content)
-                prompt_content = template.render(context)
-                self.logger.debug(
-                    'Rendered Jinja2 prompt template for action %s',
-                    action.name,
-                )
-            else:
-                # Read plain text prompt
-                prompt_content = prompt_file_path.read_text(encoding='utf-8')
-                self.logger.debug(
-                    'Loaded plain text prompt for action %s', action.name
-                )
-
-        except (OSError, UnicodeDecodeError) as exc:
-            raise RuntimeError(
-                f'Failed to read prompt file for action {action.name}: {exc}'
-            ) from exc
-
-        # Get Claude Code configuration
         if not self.claude_code:
             raise RuntimeError(
-                f'Claude action {action.name} requires Claude Code config'
+                f'Action {action.name} requires Claude Code config'
             )
 
-        # Execute Claude Code with configured timeout and retries
-        timeout = action.timeout or 600  # Default 10 minutes
-        max_retries = action.max_retries or 3  # Default 3 attempts
-
-        self.logger.debug(
-            'Executing Claude Code action %s (timeout: %ds, max_retries: %d)',
-            action.name,
-            timeout,
-            max_retries,
+        # Execute agents using Task API with proper agent isolation
+        result = await self.claude_code.execute_agents(
+            action=action, context=context
         )
 
-        result = await self.claude_code.execute_prompt(
-            prompt_content=prompt_content,
-            timeout_seconds=timeout,
-            max_retries=max_retries,
-        )
-
-        # Check if Claude Code made any changes and commit them if needed
-        from . import git
-
-        try:
-            changed_files = await git.get_git_status(
-                workflow_run.working_directory
-            )
-            if changed_files:
-                self.logger.debug(
-                    'Claude action %s modified %d files: %s',
-                    action.name,
-                    len(changed_files),
-                    ', '.join(changed_files),
-                )
-
-                # Stage all changed files
-                await git.add_files(
-                    workflow_run.working_directory, changed_files
-                )
-
-                # Create commit message with proper formatting
-                commit_message = action.name
-                if len(changed_files) == 1:
-                    commit_message += f'\n\nModified: {changed_files[0]}'
-                else:
-                    commit_message += '\n\nModified files:\n'
-                    commit_message += '\n'.join(
-                        f'- {f}' for f in changed_files
-                    )
-
-                # Add ci skip if configured
-                if workflow_run.workflow.configuration.ci_skip_checks:
-                    commit_message += '\n\n[ci skip]'
-
-                commit_message += (
-                    '\n\nAuthored-By: Imbi Automations <noreply@aweber.com>'
-                )
-
-                # Commit the changes
-                commit_sha = await git.commit_changes(
-                    working_directory=workflow_run.working_directory,
-                    message=commit_message,
-                    author_name='Imbi Automations',
-                    author_email='noreply@aweber.com',
-                )
-
-                self.logger.debug(
-                    'Claude action %s committed changes: %s',
-                    action.name,
-                    commit_sha[:8] if commit_sha else 'unknown',
-                )
-
-                # Add commit info to result
-                result['committed'] = True
-                result['commit_sha'] = commit_sha
-                result['changed_files'] = changed_files
-            else:
-                result['committed'] = False
-
-        except (OSError, subprocess.CalledProcessError, RuntimeError) as exc:
-            self.logger.warning(
-                'Failed to commit changes for Claude action %s: %s',
-                action.name,
-                exc,
-            )
-            result['committed'] = False
-            result['commit_error'] = str(exc)
-
-        # Store result for future template references
+        # Store result for template access
         self.action_results[action.name] = {'result': result}
-        context['actions'] = self.action_results
-
-        self.logger.debug(
-            'Claude Code action %s completed: status=%s, attempts=%d, '
-            'time=%.2fs',
-            action.name,
-            result['status'],
-            result['attempts'],
-            result['execution_time'],
-        )
+        context.actions = self.action_results
 
         return result
 
+    async def _execute_actions_with_failure_handling(
+        self,
+        workflow_run: models.WorkflowRun,
+        context: models.WorkflowContext,
+        project_info: str,
+        start_from_action: str | None = None,
+        failure_context: str | None = None,
+    ) -> None:
+        """Execute workflow actions with on_failure restart support."""
+        actions = context.workflow_run.workflow.configuration.actions
+
+        # Find starting action index
+        start_index = 0
+        if start_from_action:
+            for i, action in enumerate(actions):
+                if action.name == start_from_action:
+                    start_index = i
+                    break
+            else:
+                self.logger.warning(
+                    'Restart action "%s" not found, starting from beginning',
+                    start_from_action,
+                )
+                start_index = 0
+
+        # Execute actions starting from the specified index
+        for i in range(start_index, len(actions)):
+            action = actions[i]
+
+            try:
+                # Check conditions (same as original loop)
+                if action.condition and not self._evaluate_action_condition(
+                    action.condition, context
+                ):
+                    self.logger.debug(
+                        'Skipping action %s for project %s - '
+                        'string condition not met: %s',
+                        action.name,
+                        project_info,
+                        action.condition,
+                    )
+                    continue
+
+                if not await self._evaluate_action_conditions(action, context):
+                    self.logger.debug(
+                        'Skipping action %s for project %s - '
+                        'rich conditions not met',
+                        action.name,
+                        project_info,
+                    )
+                    continue
+
+                # Log action start
+                if self.verbose:
+                    self.logger.info(
+                        'Starting action: %s for project %s',
+                        action.name,
+                        project_info,
+                    )
+                else:
+                    self.logger.debug(
+                        'Executing action: %s for project %s',
+                        action.name,
+                        project_info,
+                    )
+
+                # Add failure context to the action if this is a restart
+                if failure_context and action.name == start_from_action:
+                    # Store failure context for Claude actions to use
+                    context.previous_failure = failure_context
+
+                result = await self._execute_action(action, context)
+
+                # Log action completion
+                if self.verbose:
+                    self.logger.info(
+                        'Completed action: %s for project %s',
+                        action.name,
+                        project_info,
+                    )
+
+                # Store action result for template access
+                if result is not None:
+                    context.actions[action.name] = result
+
+                    # Check if action error - fail the workflow
+                    if isinstance(result, dict) and result.get('error'):
+                        self.logger.error(
+                            'Action %s failed for project %s: %s',
+                            action.name,
+                            project_info,
+                            result['error'],
+                        )
+                        # Stop workflow execution, continue to next project
+                        return 'failed'
+
+            except models.ActionFailureException as exc:
+                # Handle on_failure restart
+                restart_action = exc.restart_from
+
+                # Track failure count for the restart action
+                self._step_failure_counts[restart_action] = (
+                    self._step_failure_counts.get(restart_action, 0) + 1
+                )
+
+                if self._step_failure_counts[restart_action] >= 3:
+                    self.logger.error(
+                        'Action %s has failed %d times. '
+                        'Aborting workflow for project %s',
+                        restart_action,
+                        self._step_failure_counts[restart_action],
+                        project_info,
+                    )
+                    raise RuntimeError(
+                        f'Action {restart_action} failed 3 times, '
+                        f'aborting workflow'
+                    ) from None
+
+                self.logger.warning(
+                    'Action %s failed (attempt %d/3), '
+                    'restarting from action %s',
+                    exc.action_name,
+                    self._step_failure_counts[restart_action],
+                    restart_action,
+                )
+
+                # Recursive call to restart from the specified action
+                return await self._execute_actions_with_failure_handling(
+                    workflow_run,
+                    context,
+                    project_info,
+                    restart_action,
+                    exc.failure_details,
+                )
+
+            except (
+                OSError,
+                subprocess.CalledProcessError,
+                RuntimeError,
+            ) as exc:
+                # Regular action failure
+                self.logger.error(
+                    'Action %s failed for project %s: %s',
+                    action.name,
+                    project_info,
+                    exc,
+                )
+                context.actions[action.name] = {
+                    'result': {
+                        'extracted': False,
+                        'packages': [],
+                        'package_count': 0,
+                    },
+                    'error': str(exc),
+                }
+                raise
+
     async def _execute_shell_action(
-        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+        self, action: models.WorkflowAction, context: models.WorkflowContext
     ) -> typing.Any:
         """Execute a shell workflow action (run shell commands)."""
         import subprocess
@@ -1929,9 +2003,7 @@ class WorkflowEngine:
         if not action.command:
             raise ValueError(f'Shell action {action.name} requires command')
 
-        workflow_run = context['workflow_run']
-
-        if not workflow_run.working_directory:
+        if not context.workflow_run.working_directory:
             raise RuntimeError(
                 f'Shell action {action.name} requires cloned repository '
                 f'(working_directory)'
@@ -1956,7 +2028,7 @@ class WorkflowEngine:
             result = subprocess.run(  # noqa: ASYNC221, S602
                 command,
                 shell=True,
-                cwd=workflow_run.working_directory,
+                cwd=context.workflow_run.working_directory,
                 capture_output=True,
                 text=True,
                 timeout=300,  # 5 minute timeout
@@ -1998,7 +2070,7 @@ class WorkflowEngine:
             # Check for git changes and commit them if any exist
             try:
                 changed_files = await git.get_git_status(
-                    workflow_run.working_directory
+                    context.workflow_run.working_directory
                 )
                 if changed_files:
                     self.logger.debug(
@@ -2010,7 +2082,7 @@ class WorkflowEngine:
 
                     # Stage all changed files
                     await git.add_files(
-                        workflow_run.working_directory, changed_files
+                        context.workflow_run.working_directory, changed_files
                     )
 
                     # Create commit message with proper formatting
@@ -2025,7 +2097,8 @@ class WorkflowEngine:
                         )
 
                     # Add ci skip if configured
-                    if workflow_run.workflow.configuration.ci_skip_checks:
+                    config = context.workflow_run.workflow.configuration
+                    if config.ci_skip_checks:
                         commit_message += '\n\n[ci skip]'
 
                     commit_message += (
@@ -2035,7 +2108,7 @@ class WorkflowEngine:
 
                     # Commit the changes
                     commit_sha = await git.commit_changes(
-                        working_directory=workflow_run.working_directory,
+                        working_directory=context.workflow_run.working_directory,
                         message=commit_message,
                         author_name='Imbi Automations',
                         author_email='noreply@aweber.com',
@@ -2068,7 +2141,7 @@ class WorkflowEngine:
 
             # Store result for future template references
             self.action_results[action.name] = {'result': shell_result}
-            context['actions'] = self.action_results
+            context.actions = self.action_results
 
             return shell_result
 
@@ -2082,7 +2155,7 @@ class WorkflowEngine:
             raise RuntimeError(error_msg) from exc
 
     async def _execute_ai_editor_action(
-        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+        self, action: models.WorkflowAction, context: models.WorkflowContext
     ) -> typing.Any:
         """Execute an AI Editor workflow action (fast file transformations)."""
 
@@ -2096,16 +2169,16 @@ class WorkflowEngine:
                 f'AI Editor action {action.name} requires target_file'
             )
 
-        workflow_run = context['workflow_run']
-
-        if not workflow_run.working_directory:
+        if not context.workflow_run.working_directory:
             raise RuntimeError(
                 f'AI Editor action {action.name} requires cloned repository '
                 f'(working_directory)'
             )
 
         # Get the prompt file path (relative to workflow directory)
-        prompt_file_path = workflow_run.workflow.path / action.prompt_file
+        prompt_file_path = (
+            context.workflow_run.workflow.path / action.prompt_file
+        )
 
         if not prompt_file_path.exists():
             raise FileNotFoundError(
@@ -2148,7 +2221,7 @@ class WorkflowEngine:
 
         editor = ai_editor.AIEditor(
             api_key=self._anthropic_config.api_key.get_secret_value(),
-            working_directory=workflow_run.working_directory,
+            working_directory=context.workflow_run.working_directory,
         )
 
         # Execute AI Editor with configured timeout and retries
@@ -2175,7 +2248,7 @@ class WorkflowEngine:
 
         try:
             changed_files = await git.get_git_status(
-                workflow_run.working_directory
+                context.workflow_run.working_directory
             )
             if changed_files and result.get('changed'):
                 self.logger.debug(
@@ -2187,7 +2260,7 @@ class WorkflowEngine:
 
                 # Stage all changed files
                 await git.add_files(
-                    workflow_run.working_directory, changed_files
+                    context.workflow_run.working_directory, changed_files
                 )
 
                 # Create commit message with proper formatting
@@ -2201,19 +2274,17 @@ class WorkflowEngine:
                     )
 
                 # Add ci skip if configured
-                if workflow_run.workflow.configuration.ci_skip_checks:
+                config = context.workflow_run.workflow.configuration
+                if config.ci_skip_checks:
                     commit_message += '\n\n[ci skip]'
-
-                commit_message += (
-                    '\n\nAuthored-By: Imbi Automations <noreply@aweber.com>'
-                )
 
                 # Commit the changes
                 commit_sha = await git.commit_changes(
-                    working_directory=workflow_run.working_directory,
+                    working_directory=context.workflow_run.working_directory,
                     message=commit_message,
                     author_name='Imbi Automations',
                     author_email='noreply@aweber.com',
+                    author_trailer=context.workflow_run.workflow.configuration.commit_author_trailer,
                 )
 
                 self.logger.debug(
@@ -2240,7 +2311,7 @@ class WorkflowEngine:
 
         # Store result for future template references
         self.action_results[action.name] = {'result': result}
-        context['actions'] = self.action_results
+        context.actions = self.action_results
 
         self.logger.debug(
             'AI Editor action %s completed: status=%s, attempts=%d',
@@ -2252,7 +2323,7 @@ class WorkflowEngine:
         return result
 
     async def _execute_git_revert_action(
-        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+        self, action: models.WorkflowAction, context: models.WorkflowContext
     ) -> dict[str, typing.Any]:
         """Execute a git-revert workflow action.
 
@@ -2275,8 +2346,8 @@ class WorkflowEngine:
             )
 
         # Get working directory from context
-        workflow_run = context.get('workflow_run')
-        if not workflow_run or not workflow_run.working_directory:
+        # Remove unnecessary intermediate variable
+        if not context.workflow_run.working_directory:
             raise RuntimeError(
                 f'Git revert action {action.name} requires working directory'
             )
@@ -2295,7 +2366,9 @@ class WorkflowEngine:
         try:
             # Find commit before keyword match
             before_commit = await git.find_commit_before_keyword(
-                workflow_run.working_directory, action.keyword, strategy
+                context.workflow_run.working_directory,
+                action.keyword,
+                strategy,
             )
 
             if not before_commit:
@@ -2311,7 +2384,9 @@ class WorkflowEngine:
 
             # Get file content at that commit
             file_content = await git.get_file_at_commit(
-                workflow_run.working_directory, action.source, before_commit
+                context.workflow_run.working_directory,
+                action.source,
+                before_commit,
             )
 
             if file_content is None:
@@ -2330,7 +2405,9 @@ class WorkflowEngine:
             if action.target_path:
                 # Save to parent directory (outside git repo) to avoid commit
                 target_file = action.target_path
-                file_path = workflow_run.working_directory.parent / target_file
+                file_path = (
+                    context.workflow_run.working_directory.parent / target_file
+                )
                 file_path.parent.mkdir(parents=True, exist_ok=True)
                 file_path.write_text(file_content, encoding='utf-8')
                 self.logger.debug(
@@ -2340,7 +2417,9 @@ class WorkflowEngine:
                 )
             else:
                 # Original behavior: overwrite source file in git repo
-                file_path = workflow_run.working_directory / action.source
+                file_path = (
+                    context.workflow_run.working_directory / action.source
+                )
                 file_path.parent.mkdir(parents=True, exist_ok=True)
                 file_path.write_text(file_content, encoding='utf-8')
 
@@ -2371,12 +2450,12 @@ class WorkflowEngine:
             else:
                 # When overwriting source file, commit the changes
                 changed_files = await git.get_git_status(
-                    workflow_run.working_directory
+                    context.workflow_run.working_directory
                 )
 
                 if changed_files:
                     await git.add_files(
-                        workflow_run.working_directory, [action.source]
+                        context.workflow_run.working_directory, [action.source]
                     )
 
                     commit_message = (
@@ -2392,7 +2471,7 @@ class WorkflowEngine:
                     )
 
                     commit_sha = await git.commit_changes(
-                        working_directory=workflow_run.working_directory,
+                        working_directory=context.workflow_run.working_directory,
                         message=commit_message,
                         author_name='Imbi Automations',
                         author_email='noreply@aweber.com',
@@ -2421,7 +2500,7 @@ class WorkflowEngine:
 
         # Store result for future template references
         self.action_results[action.name] = {'result': result}
-        context['actions'] = self.action_results
+        context.actions = self.action_results
 
         self.logger.debug(
             'Git revert action %s completed: reverted=%s, committed=%s',
@@ -2433,7 +2512,7 @@ class WorkflowEngine:
         return result
 
     async def _execute_git_extract_action(
-        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+        self, action: models.WorkflowAction, context: models.WorkflowContext
     ) -> dict[str, typing.Any]:
         """Execute git-extract action (extracts content without commit).
 
@@ -2456,9 +2535,8 @@ class WorkflowEngine:
             )
 
         # Get working directory and project info from context
-        workflow_run = context.get('workflow_run')
-        project_info = self._get_project_info_string(workflow_run)
-        if not workflow_run or not workflow_run.working_directory:
+        project_info = self._get_project_info_string(context)
+        if not context.workflow_run.working_directory:
             raise RuntimeError(
                 f'Git extract action {action.name} requires working directory'
             )
@@ -2479,7 +2557,9 @@ class WorkflowEngine:
         try:
             # Find commit before keyword match
             before_commit = await git.find_commit_before_keyword(
-                workflow_run.working_directory, action.keyword, strategy
+                context.workflow_run.working_directory,
+                action.keyword,
+                strategy,
             )
 
             if not before_commit:
@@ -2495,7 +2575,9 @@ class WorkflowEngine:
 
             # Get file content at that commit
             file_content = await git.get_file_at_commit(
-                workflow_run.working_directory, action.source, before_commit
+                context.workflow_run.working_directory,
+                action.source,
+                before_commit,
             )
 
             if file_content is None:
@@ -2514,8 +2596,12 @@ class WorkflowEngine:
                 )
                 return result
 
-            # Save extracted content outside git working directory
-            file_path = workflow_run.working_directory.parent / target_path
+            # Save extracted content to extracted directory for Claude access
+            extracted_dir = (
+                context.workflow_run.working_directory.parent / 'extracted'
+            )
+            extracted_dir.mkdir(exist_ok=True)
+            file_path = extracted_dir / target_path
             file_path.parent.mkdir(parents=True, exist_ok=True)
             file_path.write_text(file_content, encoding='utf-8')
 
@@ -2546,7 +2632,7 @@ class WorkflowEngine:
 
         # Store result for future template references
         self.action_results[action.name] = {'result': result}
-        context['actions'] = self.action_results
+        context.actions = self.action_results
 
         self.logger.debug(
             'Git extract action %s completed: extracted=%s (working only)',
@@ -2557,7 +2643,7 @@ class WorkflowEngine:
         return result
 
     async def _execute_docker_extract_action(
-        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+        self, action: models.WorkflowAction, context: models.WorkflowContext
     ) -> dict[str, typing.Any]:
         """Execute a docker-extract workflow action.
 
@@ -2575,9 +2661,8 @@ class WorkflowEngine:
             )
 
         # Get working directory and project info from context
-        workflow_run = context.get('workflow_run')
-        project_info = self._get_project_info_string(workflow_run)
-        if not workflow_run or not workflow_run.working_directory:
+        project_info = self._get_project_info_string(context)
+        if not context.workflow_run.working_directory:
             raise RuntimeError(
                 f'Docker extract action {action.name} needs working directory'
             )
@@ -2602,7 +2687,7 @@ class WorkflowEngine:
 
             # Extract Docker image from Dockerfile
             dockerfile_full_path = (
-                workflow_run.working_directory / dockerfile_path
+                context.workflow_run.working_directory / dockerfile_path
             )
             image_name = await docker.extract_docker_image_from_dockerfile(
                 dockerfile_full_path
@@ -2642,7 +2727,7 @@ class WorkflowEngine:
 
             # Write extracted content outside git working dir to avoid commit
             target_file_path = (
-                workflow_run.working_directory.parent / target_path
+                context.workflow_run.working_directory.parent / target_path
             )
             target_file_path.parent.mkdir(parents=True, exist_ok=True)
             target_file_path.write_text(file_content, encoding='utf-8')
@@ -2685,7 +2770,7 @@ class WorkflowEngine:
 
         # Store result for future template references
         self.action_results[action.name] = {'result': result}
-        context['actions'] = self.action_results
+        context.actions = self.action_results
 
         self.logger.debug(
             'Docker extract action %s completed: extracted=%s, committed=%s',
@@ -2697,7 +2782,7 @@ class WorkflowEngine:
         return result
 
     async def _execute_add_trailing_whitespace_action(
-        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+        self, action: models.WorkflowAction, context: models.WorkflowContext
     ) -> dict[str, typing.Any]:
         """Execute an add-trailing-whitespace workflow action.
 
@@ -2715,8 +2800,8 @@ class WorkflowEngine:
             )
 
         # Get working directory from context
-        workflow_run = context.get('workflow_run')
-        if not workflow_run or not workflow_run.working_directory:
+        # Remove unnecessary intermediate variable
+        if not context.workflow_run.working_directory:
             raise RuntimeError(
                 f'Add trailing whitespace action {action.name} needs work dir'
             )
@@ -2729,7 +2814,7 @@ class WorkflowEngine:
         }
 
         try:
-            file_path = workflow_run.working_directory / action.source
+            file_path = context.workflow_run.working_directory / action.source
 
             if not file_path.exists():
                 self.logger.warning(
@@ -2774,12 +2859,12 @@ class WorkflowEngine:
 
             # Check if changes were made and commit
             changed_files = await git.get_git_status(
-                workflow_run.working_directory
+                context.workflow_run.working_directory
             )
 
             if changed_files and action.source in changed_files:
                 await git.add_files(
-                    workflow_run.working_directory, [action.source]
+                    context.workflow_run.working_directory, [action.source]
                 )
 
                 commit_message = (
@@ -2792,7 +2877,7 @@ class WorkflowEngine:
                 )
 
                 commit_sha = await git.commit_changes(
-                    working_directory=workflow_run.working_directory,
+                    working_directory=context.workflow_run.working_directory,
                     message=commit_message,
                     author_name='Imbi Automations',
                     author_email='noreply@aweber.com',
@@ -2818,7 +2903,7 @@ class WorkflowEngine:
 
         # Store result for future template references
         self.action_results[action.name] = {'result': result}
-        context['actions'] = self.action_results
+        context.actions = self.action_results
 
         self.logger.debug(
             (
@@ -2972,7 +3057,7 @@ class WorkflowEngine:
         return overall_result
 
     def _evaluate_action_condition(
-        self, condition: str, context: dict[str, typing.Any]
+        self, condition: str, context: models.WorkflowContext
     ) -> bool:
         """Evaluate an action condition against the current context.
 
@@ -2987,10 +3072,7 @@ class WorkflowEngine:
         """
         try:
             # Create a safe evaluation environment
-            safe_globals = {
-                '__builtins__': {},
-                'actions': context.get('actions', {}),
-            }
+            safe_globals = {'__builtins__': {}, 'actions': context.actions}
 
             # Evaluate the condition
             result = eval(condition, safe_globals)  # noqa: S307
@@ -3303,7 +3385,7 @@ class WorkflowEngine:
         return final_result
 
     async def _evaluate_action_conditions(
-        self, action: models.WorkflowAction, context: dict[str, typing.Any]
+        self, action: models.WorkflowAction, context: models.WorkflowContext
     ) -> bool:
         """Evaluate action-level rich conditions.
 
@@ -3316,8 +3398,6 @@ class WorkflowEngine:
         """
         if not action.conditions:
             return True
-
-        workflow_run = context['workflow_run']
 
         self.logger.debug(
             'Evaluating %d action conditions for %s with %s logic',
@@ -3338,11 +3418,11 @@ class WorkflowEngine:
                     ]
                 ):
                     result = await self._evaluate_remote_condition(
-                        condition, workflow_run.github_repository
+                        condition, context.workflow_run.github_repository
                     )
                 else:
                     # Local condition - requires working directory
-                    if not workflow_run.working_directory:
+                    if not context.workflow_run.working_directory:
                         self.logger.warning(
                             'Cannot evaluate local condition for action %s '
                             'without working directory',
@@ -3351,7 +3431,7 @@ class WorkflowEngine:
                         result = True  # Allow action to proceed
                     else:
                         result = await self._evaluate_condition(
-                            condition, workflow_run.working_directory
+                            condition, context.workflow_run.working_directory
                         )
 
                 condition_results.append(result)
@@ -3516,6 +3596,7 @@ class WorkflowEngine:
             self.claude_code = claude_code.ClaudeCode(
                 config=self._claude_code_config,
                 working_directory=run.working_directory,
+                workflow_directory=run.workflow.path,
             )
             self.logger.debug(
                 'Initialized Claude Code client for workflow execution'
@@ -3535,62 +3616,10 @@ class WorkflowEngine:
         # Create template context
         context = self._create_template_context(run)
 
-        # Execute each action sequentially
-        for action in run.workflow.configuration.actions:
-            try:
-                # Check legacy string condition if specified
-                if action.condition and not self._evaluate_action_condition(
-                    action.condition, context
-                ):
-                    self.logger.debug(
-                        'Skipping action %s for project %s - '
-                        'string condition not met: %s',
-                        action.name,
-                        project_info,
-                        action.condition,
-                    )
-                    continue
-
-                # Check rich conditions if specified
-                if not await self._evaluate_action_conditions(action, context):
-                    self.logger.debug(
-                        'Skipping action %s for project %s - '
-                        'rich conditions not met',
-                        action.name,
-                        project_info,
-                    )
-                    continue
-
-                self.logger.debug(
-                    'Executing action: %s for project %s',
-                    action.name,
-                    project_info,
-                )
-                result = await self._execute_action(action, context)
-                # Store action result for template access
-                if result is not None:
-                    context['actions'][action.name] = result
-            except (
-                OSError,
-                subprocess.CalledProcessError,
-                RuntimeError,
-            ) as exc:
-                self.logger.error(
-                    'Action %s failed for project %s: %s',
-                    action.name,
-                    project_info,
-                    exc,
-                )
-                # Store failed result for template access
-                context['actions'][action.name] = {
-                    'result': {
-                        'extracted': False,
-                        'packages': [],
-                        'package_count': 0,
-                    },
-                    'error': str(exc),
-                }
-                raise
+        # Execute actions with failure handling and restart support
+        await self._execute_actions_with_failure_handling(
+            run, context, project_info
+        )
 
         # Check if any changes were made during workflow execution
         changes_made = False
@@ -3751,6 +3780,20 @@ class WorkflowEngine:
 
             # Update the WorkflowRun with the working directory
             run.working_directory = working_directory
+
+            # Create workflow symlink for easy access to templates
+            workflow_symlink = working_directory.parent / 'workflow'
+            try:
+                workflow_symlink.symlink_to(run.workflow.path.resolve())
+                self.logger.debug(
+                    'Created workflow symlink: %s -> %s',
+                    workflow_symlink,
+                    run.workflow.path.resolve(),
+                )
+            except OSError as exc:
+                self.logger.warning(
+                    'Failed to create workflow symlink: %s', exc
+                )
 
             self.logger.debug(
                 'Repository cloned to working directory: %s', working_directory

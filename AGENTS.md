@@ -21,6 +21,8 @@ imbi-automations config.toml workflows/workflow-name --all-projects
 
 # Resume processing from a specific project (useful for large batches)
 imbi-automations config.toml workflows/workflow-name --all-projects --start-from-project my-project-slug
+# or by project ID
+imbi-automations config.toml workflows/workflow-name --all-projects --start-from-project 342
 
 # Development with virtual environment
 python -m venv .venv
@@ -282,6 +284,16 @@ exclude_github_workflow_status = ["success"]
 - `pre-commit`: Git hooks for code quality
 - `pytest`: Test framework
 - `ruff`: Fast Python linter and formatter
+
+## Claude Code Standards
+
+All Claude Code actions follow standards defined in the `base-prompt.md` file, including:
+
+- **Failure Indication**: Create failure files (`ACTION_FAILED`, `{ACTION_NAME}_FAILED`, etc.) to signal workflow abortion
+- **Success Indication**: No action required - successful completion is implicit when no failure files are created
+- **Template Variables**: Ensure all Jinja2 variables are properly resolved in generated content
+- **Error Details**: Include specific, actionable error information in failure files
+- **Failure Restart**: Actions with `on_failure = "action-name"` will restart from the specified action when failure files are detected (up to 3 attempts per action)
 
 ## Available Workflows
 

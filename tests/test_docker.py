@@ -60,7 +60,7 @@ COPY . /app
 
         self.assertIsNone(image_name)
 
-    @mock.patch('subprocess.run')
+    @mock.patch('asyncio.create_subprocess_exec')
     async def test_extract_file_from_docker_image_success(
         self, mock_subprocess: mock.Mock
     ) -> None:
@@ -68,11 +68,13 @@ COPY . /app
         constraints_content = 'requests==2.28.1\npydantic==1.10.0\n'
 
         # Mock successful subprocess result
-        mock_result = mock.Mock()
-        mock_result.returncode = 0
-        mock_result.stdout = constraints_content
-        mock_result.stderr = ''
-        mock_subprocess.return_value = mock_result
+        mock_process = mock.AsyncMock()
+        mock_process.communicate.return_value = (
+            constraints_content.encode('utf-8'),
+            b'',
+        )
+        mock_process.returncode = 0
+        mock_subprocess.return_value = mock_process
 
         result = await docker.extract_file_from_docker_image(
             'python3-service:3.12.10-5',
@@ -81,33 +83,29 @@ COPY . /app
 
         self.assertEqual(result, constraints_content)
         mock_subprocess.assert_called_once_with(
-            [
-                'docker',
-                'run',
-                '--rm',
-                '--entrypoint=cat',
-                'python3-service:3.12.10-5',
-                '/tmp/constraints.txt',  # noqa: S108
-            ],
-            capture_output=True,
-            text=True,
-            timeout=60,
-            check=False,
+            'docker',
+            'run',
+            '--rm',
+            '--entrypoint=cat',
+            'python3-service:3.12.10-5',
+            '/tmp/constraints.txt',  # noqa: S108
+            stdout=mock.ANY,
+            stderr=mock.ANY,
         )
 
-    @mock.patch('subprocess.run')
+    @mock.patch('asyncio.create_subprocess_exec')
     async def test_extract_file_from_docker_image_file_not_found(
         self, mock_subprocess: mock.Mock
     ) -> None:
         """Test file extraction when file doesn't exist in image."""
         # Mock file not found result
-        mock_result = mock.Mock()
-        mock_result.returncode = 1
-        mock_result.stdout = ''
-        mock_result.stderr = (
-            'cat: /tmp/nonexistent.txt: No such file or directory'
+        mock_process = mock.AsyncMock()
+        mock_process.communicate.return_value = (
+            b'',
+            b'cat: /tmp/nonexistent.txt: No such file or directory',
         )
-        mock_subprocess.return_value = mock_result
+        mock_process.returncode = 1
+        mock_subprocess.return_value = mock_process
 
         result = await docker.extract_file_from_docker_image(
             'python3-service:3.12.10-5',

@@ -125,6 +125,24 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
         shutil.rmtree(self.temp_dir)
 
+    def _create_test_context(
+        self, working_directory: pathlib.Path | None = None
+    ) -> models.WorkflowContext:
+        """Helper to create WorkflowContext for tests."""
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow,
+            working_directory=working_directory,
+            github_repository=self.github_repo,
+            imbi_project=self.imbi_project,
+        )
+        return models.WorkflowContext(
+            workflow=self.workflow,
+            workflow_run=workflow_run,
+            github_repository=self.github_repo,
+            imbi_project=self.imbi_project,
+            actions=self.workflow_engine.action_results,
+        )
+
     def test_workflow_engine_init(self) -> None:
         """Test WorkflowEngine initialization."""
         engine_instance = engine.WorkflowEngine(
@@ -150,12 +168,12 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
         context = self.workflow_engine._create_template_context(workflow_run)
 
-        self.assertIn('workflow', context)
-        self.assertIn('github_repository', context)
-        self.assertIn('imbi_project', context)
-        self.assertIn('actions', context)
-        self.assertEqual(context['github_repository'], self.github_repo)
-        self.assertEqual(context['imbi_project'], self.imbi_project)
+        # Test WorkflowContext object attributes
+        self.assertIsInstance(context, models.WorkflowContext)
+        self.assertEqual(context.workflow, self.workflow)
+        self.assertEqual(context.github_repository, self.github_repo)
+        self.assertEqual(context.imbi_project, self.imbi_project)
+        self.assertIsNotNone(context.actions)
 
     def test_render_template_kwargs(self) -> None:
         """Test template rendering in kwargs."""
@@ -167,10 +185,15 @@ class TestWorkflowEngine(base.AsyncTestCase):
             }
         )
 
-        context = {
-            'github_repository': self.github_repo,
-            'imbi_project': self.imbi_project,
-        }
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow, imbi_project=self.imbi_project
+        )
+        context = models.WorkflowContext(
+            workflow=self.workflow,
+            workflow_run=workflow_run,
+            github_repository=self.github_repo,
+            imbi_project=self.imbi_project,
+        )
 
         result = self.workflow_engine._render_template_kwargs(kwargs, context)
 
@@ -193,11 +216,20 @@ class TestWorkflowEngine(base.AsyncTestCase):
             'result': {'team1': 'admin', 'team2': 'maintain'}
         }
 
-        context = {
-            'github_repository': self.github_repo,
-            'imbi_project': self.imbi_project,
-            'actions': self.workflow_engine.action_results,
-        }
+        # Create WorkflowRun for context
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow,
+            github_repository=self.github_repo,
+            imbi_project=self.imbi_project,
+        )
+
+        context = models.WorkflowContext(
+            workflow=self.workflow,
+            workflow_run=workflow_run,
+            github_repository=self.github_repo,
+            imbi_project=self.imbi_project,
+            actions=self.workflow_engine.action_results,
+        )
 
         result = self.workflow_engine._render_template_kwargs(kwargs, context)
 
@@ -260,11 +292,18 @@ class TestWorkflowEngine(base.AsyncTestCase):
         self.mock_github.get_latest_workflow_status.return_value = 'success'
 
         action = self.workflow_config.actions[0]  # get-status action
-        context = {
-            'github_repository': self.github_repo,
-            'imbi_project': self.imbi_project,
-            'actions': {},
-        }
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow,
+            github_repository=self.github_repo,
+            imbi_project=self.imbi_project,
+        )
+        context = models.WorkflowContext(
+            workflow=self.workflow,
+            workflow_run=workflow_run,
+            github_repository=self.github_repo,
+            imbi_project=self.imbi_project,
+            actions={},
+        )
 
         result = await self.workflow_engine._execute_action(action, context)
 
@@ -302,7 +341,15 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
         self.mock_github.get_latest_workflow_status.return_value = 'completed'
 
-        context = {'actions': {}}
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow, imbi_project=self.imbi_project
+        )
+        context = models.WorkflowContext(
+            workflow=self.workflow,
+            workflow_run=workflow_run,
+            imbi_project=self.imbi_project,
+            actions={},
+        )
         result = await self.workflow_engine._execute_action(action, context)
 
         self.assertEqual(result, 'completed')
@@ -317,11 +364,18 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         action = self.workflow_config.actions[0]
-        context = {
-            'github_repository': self.github_repo,
-            'imbi_project': self.imbi_project,
-            'actions': {},
-        }
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow,
+            github_repository=self.github_repo,
+            imbi_project=self.imbi_project,
+        )
+        context = models.WorkflowContext(
+            workflow=self.workflow,
+            workflow_run=workflow_run,
+            github_repository=self.github_repo,
+            imbi_project=self.imbi_project,
+            actions={},
+        )
 
         with self.assertRaises(RuntimeError) as cm:
             await self.workflow_engine._execute_action(action, context)
@@ -1209,8 +1263,9 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
         context = self.workflow_engine._create_template_context(workflow_run)
 
-        self.assertIn('working_directory', context)
-        self.assertEqual(context['working_directory'], mock_working_dir)
+        # Test WorkflowContext object attributes
+        self.assertIsInstance(context, models.WorkflowContext)
+        self.assertEqual(context.working_directory, mock_working_dir)
 
     async def test_execute_action_callable_type(self) -> None:
         """Test action execution with explicit callable type."""
@@ -1229,7 +1284,19 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
         self.mock_github.get_latest_workflow_status.return_value = 'success'
 
-        context = {'actions': {}}
+        # Create proper WorkflowContext for the test
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow,
+            github_repository=self.github_repo,
+            imbi_project=self.imbi_project,
+        )
+        context = models.WorkflowContext(
+            workflow=self.workflow,
+            workflow_run=workflow_run,
+            github_repository=self.github_repo,
+            imbi_project=self.imbi_project,
+            actions=self.workflow_engine.action_results,
+        )
         result = await self.workflow_engine._execute_action(action, context)
 
         self.assertEqual(result, 'success')
@@ -1255,11 +1322,12 @@ class TestWorkflowEngine(base.AsyncTestCase):
             imbi_project=self.imbi_project,
         )
 
-        context = {
-            'workflow': workflow_run.workflow,
-            'workflow_run': workflow_run,
-            'actions': {},
-        }
+        context = models.WorkflowContext(
+            workflow=workflow_run.workflow,
+            workflow_run=workflow_run,
+            actions={},
+            imbi_project=self.imbi_project,
+        )
 
         # Templates directory doesn't exist, expect 'no_templates' result
         result = await self.workflow_engine._execute_action(action, context)
@@ -1283,7 +1351,15 @@ class TestWorkflowEngine(base.AsyncTestCase):
         # Manually override the type to an invalid value
         action.type = 'invalid_type'
 
-        context = {'actions': {}}
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow, imbi_project=self.imbi_project
+        )
+        context = models.WorkflowContext(
+            workflow=self.workflow,
+            workflow_run=workflow_run,
+            imbi_project=self.imbi_project,
+            actions={},
+        )
 
         with self.assertRaises(ValueError) as cm:
             await self.workflow_engine._execute_action(action, context)
@@ -1308,7 +1384,15 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
         self.mock_github.get_latest_workflow_status.return_value = 'completed'
 
-        context = {'actions': {}}
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow, imbi_project=self.imbi_project
+        )
+        context = models.WorkflowContext(
+            workflow=self.workflow,
+            workflow_run=workflow_run,
+            imbi_project=self.imbi_project,
+            actions={},
+        )
         result = await self.workflow_engine._execute_callable_action(
             action, context
         )
@@ -1329,17 +1413,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
 
         # Create mock workflow run with working directory
         mock_working_dir = pathlib.Path('/mock/working/dir')
-        workflow_run = models.WorkflowRun(
-            workflow=self.workflow,
-            working_directory=mock_working_dir,
-            imbi_project=self.imbi_project,
-        )
-
-        context = {
-            'workflow': workflow_run.workflow,
-            'workflow_run': workflow_run,
-            'actions': {},
-        }
+        context = self._create_test_context(working_directory=mock_working_dir)
         result = await self.workflow_engine._execute_templates_action(
             action, context
         )
@@ -1403,14 +1477,14 @@ class TestWorkflowEngine(base.AsyncTestCase):
             value=models.WorkflowActionValue(client='unused', method='unused'),
         )
 
-        context = {
-            'workflow': workflow_run.workflow,
-            'workflow_run': workflow_run,
-            'actions': {},
-            'imbi_project': self.imbi_project,
-            'github_repository': self.github_repo,
-            'working_directory': mock_working_dir,
-        }
+        context = models.WorkflowContext(
+            workflow=workflow_run.workflow,
+            workflow_run=workflow_run,
+            actions={},
+            imbi_project=self.imbi_project,
+            github_repository=self.github_repo,
+            working_directory=mock_working_dir,
+        )
 
         with mock.patch('shutil.copy2') as mock_copy2:
             result = await self.workflow_engine._execute_templates_action(
@@ -1451,11 +1525,12 @@ class TestWorkflowEngine(base.AsyncTestCase):
             imbi_project=self.imbi_project,
         )
 
-        context = {
-            'workflow': workflow_run.workflow,
-            'workflow_run': workflow_run,
-            'actions': {},
-        }
+        context = models.WorkflowContext(
+            workflow=workflow_run.workflow,
+            workflow_run=workflow_run,
+            actions={},
+            imbi_project=self.imbi_project,
+        )
 
         with self.assertRaises(RuntimeError) as cm:
             await self.workflow_engine._execute_templates_action(
@@ -1487,10 +1562,15 @@ class TestWorkflowEngine(base.AsyncTestCase):
         mock_file_stat.st_mode = 0o755
         mock_stat.return_value = mock_file_stat
 
-        context = {
-            'imbi_project': self.imbi_project,
-            'github_repository': self.github_repo,
-        }
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow, imbi_project=self.imbi_project
+        )
+        context = models.WorkflowContext(
+            workflow=self.workflow,
+            workflow_run=workflow_run,
+            imbi_project=self.imbi_project,
+            github_repository=self.github_repo,
+        )
 
         await self.workflow_engine._render_template_file(
             template_file, target_file, context
@@ -1944,13 +2024,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         mock_working_dir = pathlib.Path('/mock/working/dir')
-        workflow_run = models.WorkflowRun(
-            workflow=self.workflow,
-            working_directory=mock_working_dir,
-            imbi_project=self.imbi_project,
-        )
-
-        context = {'workflow_run': workflow_run}
+        context = self._create_test_context(working_directory=mock_working_dir)
 
         # Mock source file doesn't exist
         source_path = mock.MagicMock()
@@ -1979,13 +2053,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         mock_working_dir = pathlib.Path('/mock/working/dir')
-        workflow_run = models.WorkflowRun(
-            workflow=self.workflow,
-            working_directory=mock_working_dir,
-            imbi_project=self.imbi_project,
-        )
-
-        context = {'workflow_run': workflow_run}
+        context = self._create_test_context(working_directory=mock_working_dir)
 
         # Mock both source and destination exist
         source_path = mock.MagicMock()
@@ -2016,13 +2084,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         mock_working_dir = pathlib.Path('/mock/working/dir')
-        workflow_run = models.WorkflowRun(
-            workflow=self.workflow,
-            working_directory=mock_working_dir,
-            imbi_project=self.imbi_project,
-        )
-
-        context = {'workflow_run': workflow_run}
+        context = self._create_test_context(working_directory=mock_working_dir)
 
         # Mock source file doesn't exist
         source_path = mock.MagicMock()
@@ -2063,7 +2125,13 @@ class TestWorkflowEngine(base.AsyncTestCase):
             imbi_project=self.imbi_project,
         )
 
-        context = {'workflow_run': workflow_run}
+        context = models.WorkflowContext(
+            workflow=workflow,
+            workflow_run=workflow_run,
+            github_repository=self.github_repo,
+            imbi_project=self.imbi_project,
+            actions=self.workflow_engine.action_results,
+        )
 
         # Mock source and destination paths
         source_path = mock.MagicMock()
@@ -2126,13 +2194,17 @@ class TestWorkflowEngine(base.AsyncTestCase):
             path=mock_workflow_dir, configuration=self.workflow_config
         )
 
-        workflow_run = models.WorkflowRun(
+        context = models.WorkflowContext(
             workflow=workflow,
-            working_directory=mock_working_dir,
+            workflow_run=models.WorkflowRun(
+                workflow=workflow,
+                working_directory=mock_working_dir,
+                imbi_project=self.imbi_project,
+            ),
+            github_repository=self.github_repo,
             imbi_project=self.imbi_project,
+            actions=self.workflow_engine.action_results,
         )
-
-        context = {'workflow_run': workflow_run}
 
         # Mock source file doesn't exist
         source_path = mock.MagicMock()
@@ -2167,7 +2239,11 @@ class TestWorkflowEngine(base.AsyncTestCase):
             imbi_project=self.imbi_project,
         )
 
-        context = {'workflow_run': workflow_run}
+        context = models.WorkflowContext(
+            workflow=workflow_run.workflow,
+            workflow_run=workflow_run,
+            imbi_project=workflow_run.imbi_project,
+        )
 
         with self.assertRaises(ValueError) as cm:
             await self.workflow_engine._execute_file_action(action, context)
@@ -2184,7 +2260,14 @@ class TestWorkflowEngine(base.AsyncTestCase):
             source='some-file.txt',
         )
 
-        context = {'workflow_run': mock.MagicMock()}
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow, imbi_project=self.imbi_project
+        )
+        context = models.WorkflowContext(
+            workflow=self.workflow,
+            workflow_run=workflow_run,
+            imbi_project=self.imbi_project,
+        )
 
         with self.assertRaises(ValueError) as cm:
             await self.workflow_engine._execute_file_action(action, context)
@@ -2199,7 +2282,14 @@ class TestWorkflowEngine(base.AsyncTestCase):
             command='rename',
         )
 
-        context = {'workflow_run': mock.MagicMock()}
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow, imbi_project=self.imbi_project
+        )
+        context = models.WorkflowContext(
+            workflow=self.workflow,
+            workflow_run=workflow_run,
+            imbi_project=self.imbi_project,
+        )
 
         with self.assertRaises(ValueError) as cm:
             await self.workflow_engine._execute_file_action(action, context)
@@ -2215,7 +2305,16 @@ class TestWorkflowEngine(base.AsyncTestCase):
             source='file.txt',
         )
 
-        context = {'workflow_run': None}
+        workflow_run = models.WorkflowRun(
+            workflow=self.workflow,
+            working_directory=None,
+            imbi_project=self.imbi_project,
+        )
+        context = models.WorkflowContext(
+            workflow=self.workflow,
+            workflow_run=workflow_run,
+            imbi_project=self.imbi_project,
+        )
 
         with self.assertRaises(RuntimeError) as cm:
             await self.workflow_engine._execute_file_action(action, context)
@@ -2238,7 +2337,11 @@ class TestWorkflowEngine(base.AsyncTestCase):
             imbi_project=self.imbi_project,
         )
 
-        context = {'workflow_run': workflow_run}
+        context = models.WorkflowContext(
+            workflow=workflow_run.workflow,
+            workflow_run=workflow_run,
+            imbi_project=workflow_run.imbi_project,
+        )
 
         with self.assertRaises(ValueError) as cm:
             await self.workflow_engine._execute_file_action(action, context)
@@ -2265,7 +2368,11 @@ class TestWorkflowEngine(base.AsyncTestCase):
             imbi_project=self.imbi_project,
         )
 
-        context = {'workflow_run': workflow_run}
+        context = models.WorkflowContext(
+            workflow=workflow_run.workflow,
+            workflow_run=workflow_run,
+            imbi_project=workflow_run.imbi_project,
+        )
 
         with self.assertRaises(NotImplementedError) as cm:
             await self.workflow_engine._execute_file_action(action, context)
@@ -2285,13 +2392,7 @@ class TestWorkflowEngine(base.AsyncTestCase):
         )
 
         mock_working_dir = pathlib.Path('/mock/working/dir')
-        workflow_run = models.WorkflowRun(
-            workflow=self.workflow,
-            working_directory=mock_working_dir,
-            imbi_project=self.imbi_project,
-        )
-
-        context = {'workflow_run': workflow_run}
+        context = self._create_test_context(working_directory=mock_working_dir)
 
         # Mock successful file operation
         source_path = mock.MagicMock()

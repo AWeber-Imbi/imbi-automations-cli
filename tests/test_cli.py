@@ -519,7 +519,7 @@ class TestMain(unittest.TestCase):
         """Test successful execution of main function."""
         # Setup mocks
         mock_args = mock.Mock()
-        mock_args.verbose = True
+        mock_args.debug = True
         mock_config_file = mock.Mock()
         mock_config_file.close = mock.Mock()
         mock_args.config = [mock_config_file]
@@ -542,7 +542,7 @@ class TestMain(unittest.TestCase):
 
         # Verify calls
         mock_parse_args.assert_called_once()
-        mock_configure_logging.assert_called_once_with(True)
+        mock_configure_logging.assert_called_once_with(mock_args.debug)
         mock_load_configuration.assert_called_once_with(mock_config_file)
         mock_config_file.close.assert_called_once()
         mock_determine_iterator_type.assert_called_once_with(mock_args)
@@ -572,7 +572,7 @@ class TestMain(unittest.TestCase):
         """Test main function handles KeyboardInterrupt gracefully."""
         # Setup mocks
         mock_args = mock.Mock()
-        mock_args.verbose = False
+        mock_args.debug = False
         mock_config_file = mock.Mock()
         mock_config_file.close = mock.Mock()
         mock_args.config = [mock_config_file]
@@ -596,7 +596,7 @@ class TestMain(unittest.TestCase):
 
         # Verify calls
         mock_parse_args.assert_called_once()
-        mock_configure_logging.assert_called_once_with(False)
+        mock_configure_logging.assert_called_once_with(mock_args.debug)
         mock_load_configuration.assert_called_once_with(mock_config_file)
         mock_config_file.close.assert_called_once()
         mock_determine_iterator_type.assert_called_once_with(mock_args)
@@ -626,7 +626,7 @@ class TestMain(unittest.TestCase):
         """Test that non-KeyboardInterrupt exceptions propagate."""
         # Setup mocks
         mock_args = mock.Mock()
-        mock_args.verbose = False
+        mock_args.debug = False
         mock_config_file = mock.Mock()
         mock_config_file.close = mock.Mock()
         mock_args.config = [mock_config_file]
@@ -653,7 +653,7 @@ class TestMain(unittest.TestCase):
 
         # Verify calls
         mock_parse_args.assert_called_once()
-        mock_configure_logging.assert_called_once_with(False)
+        mock_configure_logging.assert_called_once_with(mock_args.debug)
         mock_load_configuration.assert_called_once_with(mock_config_file)
         mock_config_file.close.assert_called_once()
         mock_determine_iterator_type.assert_called_once_with(mock_args)
