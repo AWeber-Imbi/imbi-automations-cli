@@ -342,9 +342,13 @@ analysis and actions."""
                     await generator_client.query(context_message)
 
                     # Then invoke the generator agent with the rendered prompt
-                    await generator_client.query(
+                    generator_command = (
                         f'/agent generator\n\n{generator_prompt_content}'
                     )
+                    self.logger.debug(
+                        'About to send to SDK: %s', generator_command[:100]
+                    )
+                    await generator_client.query(generator_command)
 
                     # Collect generator response - use only last message
                     response_messages = []
@@ -409,9 +413,13 @@ analysis and actions."""
                         await validator_client.query(context_message)
 
                         # Then invoke the validator agent
-                        await validator_client.query(
+                        validator_command = (
                             f'/agent validator\n\n{validator_prompt_content}'
                         )
+                        self.logger.debug(
+                            'About to send to SDK: %s', validator_command[:100]
+                        )
+                        await validator_client.query(validator_command)
 
                         # Collect validator response for JSON parsing
                         response_messages = []
