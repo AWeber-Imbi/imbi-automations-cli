@@ -68,6 +68,8 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         match action.type:
             case models.WorkflowActionTypes.claude:
                 await self._execute_action_claude(context, action)
+            case _:
+                raise RuntimeError(f'Unsupported action type: {action.type}')
 
     async def _execute_action_claude(
         self, context: models.WorkflowContext, action: models.WorkflowAction
