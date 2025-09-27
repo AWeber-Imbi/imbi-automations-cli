@@ -1,8 +1,11 @@
 """Git Related Functionality"""
 
 import asyncio
+import datetime
 import logging
 import pathlib
+
+from imbi_automations import models
 
 LOGGER = logging.getLogger(__name__)
 
@@ -62,8 +65,8 @@ async def clone_repository(
     clone_url: str,
     branch: str | None = None,
     depth: int | None = 1,
-) -> None:
-    """Clone a repository to a temporary directory.
+) -> str:
+    """Clone a repository to a temporary directory and return HEAD commit hash.
 
     Args:
         working_directory: Temp directory to clone into
@@ -72,7 +75,7 @@ async def clone_repository(
         depth: Clone depth (default: 1 for shallow clone, None for full clone)
 
     Returns:
-        Path to the cloned repository directory
+        HEAD commit hash of the cloned repository
 
     Raises:
         RuntimeError: If git clone fails
@@ -105,6 +108,22 @@ async def clone_repository(
             f'Git clone failed (exit code {returncode}): {stderr or stdout}'
         )
     LOGGER.debug('Successfully cloned repository to %s', repo_dir)
+
+    # Get the HEAD commit hash of the cloned repository
+    command = ['git', 'rev-parse', 'HEAD']
+    returncode, stdout, stderr = await _run_git_command(
+        command, cwd=repo_dir, timeout_seconds=30
+    )
+
+    if returncode != 0:
+        raise RuntimeError(
+            f'Git rev-parse HEAD failed (exit code {returncode}): '
+            f'{stderr or stdout}'
+        )
+
+    head_commit = stdout.strip()
+    LOGGER.debug('Cloned repository HEAD commit: %s', head_commit[:8])
+    return head_commit
 
 
 async def add_files(working_directory: pathlib.Path, files: list[str]) -> None:
@@ -616,6 +635,313 @@ async def find_commit_before_keyword(
         )
 
     return before_commit
+
+
+async def get_commits_since(
+    working_directory: pathlib.Path, starting_commit: str | None
+) -> models.GitCommitSummary:
+    """Get detailed information about all commits since the starting commit.
+
+    Args:
+        working_directory: Git repository working directory
+        starting_commit: Starting commit hash to compare from (None for
+            no comparison)
+
+    Returns:
+        GitCommitSummary with detailed commit information and file changes
+
+    Raises:
+        RuntimeError: If git operations fail
+
+    """
+    LOGGER.debug(
+        'Getting commits since %s in %s',
+        starting_commit[:8] if starting_commit else 'None',
+        working_directory,
+    )
+
+    # Get current HEAD commit
+    current_commit = await _get_current_head_commit(working_directory)
+
+    if not starting_commit:
+        # No starting commit to compare from, return empty summary
+        return models.GitCommitSummary(
+            total_commits=0,
+            commits=[],
+            files_affected=[],
+            commit_range=f'None..{current_commit}',
+        )
+
+    if current_commit == starting_commit:
+        # No new commits
+        return models.GitCommitSummary(
+            total_commits=0,
+            commits=[],
+            files_affected=[],
+            commit_range=f'{starting_commit}..{current_commit}',
+        )
+
+    # Get commit log with detailed format
+    command = [
+        'git',
+        'log',
+        f'{starting_commit}..HEAD',
+        '--pretty=format:%H|%an|%ae|%cn|%ce|%at|%ct|%s|%b',
+        '--name-status',
+    ]
+
+    returncode, stdout, stderr = await _run_git_command(
+        command, cwd=working_directory, timeout_seconds=60
+    )
+
+    if returncode != 0:
+        raise RuntimeError(
+            f'Git log failed (exit code {returncode}): {stderr or stdout}'
+        )
+
+    if not stdout.strip():
+        return models.GitCommitSummary(
+            total_commits=0,
+            commits=[],
+            files_affected=[],
+            commit_range=f'{starting_commit}..{current_commit}',
+        )
+
+    # Parse commits from output
+    commits = _parse_commit_log_output(stdout)
+
+    # Get diffs for each commit
+    for commit in commits:
+        await _add_diffs_to_commit(working_directory, commit)
+
+    # Collect unique files affected
+    files_affected = []
+    for commit in commits:
+        for file_change in commit.files_changed:
+            if file_change.file_path not in files_affected:
+                files_affected.append(file_change.file_path)
+
+    return models.GitCommitSummary(
+        total_commits=len(commits),
+        commits=commits,
+        files_affected=files_affected,
+        commit_range=f'{starting_commit}..{current_commit}',
+    )
+
+
+async def _get_current_head_commit(working_directory: pathlib.Path) -> str:
+    """Get the current HEAD commit hash."""
+    command = ['git', 'rev-parse', 'HEAD']
+    returncode, stdout, stderr = await _run_git_command(
+        command, cwd=working_directory, timeout_seconds=30
+    )
+
+    if returncode != 0:
+        raise RuntimeError(
+            f'Git rev-parse HEAD failed (exit code {returncode}): '
+            f'{stderr or stdout}'
+        )
+
+    return stdout.strip()
+
+
+async def _add_diffs_to_commit(
+    working_directory: pathlib.Path, commit: models.GitCommit
+) -> None:
+    """Add diff content to each file change in a commit."""
+    if not commit.files_changed:
+        return
+
+    # Get the diff for this specific commit
+    command = ['git', 'show', '--format=', commit.hash]
+    returncode, stdout, stderr = await _run_git_command(
+        command, cwd=working_directory, timeout_seconds=60
+    )
+
+    if returncode != 0:
+        LOGGER.warning(
+            'Failed to get diff for commit %s: %s',
+            commit.hash[:8],
+            stderr or stdout,
+        )
+        return
+
+    # Parse the diff output to match with file changes
+    diff_sections = _parse_diff_output(stdout)
+
+    # Match diffs to file changes
+    for file_change in commit.files_changed:
+        # Look for diff section for this file
+        file_diff = diff_sections.get(file_change.file_path)
+        if file_diff:
+            file_change.diff = file_diff
+
+
+def _parse_diff_output(diff_output: str) -> dict[str, str]:
+    """Parse git diff output into file-specific diffs."""
+    file_diffs = {}
+    if not diff_output.strip():
+        return file_diffs
+
+    lines = diff_output.split('\n')
+    current_file = None
+    current_diff_lines = []
+
+    for line in lines:
+        if line.startswith('diff --git'):
+            # Save previous file's diff if any
+            if current_file and current_diff_lines:
+                file_diffs[current_file] = '\n'.join(current_diff_lines)
+
+            # Extract file path from diff header
+            # Format: diff --git a/path/file.py b/path/file.py
+            parts = line.split(' ')
+            if len(parts) >= 4:
+                # Remove 'a/' prefix from path
+                current_file = (
+                    parts[2][2:] if parts[2].startswith('a/') else parts[2]
+                )
+            else:
+                current_file = None
+            current_diff_lines = [line]
+        elif current_file:
+            current_diff_lines.append(line)
+
+    # Don't forget the last file
+    if current_file and current_diff_lines:
+        file_diffs[current_file] = '\n'.join(current_diff_lines)
+
+    return file_diffs
+
+
+def _parse_commit_log_output(output: str) -> list[models.GitCommit]:
+    """Parse git log output into GitCommit objects."""
+    commits = []
+    lines = output.strip().split('\n')
+    i = 0
+
+    while i < len(lines):
+        line = lines[i].strip()
+        if not line:
+            i += 1
+            continue
+
+        # Parse commit metadata line
+        parts = line.split('|', 8)
+        if len(parts) < 8:
+            i += 1
+            continue
+
+        (
+            commit_hash,
+            author_name,
+            author_email,
+            committer_name,
+            committer_email,
+            author_ts,
+            commit_ts,
+            subject,
+        ) = parts[:8]
+        initial_body = parts[8] if len(parts) > 8 else ''
+
+        # Parse timestamps
+        author_date = datetime.datetime.fromtimestamp(
+            int(author_ts), tz=datetime.UTC
+        )
+        commit_date = datetime.datetime.fromtimestamp(
+            int(commit_ts), tz=datetime.UTC
+        )
+
+        # Collect body lines (everything until file changes or next commit)
+        i += 1
+        body_lines = [initial_body] if initial_body else []
+
+        while i < len(lines):
+            line = lines[i].strip()
+            # Stop if we hit file status line or next commit metadata line
+            if not line or '\t' in line or '|' in line:
+                break
+            body_lines.append(line)
+            i += 1
+
+        # Parse commit message body and trailers
+        full_body = '\n'.join(body_lines).strip()
+        commit_body, trailers = _parse_commit_body_and_trailers(full_body)
+
+        # Parse file changes for this commit
+        files_changed = []
+        while i < len(lines) and lines[i].strip() and '\t' in lines[i]:
+            file_line = lines[i].strip()
+            file_change = _parse_file_change_line(file_line)
+            if file_change:
+                files_changed.append(file_change)
+            i += 1
+
+        commits.append(
+            models.GitCommit(
+                hash=commit_hash,
+                author_name=author_name,
+                author_email=author_email,
+                committer_name=committer_name,
+                committer_email=committer_email,
+                author_date=author_date,
+                commit_date=commit_date,
+                subject=subject,
+                body=commit_body,
+                trailers=trailers,
+                files_changed=files_changed,
+            )
+        )
+
+    return commits
+
+
+def _parse_commit_body_and_trailers(body: str) -> tuple[str, dict[str, str]]:
+    """Parse commit body into body text and trailers."""
+    if not body.strip():
+        return '', {}
+
+    lines = body.strip().split('\n')
+    trailers = {}
+    body_lines = []
+
+    # Find trailers (lines with "Key: Value" format at end of commit)
+    for line in reversed(lines):
+        line = line.strip()
+        if ':' in line and not line.startswith(' '):
+            key, value = line.split(':', 1)
+            trailers[key.strip()] = value.strip()
+        else:
+            # Not a trailer, rest is body
+            body_lines = lines[: len(lines) - len(trailers)]
+            break
+
+    return '\n'.join(body_lines).strip(), trailers
+
+
+def _parse_file_change_line(line: str) -> models.GitFileChange | None:
+    """Parse a git --name-status file change line."""
+    if not line.strip():
+        return None
+
+    parts = line.split('\t')
+    if len(parts) < 2:
+        return None
+
+    status = parts[0]
+
+    if status.startswith('R') and len(parts) >= 3:
+        # For renames: R100 old_path new_path
+        old_path = parts[1]
+        file_path = parts[2]
+    else:
+        # For other changes: M file_path
+        file_path = parts[1]
+        old_path = None
+
+    return models.GitFileChange(
+        status=status, file_path=file_path, old_path=old_path
+    )
 
 
 async def extract_file_from_commit(

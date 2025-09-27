@@ -7,6 +7,7 @@ from .configuration import (
     GitLabConfiguration,
     ImbiConfiguration,
 )
+from .git import GitCommit, GitCommitSummary, GitFileChange
 from .github import (
     GitHubEnvironment,
     GitHubLabel,
@@ -71,6 +72,9 @@ __all__ = [
     'AnthropicConfiguration',
     'ClaudeCodeConfiguration',
     'Configuration',
+    'GitCommit',
+    'GitCommitSummary',
+    'GitFileChange',
     'GitHubConfiguration',
     'GitLabConfiguration',
     'ImbiConfiguration',
