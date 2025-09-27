@@ -303,14 +303,69 @@ class WorkflowCondition(pydantic.BaseModel):
     remote_file: pathlib.Path | None = None
 
     @pydantic.model_validator(mode='after')
-    def validate_file_contains_requirements(self) -> 'WorkflowCondition':
-        """Validate that file_contains and file are both set together."""
-        if self.file_contains and not self.file:
+    def validate_condition_exclusivity(self) -> 'WorkflowCondition':
+        """Validate conditions are mutually exclusive with proper groupings."""
+        # Count how many condition types are set
+        local_conditions = [
+            self.file_exists,
+            self.file_not_exists,
+            (self.file_contains, self.file),  # These must be together
+        ]
+
+        remote_conditions = [
+            self.remote_file_exists,
+            self.remote_file_not_exists,
+            (
+                self.remote_file_contains,
+                self.remote_file,
+            ),  # These must be together
+        ]
+
+        # Count active local conditions
+        active_local = 0
+        for condition in local_conditions:
+            if isinstance(condition, tuple):
+                # Both file_contains and file must be set together
+                if condition[0] and condition[1]:
+                    active_local += 1
+                elif condition[0] and not condition[1]:
+                    raise ValueError(
+                        'file_contains condition requires file field to be set'
+                    )
+                elif condition[1] and not condition[0]:
+                    raise ValueError(
+                        'file field requires file_contains to be set'
+                    )
+            elif condition:
+                active_local += 1
+
+        # Count active remote conditions
+        active_remote = 0
+        for condition in remote_conditions:
+            if isinstance(condition, tuple):
+                # Both remote_file_contains and remote_file must be together
+                if condition[0] and condition[1]:
+                    active_remote += 1
+                elif condition[0] and not condition[1]:
+                    raise ValueError(
+                        'remote_file_contains condition requires remote_file'
+                    )
+                elif condition[1] and not condition[0]:
+                    raise ValueError(
+                        'remote_file field requires remote_file_contains'
+                    )
+            elif condition:
+                active_remote += 1
+
+        # Ensure only one condition type is active
+        total_active = active_local + active_remote
+        if total_active == 0:
+            raise ValueError('At least one condition must be specified')
+        if total_active > 1:
             raise ValueError(
-                'file_contains condition requires file field to be set'
+                'Conditions are mutually exclusive - only one type allowed'
             )
-        if self.file and not self.file_contains:
-            raise ValueError('file field requires file_contains to be set')
+
         return self
 
 
