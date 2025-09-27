@@ -454,6 +454,112 @@ async def get_commit_messages_since_branch(
     return commit_messages
 
 
+async def _get_commits_with_keyword(
+    working_directory: pathlib.Path, keyword: str
+) -> list[tuple[str, str]]:
+    """Get all commits containing the specified keyword.
+
+    Args:
+        working_directory: Git repository working directory
+        keyword: Keyword to search for in commit messages
+
+    Returns:
+        List of tuples (commit_hash, message) for matching commits
+
+    Raises:
+        RuntimeError: If git operations fail
+
+    """
+    command = [
+        'git',
+        'log',
+        '--grep',
+        keyword,
+        '--format=%H %s',  # Full hash and subject
+        '--all',  # Search all branches
+    ]
+
+    returncode, stdout, stderr = await _run_git_command(
+        command, cwd=working_directory, timeout_seconds=30
+    )
+
+    if returncode != 0:
+        raise RuntimeError(
+            f'Git log failed (exit code {returncode}): {stderr or stdout}'
+        )
+
+    if not stdout.strip():
+        return []
+
+    # Parse commit lines
+    matching_commits = []
+    for line in stdout.strip().split('\n'):
+        if line.strip():
+            parts = line.strip().split(' ', 1)
+            if len(parts) >= 2:
+                commit_hash, message = parts[0], parts[1]
+                matching_commits.append((commit_hash, message))
+
+    return matching_commits
+
+
+def _select_target_commit(
+    matching_commits: list[tuple[str, str]], strategy: str
+) -> str:
+    """Select the target commit based on strategy.
+
+    Args:
+        matching_commits: List of (commit_hash, message) tuples
+        strategy: 'before_first_match' or 'before_last_match'
+
+    Returns:
+        Target commit hash
+
+    """
+    if strategy == 'before_first_match':
+        # Last in list = first chronologically
+        return matching_commits[-1][0]
+    else:  # before_last_match (default)
+        # First in list = last chronologically
+        return matching_commits[0][0]
+
+
+async def _get_parent_commit(
+    working_directory: pathlib.Path, commit_hash: str
+) -> str | None:
+    """Get the parent commit of the specified commit.
+
+    Args:
+        working_directory: Git repository working directory
+        commit_hash: Commit hash to get parent of
+
+    Returns:
+        Parent commit hash, or None if no parent exists
+
+    """
+    command = ['git', 'rev-parse', f'{commit_hash}^']
+
+    returncode, stdout, stderr = await _run_git_command(
+        command, cwd=working_directory, timeout_seconds=30
+    )
+
+    if returncode != 0:
+        if 'unknown revision' in stderr or 'bad revision' in stderr:
+            LOGGER.warning(
+                'Commit %s has no parent (likely first commit in repository)',
+                commit_hash[:8],
+            )
+        else:
+            LOGGER.warning(
+                'Could not find commit before %s: %s',
+                commit_hash[:8],
+                stderr or stdout,
+            )
+        return None
+
+    return stdout.strip() or None
+
+
 async def find_commit_before_keyword(
     working_directory: pathlib.Path,
     keyword: str,
@@ -479,51 +585,17 @@ async def find_commit_before_keyword(
         strategy,
     )
 
-    # Get commit history with messages
-    command = [
-        'git',
-        'log',
-        '--grep',
-        keyword,
-        '--format=%H %s',  # Full hash and subject
-        '--all',  # Search all branches
-    ]
-
-    returncode, stdout, stderr = await _run_git_command(
-        command, cwd=working_directory, timeout_seconds=30
+    # Get all commits containing the keyword
+    matching_commits = await _get_commits_with_keyword(
+        working_directory, keyword
     )
 
-    if returncode != 0:
-        raise RuntimeError(
-            f'Git log failed (exit code {returncode}): {stderr or stdout}'
-        )
-
-    if not stdout.strip():
+    if not matching_commits:
         LOGGER.debug('No commits found with keyword "%s"', keyword)
         return None
 
-    # Parse commit lines
-    matching_commits = []
-    for line in stdout.strip().split('\n'):
-        if line.strip():
-            parts = line.strip().split(' ', 1)
-            if len(parts) >= 2:
-                commit_hash, message = parts[0], parts[1]
-                matching_commits.append((commit_hash, message))
-
-    if not matching_commits:
-        LOGGER.debug('No valid commits found with keyword "%s"', keyword)
-        return None
-
-    # Apply strategy
-    if strategy == 'before_first_match':
-        target_commit = matching_commits[-1][
-            0
-        ]  # Last in list = first chronologically
-    else:  # before_last_match (default)
-        target_commit = matching_commits[0][
-            0
-        ]  # First in list = last chronologically
+    # Select target commit based on strategy
+    target_commit = _select_target_commit(matching_commits, strategy)
 
     LOGGER.debug(
         'Found %d commits with keyword "%s", using commit %s with strategy %s',
@@ -533,37 +605,17 @@ async def find_commit_before_keyword(
         strategy,
     )
 
-    # Get the commit before the target commit using rev-parse
-    command = ['git', 'rev-parse', f'{target_commit}^']
+    # Get the parent commit
+    before_commit = await _get_parent_commit(working_directory, target_commit)
 
-    returncode, stdout, stderr = await _run_git_command(
-        command, cwd=working_directory, timeout_seconds=30
-    )
-
-    if returncode != 0:
-        if 'unknown revision' in stderr or 'bad revision' in stderr:
-            LOGGER.warning(
-                'Commit %s has no parent (likely first commit in repository)',
-                target_commit[:8],
-            )
-        else:
-            LOGGER.warning(
-                'Could not find commit before %s: %s',
-                target_commit[:8],
-                stderr or stdout,
-            )
-        return None
-
-    before_commit = stdout.strip()
     if before_commit:
         LOGGER.debug(
             'Found commit before keyword match: %s (before %s)',
             before_commit[:8],
             target_commit[:8],
         )
-        return before_commit
 
-    return None
+    return before_commit
 
 
 async def get_file_at_commit(
