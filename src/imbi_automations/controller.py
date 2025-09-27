@@ -76,26 +76,26 @@ class Automation(mixins.WorkflowLoggerMixin):
         else:
             raise ValueError('No valid target argument provided')
 
-    async def run(self) -> None:
+    async def run(self) -> bool:
         match self.iterator:
             case AutomationIterator.github_repositories:
-                await self._process_github_repositories()
+                return await self._process_github_repositories()
             case AutomationIterator.github_organization:
-                await self._process_github_organization()
+                return await self._process_github_organization()
             case AutomationIterator.github_project:
-                await self._process_github_project()
+                return await self._process_github_project()
             case AutomationIterator.gitlab_repositories:
-                await self._process_gitlab_repositories()
+                return await self._process_gitlab_repositories()
             case AutomationIterator.gitlab_group:
-                await self._process_gitlab_group()
+                return await self._process_gitlab_group()
             case AutomationIterator.gitlab_project:
-                await self._process_gitlab_project()
+                return await self._process_gitlab_project()
             case AutomationIterator.imbi_project_type:
-                await self._process_imbi_project_type()
+                return await self._process_imbi_project_type()
             case AutomationIterator.imbi_project:
-                await self._process_imbi_project()
+                return await self._process_imbi_project()
             case AutomationIterator.imbi_projects:
-                await self._process_imbi_projects()
+                return await self._process_imbi_projects()
 
     async def _filter_projects(
         self, projects: list[models.ImbiProject]
@@ -280,37 +280,37 @@ class Automation(mixins.WorkflowLoggerMixin):
         self.logger.debug('%s project not found', identifier)
         return None
 
-    async def _process_github_repositories(self) -> None: ...
+    async def _process_github_repositories(self) -> bool: ...
 
-    async def _process_github_organization(self) -> None: ...
+    async def _process_github_organization(self) -> bool: ...
 
-    async def _process_github_project(self) -> None: ...
+    async def _process_github_project(self) -> bool: ...
 
-    async def _process_gitlab_repositories(self) -> None: ...
+    async def _process_gitlab_repositories(self) -> bool: ...
 
-    async def _process_gitlab_group(self) -> None: ...
+    async def _process_gitlab_group(self) -> bool: ...
 
-    async def _process_gitlab_project(self) -> None: ...
+    async def _process_gitlab_project(self) -> bool: ...
 
-    async def _process_imbi_project(self) -> None:
+    async def _process_imbi_project(self) -> bool:
         client = clients.Imbi.get_instance(config=self.configuration.imbi)
         project = await client.get_project(self.args.project_id)
-        await self._process_workflow_from_imbi_project(project)
+        return await self._process_workflow_from_imbi_project(project)
 
-    async def _process_imbi_project_type(self) -> None:
+    async def _process_imbi_project_type(self) -> bool:
         client = clients.Imbi.get_instance(config=self.configuration.imbi)
         projects = await client.get_projects_by_type(self.args.project_type)
         self.logger.debug('Found %d total active projects', len(projects))
-        await self._process_imbi_projects_common(projects)
+        return await self._process_imbi_projects_common(projects)
 
-    async def _process_imbi_projects(self) -> None:
+    async def _process_imbi_projects(self) -> bool:
         client = clients.Imbi.get_instance(config=self.configuration.imbi)
         projects = await client.get_all_projects()
-        await self._process_imbi_projects_common(projects)
+        return await self._process_imbi_projects_common(projects)
 
     async def _process_imbi_projects_common(
         self, projects: list[models.ImbiProject]
-    ) -> None:
+    ) -> bool:
         self.logger.debug('Found %d total active projects', len(projects))
         filtered = await self._filter_projects(projects)
         async with asyncio.Semaphore(self.args.max_concurrency):
@@ -327,16 +327,21 @@ class Automation(mixins.WorkflowLoggerMixin):
                 return await self._process_workflow_from_imbi_project(project)
 
         if self.args.exit_on_error:
+            tasks = []
             async with asyncio.TaskGroup() as task_group:
                 for project in filtered:
-                    task_group.create_task(limited_process(project))
+                    tasks.append(
+                        task_group.create_task(limited_process(project))
+                    )
+            results = [task.result() for task in tasks]
         else:
-            await asyncio.gather(
+            results = await asyncio.gather(
                 *[
                     asyncio.create_task(limited_process(project))
                     for project in filtered
                 ]
             )
+        return all(results)
 
     async def _process_workflow_from_imbi_project(
         self, project: models.ImbiProject

@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import logging
 import pathlib
+import sys
 import tomllib
 import typing
 
@@ -219,6 +220,9 @@ def main() -> None:
         args=args, configuration=config, workflow=args.workflow
     )
     try:
-        asyncio.run(automation_controller.run())
+        success = asyncio.run(automation_controller.run())
     except KeyboardInterrupt:
         LOGGER.info('Interrupted, exiting')
+        sys.exit(2)
+    if not success:
+        sys.exit(1)
