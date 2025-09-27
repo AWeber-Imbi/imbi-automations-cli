@@ -35,7 +35,6 @@ def configure_logging(debug: bool) -> None:
         level=logging.DEBUG if debug else logging.INFO, handlers=[handler]
     )
 
-    # Reduce verbosity of HTTP libraries
     for logger_name in ('anthropic', 'httpcore', 'httpx'):
         logging.getLogger(logger_name).setLevel(logging.WARNING)
 

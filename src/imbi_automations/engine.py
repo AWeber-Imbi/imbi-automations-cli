@@ -34,12 +34,12 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             project, working_directory.name, github_repository, gitlab_project
         )
 
-        if self._needs_claude:
-            self.claude = claude.Claude(
-                self.configuration.claude_code,
-                context.working_directory,
-                self.verbose,
-            )
+        self.claude = claude.Claude(
+            self.configuration.claude_code,
+            context.working_directory,
+            self.configuration.commit_author,
+            self.verbose,
+        )
 
         if self.workflow.configuration.git.clone:
             await git.clone_repository(
@@ -52,6 +52,8 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         try:
             for action in self.workflow.configuration.actions:
                 await self._execute_action(context, action)
+                if action.committable:
+                    await self.claude.commit(context, action)
         except RuntimeError as exc:
             self.logger.error('Error executing action: %s', exc)
             working_directory.cleanup()
@@ -133,7 +135,15 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
     ) -> None:
         match action.command:
             case models.WorkflowGitActionCommand.extract:
-                raise NotImplementedError('Extract not yet supported')
+                await git.extract_file_from_commit(
+                    working_directory=context.working_directory / 'repository',
+                    source_file=action.source,
+                    destination_file=context.working_directory
+                    / action.destination,
+                    commit_keyword=action.commit_keyword,
+                    search_strategy=action.search_strategy
+                    or 'before_last_match',
+                )
             case _:
                 raise RuntimeError(f'Unsupported command: {action.command}')
 
@@ -240,12 +250,10 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             return gitlab_project.http_url_to_repo
         raise ValueError('No repository provided')
 
-    @property
-    async def _needs_claude(self) -> bool:
-        return any(
-            action.type == models.WorkflowActionTypes.claude
-            for action in self.workflow.configuration.actions
-        )
+    async def _git_commit_action_changes(
+        self, context: models.WorkflowContext, action: models.WorkflowAction
+    ) -> bool:
+        pass
 
     def _setup_workflow_run(
         self,

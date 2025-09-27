@@ -33,6 +33,7 @@ class WorkflowAction(pydantic.BaseModel):
         default_factory=list
     )
     condition_type: WorkflowConditionType = WorkflowConditionType.all
+    committable: bool = True
     on_failure: str | None = None
     timeout: int = 3600
     data: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
@@ -223,6 +224,13 @@ class WorkflowGitAction(WorkflowAction):
     commit_keyword: str | None = None
     search_strategy: WorkflowGitActionCommitMatchStrategy | None = None
 
+    @pydantic.model_validator(mode='after')
+    def set_committable_for_extract(self) -> 'WorkflowGitAction':
+        """Set committable to False for extract commands."""
+        if self.command == WorkflowGitActionCommand.extract:
+            self.committable = False
+        return self
+
 
 class WorkflowGitHubCommand(enum.StrEnum):
     sync_environments = 'sync_environments'
@@ -315,7 +323,6 @@ class WorkflowGit(pydantic.BaseModel):
     clone: bool = True
     shallow: bool = True
     starting_branch: str | None = None
-    commit_author: str = 'Authored-By: Imbi Automations <noreply@aweber.com>'
     ci_skip_checks: bool = False
     clone_type: WorkflowGitCloneType = WorkflowGitCloneType.ssh
 

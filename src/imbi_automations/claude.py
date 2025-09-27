@@ -17,6 +17,7 @@ class AgentType(enum.StrEnum):
 
     generator = 'generator'
     validator = 'validator'
+    commit = 'commit'
 
 
 @claude_code_sdk.tool(
@@ -45,17 +46,33 @@ class Claude(mixins.WorkflowLoggerMixin):
         self,
         config: models.ClaudeCodeConfiguration,
         working_directory: pathlib.Path,
+        commit_author: str,
         verbose: bool = False,
     ) -> None:
         super().__init__(verbose)
+        self.commit_author = commit_author
         self.config = config
         self.logger: logging.Logger = LOGGER
         self.working_directory = working_directory
         self.client = self._create_client()
         self.session_id: str | None = None
 
-    async def execute(
+    async def commit(
         self, context: models.WorkflowContext, action: models.WorkflowAction
+    ) -> None:
+        """Leverage the `commit` agent in Claude Code to commit changes."""
+        self.session_id = None
+        self._log_verbose_info('Using claude to commit changes')
+        await self.client.connect()
+        run = await self._execute_agent(context, action, AgentType.commit)
+        await self.client.disconnect()
+        if run.result == models.AgentRunResult.failure:
+            raise RuntimeError(f'Claude Code commit failed: {run.message}')
+
+    async def execute(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowClaudeAction,
     ) -> None:
         """Execute the Claude Code action."""
         self._set_workflow_logger(context.workflow)
@@ -121,7 +138,7 @@ class Claude(mixins.WorkflowLoggerMixin):
     async def _execute_agent(
         self,
         context: models.WorkflowContext,
-        action: models.WorkflowAction,
+        action: models.WorkflowAction | models.WorkflowClaudeAction,
         agent: AgentType,
     ) -> models.AgentRun:
         prompt = self._get_prompt(context, action, agent)
@@ -132,13 +149,15 @@ class Claude(mixins.WorkflowLoggerMixin):
                 return response
 
         return models.AgentRun(
-            result=models.AgentRunResult.failure, message='Unspecified failure'
+            result=models.AgentRunResult.failure,
+            message='Unspecified failure',
+            errors=[],
         )
 
     async def _execute_cycle(
         self,
         context: models.WorkflowContext,
-        action: models.WorkflowAction,
+        action: models.WorkflowClaudeAction,
         cycle: int,
     ) -> bool:
         for agent in [AgentType.generator, AgentType.validator]:
@@ -157,7 +176,7 @@ class Claude(mixins.WorkflowLoggerMixin):
     def _get_prompt(
         self,
         context: models.WorkflowContext,
-        action: models.WorkflowAction,
+        action: models.WorkflowAction | models.WorkflowClaudeAction,
         agent: AgentType,
     ) -> str:
         """Return the rendered prompt for the given agent."""
@@ -165,13 +184,23 @@ class Claude(mixins.WorkflowLoggerMixin):
 
         if agent == AgentType.generator:
             prompt_file = self.working_directory / 'workflow' / action.prompt
-        else:
+        elif agent == AgentType.validator:
             prompt_file = (
                 self.working_directory / 'workflow' / action.validation_prompt
             )
+        elif agent == AgentType.commit:
+            prompt_file = BASE_PATH / 'prompts' / 'commit-context.md.j2'
+        else:
+            raise RuntimeError(f'Unknown agent: {agent}')
 
         if prompt_file.suffix == '.j2':
-            prompt += prompts.render(prompt_file, **context.model_dump())
+            data = {'commit_author': self.commit_author}
+            data.update(context.model_dump())
+            data.update({'action': action.model_dump()})
+            for key in {'source', 'destination'}:
+                if key in data:
+                    del data[key]
+            prompt += prompts.render(prompt_file, **data)
         else:
             prompt += prompt_file.read_text(encoding='utf-8')
 
@@ -259,7 +288,8 @@ class Claude(mixins.WorkflowLoggerMixin):
             if message.is_error:
                 return models.AgentRun(
                     result=models.AgentRunResult.failure,
-                    message=message.result,
+                    message='Claude Error',
+                    errors=[message.result],
                 )
             if message.result.startswith('```json'):
                 message.result = message.result[7:]
@@ -274,7 +304,8 @@ class Claude(mixins.WorkflowLoggerMixin):
                 self.logger.error('Failed to parse JSON result: %s', err)
                 return models.AgentRun(
                     result=models.AgentRunResult.failure,
-                    message=f'Failed to parse JSON result: {err}',
+                    errors=[f'Failed to parse JSON result: {err}'],
+                    message='Agent Contract Failure',
                 )
             return models.AgentRun.model_validate(payload)
         return None

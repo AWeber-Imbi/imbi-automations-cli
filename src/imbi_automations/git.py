@@ -618,6 +618,75 @@ async def find_commit_before_keyword(
     return before_commit
 
 
+async def extract_file_from_commit(
+    working_directory: pathlib.Path,
+    source_file: pathlib.Path,
+    destination_file: pathlib.Path,
+    commit_keyword: str | None = None,
+    search_strategy: str = 'before_last_match',
+) -> None:
+    """Extract a file from a git commit to a destination path.
+
+    Args:
+        working_directory: Git repository working directory
+        source_file: Path to the file in the repository
+        destination_file: Path where to write the extracted file
+        commit_keyword: Keyword to search for in commit messages (optional)
+        search_strategy: 'before_first_match' or 'before_last_match'
+
+    Raises:
+        RuntimeError: If commit not found, file doesn't exist, or git
+            operations fail
+
+    """
+    # Find the commit to extract from
+    if commit_keyword:
+        target_commit = await find_commit_before_keyword(
+            working_directory, commit_keyword, search_strategy
+        )
+        if not target_commit:
+            raise RuntimeError(
+                f'No commit found before keyword "{commit_keyword}" '
+                f'using strategy "{search_strategy}"'
+            )
+    else:
+        # If no keyword specified, use HEAD (current commit)
+        target_commit = 'HEAD'
+
+    LOGGER.debug(
+        'Extracting %s from commit %s to %s',
+        source_file,
+        target_commit[:8] if target_commit != 'HEAD' else 'HEAD',
+        destination_file,
+    )
+
+    # Extract the file content from the target commit
+    file_content = await get_file_at_commit(
+        working_directory, str(source_file), target_commit
+    )
+
+    if file_content is None:
+        commit_display = (
+            target_commit[:8] if target_commit != 'HEAD' else 'HEAD'
+        )
+        raise RuntimeError(
+            f'File "{source_file}" does not exist at commit {commit_display}'
+        )
+
+    # Ensure destination directory exists
+    destination_file.parent.mkdir(parents=True, exist_ok=True)
+
+    # Write the extracted content to destination
+    destination_file.write_text(file_content, encoding='utf-8')
+
+    LOGGER.debug(
+        'Successfully extracted %s (%d bytes) to %s',
+        source_file,
+        len(file_content),
+        destination_file,
+    )
+
+
 async def get_file_at_commit(
     working_directory: pathlib.Path, file_path: str, commit_hash: str
 ) -> str | None:

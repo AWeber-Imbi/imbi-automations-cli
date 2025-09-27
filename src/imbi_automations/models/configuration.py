@@ -57,6 +57,7 @@ class Configuration(pydantic.BaseModel):
         default_factory=AnthropicConfiguration
     )
     claude_code: ClaudeCodeConfiguration | None = None
+    commit_author: str = 'Imbi Automations <noreply@aweber.com>'
     github: GitHubConfiguration | None = None
     gitlab: GitLabConfiguration | None = None
     imbi: ImbiConfiguration | None = None

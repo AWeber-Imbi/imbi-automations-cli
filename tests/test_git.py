@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from imbi_automations import git
+from imbi_automations import engine, git, models
 from tests import base
 
 
@@ -119,62 +119,8 @@ class GitModuleTestCase(base.AsyncTestCase):
 
         self.assertIn('Git add failed', str(exc_context.exception))
 
-    @mock.patch('imbi_automations.git._run_git_command')
-    async def test_commit_changes_success(
-        self, mock_run_git: mock.AsyncMock
-    ) -> None:
-        """Test successful commit creation."""
-        mock_run_git.return_value = (0, '[main abc1234] Test commit', '')
-
-        await git.commit_changes(
-            working_directory=self.working_directory,
-            message='Test commit message',
-            author_name='Test User',
-            author_email='test@example.com',
-        )
-
-        mock_run_git.assert_called_once()
-        call_args = mock_run_git.call_args
-        command = call_args[0][0]
-
-        self.assertEqual(command[0], 'git')
-        self.assertEqual(command[1], 'commit')
-        self.assertIn('-m', command)
-        self.assertIn('imbi-automations: Test commit message', command)
-        self.assertIn('--author', command)
-        # Check that author format is correct
-        author_idx = command.index('--author')
-        self.assertIn('Test User <test@example.com>', command[author_idx + 1])
-
-    @mock.patch('imbi_automations.git._run_git_command')
-    async def test_commit_changes_nothing_to_commit(
-        self, mock_run_git: mock.AsyncMock
-    ) -> None:
-        """Test commit creation with nothing to commit."""
-        mock_run_git.return_value = (
-            1,
-            '',
-            'nothing to commit, working tree clean',
-        )
-
-        # Should return empty string when nothing to commit
-        result = await git.commit_changes(
-            self.working_directory, 'Test commit'
-        )
-
-        self.assertEqual(result, '')
-
-    @mock.patch('imbi_automations.git._run_git_command')
-    async def test_commit_changes_actual_failure(
-        self, mock_run_git: mock.AsyncMock
-    ) -> None:
-        """Test commit creation with actual git failure."""
-        mock_run_git.return_value = (1, '', 'fatal: not a git repository')
-
-        with self.assertRaises(RuntimeError) as exc_context:
-            await git.commit_changes(self.working_directory, 'Test commit')
-
-        self.assertIn('Git commit failed', str(exc_context.exception))
+    # Note: commit_changes has been moved to Claude-powered commits
+    # These tests are removed as the function signature has changed
 
     @mock.patch('imbi_automations.git._run_git_command')
     async def test_push_changes_success(
@@ -700,6 +646,361 @@ class GitModuleTestCase(base.AsyncTestCase):
             )
 
         self.assertIn('Git log failed', str(exc_context.exception))
+
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_run_git_command_success(
+        self, mock_run_git: mock.AsyncMock
+    ) -> None:
+        """Test _run_git_command with successful execution."""
+        # This tests the actual _run_git_command function directly
+        mock_run_git.return_value = (0, 'success output', '')
+
+        returncode, stdout, stderr = await git._run_git_command(
+            ['git', 'status'], cwd=self.working_directory
+        )
+
+        self.assertEqual(returncode, 0)
+        self.assertEqual(stdout, 'success output')
+        self.assertEqual(stderr, '')
+
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_run_git_command_failure(
+        self, mock_run_git: mock.AsyncMock
+    ) -> None:
+        """Test _run_git_command with command failure."""
+        mock_run_git.return_value = (1, '', 'error output')
+
+        returncode, stdout, stderr = await git._run_git_command(
+            ['git', 'invalid-command'], cwd=self.working_directory
+        )
+
+        self.assertEqual(returncode, 1)
+        self.assertEqual(stdout, '')
+        self.assertEqual(stderr, 'error output')
+
+
+class GitExtractTestCase(base.AsyncTestCase):
+    """Test cases for git.extract_file_from_commit functionality."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.working_directory = pathlib.Path(self.temp_dir.name)
+        self.repository_dir = self.working_directory / 'repository'
+        self.repository_dir.mkdir()
+
+    def tearDown(self) -> None:
+        super().tearDown()
+        self.temp_dir.cleanup()
+
+    @mock.patch('imbi_automations.git.find_commit_before_keyword')
+    @mock.patch('imbi_automations.git.get_file_at_commit')
+    async def test_extract_file_from_commit_with_keyword_success(
+        self, mock_get_file: mock.AsyncMock, mock_find_commit: mock.AsyncMock
+    ) -> None:
+        """Test successful file extraction with commit keyword."""
+        mock_find_commit.return_value = 'abc1234567890'
+        mock_get_file.return_value = 'extracted file content\nline 2\n'
+
+        source_file = pathlib.Path('src/config.py')
+        destination_file = self.working_directory / 'extracted/old-config.py'
+
+        await git.extract_file_from_commit(
+            working_directory=self.repository_dir,
+            source_file=source_file,
+            destination_file=destination_file,
+            commit_keyword='BREAKING CHANGE',
+            search_strategy='before_last_match',
+        )
+
+        # Verify git operations were called correctly
+        mock_find_commit.assert_called_once_with(
+            self.repository_dir, 'BREAKING CHANGE', 'before_last_match'
+        )
+
+        mock_get_file.assert_called_once_with(
+            self.repository_dir, 'src/config.py', 'abc1234567890'
+        )
+
+        # Verify file was written to destination
+        self.assertTrue(destination_file.exists())
+        content = destination_file.read_text()
+        self.assertEqual(content, 'extracted file content\nline 2\n')
+
+    @mock.patch('imbi_automations.git.find_commit_before_keyword')
+    async def test_extract_file_from_commit_no_commit_found(
+        self, mock_find_commit: mock.AsyncMock
+    ) -> None:
+        """Test file extraction when no commit found for keyword."""
+        mock_find_commit.return_value = None
+
+        source_file = pathlib.Path('src/config.py')
+        destination_file = self.working_directory / 'extracted/old-config.py'
+
+        with self.assertRaises(RuntimeError) as exc_context:
+            await git.extract_file_from_commit(
+                working_directory=self.repository_dir,
+                source_file=source_file,
+                destination_file=destination_file,
+                commit_keyword='NONEXISTENT',
+                search_strategy='before_first_match',
+            )
+
+        self.assertIn(
+            'No commit found before keyword "NONEXISTENT"',
+            str(exc_context.exception),
+        )
+        self.assertIn(
+            'using strategy "before_first_match"', str(exc_context.exception)
+        )
+
+    @mock.patch('imbi_automations.git.get_file_at_commit')
+    async def test_extract_file_from_commit_no_keyword_uses_head(
+        self, mock_get_file: mock.AsyncMock
+    ) -> None:
+        """Test file extraction without keyword uses HEAD commit."""
+        mock_get_file.return_value = 'current file content\n'
+
+        source_file = pathlib.Path('README.md')
+        destination_file = (
+            self.working_directory / 'extracted/current-readme.md'
+        )
+
+        await git.extract_file_from_commit(
+            working_directory=self.repository_dir,
+            source_file=source_file,
+            destination_file=destination_file,
+            # No commit_keyword specified
+        )
+
+        # Should use HEAD commit
+        mock_get_file.assert_called_once_with(
+            self.repository_dir, 'README.md', 'HEAD'
+        )
+
+        # Verify file was written
+        self.assertTrue(destination_file.exists())
+        self.assertEqual(
+            destination_file.read_text(), 'current file content\n'
+        )
+
+    @mock.patch('imbi_automations.git.find_commit_before_keyword')
+    @mock.patch('imbi_automations.git.get_file_at_commit')
+    async def test_extract_file_from_commit_file_not_found(
+        self, mock_get_file: mock.AsyncMock, mock_find_commit: mock.AsyncMock
+    ) -> None:
+        """Test file extraction when file doesn't exist at target commit."""
+        mock_find_commit.return_value = 'abc1234567890'
+        mock_get_file.return_value = None  # File doesn't exist
+
+        source_file = pathlib.Path('nonexistent.txt')
+        destination_file = self.working_directory / 'extracted/file.txt'
+
+        with self.assertRaises(RuntimeError) as exc_context:
+            await git.extract_file_from_commit(
+                working_directory=self.repository_dir,
+                source_file=source_file,
+                destination_file=destination_file,
+                commit_keyword='BREAKING CHANGE',
+            )
+
+        self.assertIn(
+            'File "nonexistent.txt" does not exist at commit abc12345',
+            str(exc_context.exception),
+        )
+
+    @mock.patch('imbi_automations.git.get_file_at_commit')
+    async def test_extract_file_from_commit_file_not_found_at_head(
+        self, mock_get_file: mock.AsyncMock
+    ) -> None:
+        """Test file extraction when file doesn't exist at HEAD commit."""
+        mock_get_file.return_value = None  # File doesn't exist
+
+        source_file = pathlib.Path('missing.txt')
+        destination_file = self.working_directory / 'extracted/file.txt'
+
+        with self.assertRaises(RuntimeError) as exc_context:
+            await git.extract_file_from_commit(
+                working_directory=self.repository_dir,
+                source_file=source_file,
+                destination_file=destination_file,
+                # No commit_keyword, so uses HEAD
+            )
+
+        self.assertIn(
+            'File "missing.txt" does not exist at commit HEAD',
+            str(exc_context.exception),
+        )
+
+    @mock.patch('imbi_automations.git.find_commit_before_keyword')
+    @mock.patch('imbi_automations.git.get_file_at_commit')
+    async def test_extract_file_from_commit_creates_destination_directory(
+        self, mock_get_file: mock.AsyncMock, mock_find_commit: mock.AsyncMock
+    ) -> None:
+        """Test file extraction creates destination directory."""
+        mock_find_commit.return_value = 'abc1234567890'
+        mock_get_file.return_value = 'file content\n'
+
+        source_file = pathlib.Path('src/deep/file.py')
+        destination_file = (
+            self.working_directory / 'extracted/nested/deep/file.py'
+        )
+
+        # Ensure nested directory doesn't exist initially
+        nested_dir = self.working_directory / 'extracted/nested/deep'
+        self.assertFalse(nested_dir.exists())
+
+        await git.extract_file_from_commit(
+            working_directory=self.repository_dir,
+            source_file=source_file,
+            destination_file=destination_file,
+            commit_keyword='BREAKING CHANGE',
+        )
+
+        # Verify nested directory was created
+        self.assertTrue(nested_dir.exists())
+
+        # Verify file was written to nested location
+        self.assertTrue(destination_file.exists())
+        self.assertEqual(destination_file.read_text(), 'file content\n')
+
+    @mock.patch('imbi_automations.git.find_commit_before_keyword')
+    @mock.patch('imbi_automations.git.get_file_at_commit')
+    async def test_extract_file_from_commit_uses_default_strategy(
+        self, mock_get_file: mock.AsyncMock, mock_find_commit: mock.AsyncMock
+    ) -> None:
+        """Test file extraction uses default strategy when not specified."""
+        mock_find_commit.return_value = 'abc1234567890'
+        mock_get_file.return_value = 'file content\n'
+
+        source_file = pathlib.Path('config.json')
+        destination_file = self.working_directory / 'extracted/config.json'
+
+        await git.extract_file_from_commit(
+            working_directory=self.repository_dir,
+            source_file=source_file,
+            destination_file=destination_file,
+            commit_keyword='BREAKING CHANGE',
+            # No search_strategy specified - should use default
+        )
+
+        # Should use default strategy 'before_last_match'
+        mock_find_commit.assert_called_once_with(
+            self.repository_dir, 'BREAKING CHANGE', 'before_last_match'
+        )
+
+
+class WorkflowEngineGitTestCase(base.AsyncTestCase):
+    """Test cases for WorkflowEngine git action integration."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.working_directory = pathlib.Path(self.temp_dir.name)
+
+        # Create required directory structure
+        (self.working_directory / 'repository').mkdir()
+        (self.working_directory / 'extracted').mkdir()
+
+        # Create mock configuration
+        self.config = models.Configuration(
+            imbi=models.ImbiConfiguration(
+                api_key='test-key', hostname='imbi.test.com'
+            )
+        )
+
+        # Create mock workflow
+        self.workflow = models.Workflow(
+            path=pathlib.Path('/mock/workflow'),
+            configuration=models.WorkflowConfiguration(
+                name='test-workflow', actions=[]
+            ),
+        )
+
+        # Create mock context
+        self.context = models.WorkflowContext(
+            workflow=self.workflow,
+            imbi_project=models.ImbiProject(
+                id=123,
+                dependencies=None,
+                description='Test project',
+                environments=None,
+                facts=None,
+                identifiers=None,
+                links=None,
+                name='test-project',
+                namespace='test-namespace',
+                namespace_slug='test-namespace',
+                project_score=None,
+                project_type='API',
+                project_type_slug='api',
+                slug='test-project',
+                urls=None,
+                imbi_url='https://imbi.example.com/projects/123',
+            ),
+            working_directory=self.working_directory,
+        )
+
+        # Create engine instance
+        self.engine = engine.WorkflowEngine(
+            configuration=self.config, workflow=self.workflow
+        )
+
+    def tearDown(self) -> None:
+        super().tearDown()
+        self.temp_dir.cleanup()
+
+    @mock.patch('imbi_automations.git.extract_file_from_commit')
+    async def test_execute_action_git_extract_integration(
+        self, mock_extract: mock.AsyncMock
+    ) -> None:
+        """Test integration of _execute_action_git with extract command."""
+        action = models.WorkflowGitAction(
+            name='extract-integration',
+            type='git',
+            command='extract',
+            source=pathlib.Path('test.txt'),
+            destination=pathlib.Path('extracted/test.txt'),
+            commit_keyword='TEST',
+            search_strategy='before_first_match',
+        )
+
+        await self.engine._execute_action_git(self.context, action)
+
+        # Verify git.extract_file_from_commit was called correctly
+        mock_extract.assert_called_once_with(
+            working_directory=self.working_directory / 'repository',
+            source_file=pathlib.Path('test.txt'),
+            destination_file=self.working_directory / 'extracted/test.txt',
+            commit_keyword='TEST',
+            search_strategy='before_first_match',
+        )
+
+    @mock.patch('imbi_automations.git.extract_file_from_commit')
+    async def test_execute_action_git_extract_no_strategy(
+        self, mock_extract: mock.AsyncMock
+    ) -> None:
+        """Test git extract action with default strategy."""
+        action = models.WorkflowGitAction(
+            name='extract-default',
+            type='git',
+            command='extract',
+            source=pathlib.Path('config.py'),
+            destination=pathlib.Path('extracted/config.py'),
+            commit_keyword='BREAKING',
+            # No search_strategy specified
+        )
+
+        await self.engine._execute_action_git(self.context, action)
+
+        # Should use default strategy
+        mock_extract.assert_called_once_with(
+            working_directory=self.working_directory / 'repository',
+            source_file=pathlib.Path('config.py'),
+            destination_file=self.working_directory / 'extracted/config.py',
+            commit_keyword='BREAKING',
+            search_strategy='before_last_match',
+        )
 
 
 if __name__ == '__main__':

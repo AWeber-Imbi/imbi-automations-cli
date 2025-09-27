@@ -132,6 +132,7 @@ class ClaudeTestCase(base.AsyncTestCase):
         claude_instance = claude.Claude(
             config=self.config,
             working_directory=self.working_directory,
+            commit_author='Test Author <test@example.com>',
             verbose=True,
         )
 
@@ -159,7 +160,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         action = models.WorkflowClaudeAction(
@@ -197,7 +200,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         action = models.WorkflowClaudeAction(
@@ -233,7 +238,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         # Test with plain JSON
@@ -264,7 +271,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         valid_result = {'result': 'success', 'message': 'Operation completed'}
@@ -295,7 +304,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         message = mock.MagicMock(spec=claude_code_sdk.ResultMessage)
@@ -307,7 +318,8 @@ class ClaudeTestCase(base.AsyncTestCase):
 
         self.assertIsInstance(result, models.AgentRun)
         self.assertEqual(result.result, models.AgentRunResult.failure)
-        self.assertEqual(result.message, 'Error occurred')
+        self.assertEqual(result.message, 'Claude Error')
+        self.assertEqual(result.errors, ['Error occurred'])
 
     def test_parse_message_result_message_invalid_json(self) -> None:
         """Test _parse_message with ResultMessage containing invalid JSON."""
@@ -321,7 +333,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         message = mock.MagicMock(spec=claude_code_sdk.ResultMessage)
@@ -333,7 +347,13 @@ class ClaudeTestCase(base.AsyncTestCase):
 
         self.assertIsInstance(result, models.AgentRun)
         self.assertEqual(result.result, models.AgentRunResult.failure)
-        self.assertIn('Failed to parse JSON result', result.message)
+        self.assertEqual(result.message, 'Agent Contract Failure')
+        self.assertTrue(
+            any(
+                'Failed to parse JSON result' in error
+                for error in result.errors
+            )
+        )
 
     def test_parse_message_assistant_message(self) -> None:
         """Test _parse_message with AssistantMessage."""
@@ -347,7 +367,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         message = mock.MagicMock(spec=claude_code_sdk.AssistantMessage)
@@ -371,7 +393,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         message = mock.MagicMock(spec=claude_code_sdk.SystemMessage)
@@ -393,7 +417,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         message = mock.MagicMock(spec=claude_code_sdk.UserMessage)
@@ -417,7 +443,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         text_block1 = mock.MagicMock(spec=claude_code_sdk.TextBlock)
@@ -452,7 +480,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         with mock.patch.object(claude_instance.logger, 'debug') as mock_debug:
@@ -474,7 +504,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         # Create a mock unknown block type
@@ -512,6 +544,7 @@ class ClaudeTestCase(base.AsyncTestCase):
         claude_instance = claude.Claude(
             config=self.config,
             working_directory=self.working_directory,
+            commit_author='Test Author <test@example.com>',
             verbose=True,
         )
 
@@ -567,7 +600,9 @@ class ClaudeTestCase(base.AsyncTestCase):
         mock_client_instance.disconnect = mock.AsyncMock()
 
         claude_instance = claude.Claude(
-            config=self.config, working_directory=self.working_directory
+            config=self.config,
+            working_directory=self.working_directory,
+            commit_author='Test Author <test@example.com>',
         )
 
         action = models.WorkflowClaudeAction(
@@ -622,7 +657,9 @@ class ClaudeTestCase(base.AsyncTestCase):
         mock_client_class.return_value = mock_client_instance
 
         claude_instance = claude.Claude(
-            config=self.config, working_directory=self.working_directory
+            config=self.config,
+            working_directory=self.working_directory,
+            commit_author='Test Author <test@example.com>',
         )
 
         action = models.WorkflowClaudeAction(
@@ -675,7 +712,9 @@ class ClaudeTestCase(base.AsyncTestCase):
         mock_client_class.return_value = mock_client_instance
 
         claude_instance = claude.Claude(
-            config=self.config, working_directory=self.working_directory
+            config=self.config,
+            working_directory=self.working_directory,
+            commit_author='Test Author <test@example.com>',
         )
 
         action = models.WorkflowClaudeAction(
@@ -725,7 +764,9 @@ class ClaudeTestCase(base.AsyncTestCase):
         mock_client_class.return_value = mock_client_instance
 
         claude_instance = claude.Claude(
-            config=self.config, working_directory=self.working_directory
+            config=self.config,
+            working_directory=self.working_directory,
+            commit_author='Test Author <test@example.com>',
         )
 
         action = models.WorkflowClaudeAction(
@@ -807,7 +848,9 @@ class ClaudeTestCase(base.AsyncTestCase):
         mock_client_instance.receive_response.return_value = mock_receive()
 
         claude_instance = claude.Claude(
-            config=self.config, working_directory=self.working_directory
+            config=self.config,
+            working_directory=self.working_directory,
+            commit_author='Test Author <test@example.com>',
         )
 
         action = models.WorkflowClaudeAction(
@@ -864,7 +907,9 @@ class ClaudeTestCase(base.AsyncTestCase):
         mock_client_instance.receive_response.return_value = mock_receive()
 
         claude_instance = claude.Claude(
-            config=self.config, working_directory=self.working_directory
+            config=self.config,
+            working_directory=self.working_directory,
+            commit_author='Test Author <test@example.com>',
         )
 
         action = models.WorkflowClaudeAction(
@@ -882,6 +927,7 @@ class ClaudeTestCase(base.AsyncTestCase):
         # Should return failure with unspecified failure message
         self.assertEqual(result.result, models.AgentRunResult.failure)
         self.assertEqual(result.message, 'Unspecified failure')
+        self.assertEqual(result.errors, [])
 
     def test_parse_message_result_with_trailing_backticks_only(self) -> None:
         """Test _parse_message with only trailing backticks."""
@@ -895,7 +941,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         valid_result = {'result': 'success', 'message': 'Operation completed'}
@@ -926,7 +974,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         # Test with ContentBlock (should raise RuntimeError as
@@ -951,7 +1001,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         # Test with only tool blocks (should all be skipped)
@@ -989,7 +1041,9 @@ class ClaudeTestCase(base.AsyncTestCase):
         mock_client_instance.disconnect = mock.AsyncMock()
 
         claude_instance = claude.Claude(
-            config=self.config, working_directory=self.working_directory
+            config=self.config,
+            working_directory=self.working_directory,
+            commit_author='Test Author <test@example.com>',
         )
 
         action = models.WorkflowClaudeAction(
@@ -1038,7 +1092,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         # Set initial session_id
@@ -1068,7 +1124,9 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                config=self.config, working_directory=self.working_directory
+                config=self.config,
+                working_directory=self.working_directory,
+                commit_author='Test Author <test@example.com>',
             )
 
         # Set initial session_id
