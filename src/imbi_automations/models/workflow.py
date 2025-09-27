@@ -38,7 +38,7 @@ class WorkflowAction(pydantic.BaseModel):
 
 
 class WorkflowCallableAction(WorkflowAction):
-    _import: str = pydantic.Field(alias='import')
+    import_name: str = pydantic.Field(alias='import')
     callable: typing.Callable
     args: list[typing.Any] = pydantic.Field(default_factory=list)
     kwargs: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
