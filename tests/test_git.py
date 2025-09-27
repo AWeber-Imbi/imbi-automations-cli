@@ -206,6 +206,56 @@ class GitModuleTestCase(base.AsyncTestCase):
         self.assertIn('Git push failed', str(exc_context.exception))
 
     @mock.patch('imbi_automations.git._run_git_command')
+    async def test_push_changes_imbi_automations_branch_force(
+        self, mock_run_git: mock.AsyncMock
+    ) -> None:
+        """Test that imbi-automations branches automatically use force push."""
+        mock_run_git.return_value = (0, 'Everything up-to-date', '')
+
+        await git.push_changes(
+            working_directory=self.working_directory,
+            remote='origin',
+            branch='imbi-automations/test-workflow',
+            set_upstream=True,
+        )
+
+        mock_run_git.assert_called_once()
+        call_args = mock_run_git.call_args
+        command = call_args[0][0]
+
+        # Should automatically include --force for imbi-automations branches
+        self.assertEqual(command[0], 'git')
+        self.assertEqual(command[1], 'push')
+        self.assertIn('--force', command)
+        self.assertIn('--set-upstream', command)
+        self.assertIn('origin', command)
+        self.assertIn('imbi-automations/test-workflow', command)
+
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_push_changes_regular_branch_no_force(
+        self, mock_run_git: mock.AsyncMock
+    ) -> None:
+        """Test that regular branches don't automatically use force push."""
+        mock_run_git.return_value = (0, 'Everything up-to-date', '')
+
+        await git.push_changes(
+            working_directory=self.working_directory,
+            remote='origin',
+            branch='feature/regular-branch',
+        )
+
+        mock_run_git.assert_called_once()
+        call_args = mock_run_git.call_args
+        command = call_args[0][0]
+
+        # Should NOT include --force for regular branches
+        self.assertEqual(command[0], 'git')
+        self.assertEqual(command[1], 'push')
+        self.assertNotIn('--force', command)
+        self.assertIn('origin', command)
+        self.assertIn('feature/regular-branch', command)
+
+    @mock.patch('imbi_automations.git._run_git_command')
     async def test_create_branch_success(
         self, mock_run_git: mock.AsyncMock
     ) -> None:

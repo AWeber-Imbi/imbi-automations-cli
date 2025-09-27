@@ -308,7 +308,8 @@ async def push_changes(
         working_directory: Git repository working directory
         remote: Remote name (default: 'origin')
         branch: Branch to push (default: current branch)
-        force: Force push (default: False)
+        force: Force push (default: False, auto-enabled for imbi-automations/*
+            branches)
         set_upstream: Set upstream tracking for new branches (default: False)
 
     Raises:
@@ -316,6 +317,10 @@ async def push_changes(
 
     """
     command = ['git', 'push']
+
+    # Auto-enable force push for imbi-automations branches
+    if branch and branch.startswith('imbi-automations/'):
+        force = True
 
     if force:
         command.append('--force')
