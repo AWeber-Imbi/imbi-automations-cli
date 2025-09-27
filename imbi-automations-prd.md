@@ -83,7 +83,7 @@ hostname = "api.github.com"
 api_key = "ghp_token"
 
 [providers.gitlab]
-hostname = "gitlab.com" 
+hostname = "gitlab.com"
 api_key = "glpat_token"
 
 [execution]

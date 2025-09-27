@@ -1,0 +1,282 @@
+# Comprehensive test workflow that exercises all workflow model branches
+# This TOML file tests all action types with valid field combinations
+#
+# This file is used by tests/test_workflow_loading.py to verify that:
+# 1. All action types can be loaded from TOML (except callable which requires Python objects)
+# 2. All validation branches are exercised with valid configurations
+# 3. Field validation works correctly for file and docker actions
+# 4. Complex workflow configurations can be parsed successfully
+#
+# Coverage includes:
+# - All action types: claude, docker, file, git, github, shell, template, utility
+# - All file commands: append, copy, delete (path & pattern), move, rename, write
+# - All docker commands: build, extract, pull, push (with and without tags)
+# - All utility commands: docker_tag, dockerfile_from, compare_semver, parse_python_constraints
+# - Both local and remote conditions
+# - Complex filter configurations
+# - Action-level conditions and failure handling
+
+name = "Comprehensive Test Workflow"
+description = "A test workflow that exercises all action types and validation branches"
+
+# Git configuration
+[git]
+clone = true
+shallow = false
+starting_branch = "feature/test-branch"
+commit_author = "Test Bot <test@example.com>"
+ci_skip_checks = true
+clone_type = "ssh"
+
+# GitHub configuration
+[github]
+create_pull_request = true
+
+# GitLab configuration
+[gitlab]
+create_merge_request = true
+
+# Workflow filter configuration
+[filter]
+project_ids = [123, 456]
+project_types = ["apis", "consumers"]
+project_facts = {"Programming Language" = "Python 3.12", "Framework" = "FastAPI"}
+project_environments = ["development", "staging"]
+github_identifier_required = true
+github_workflow_status_exclude = ["success", "completed"]
+
+# Workflow conditions (both local and remote)
+condition_type = "all"
+
+[[conditions]]
+file_exists = "pyproject.toml"
+
+[[conditions]]
+file_not_exists = "setup.py"
+
+[[conditions]]
+file_contains = "fastapi"
+file = "requirements.txt"
+
+[[conditions]]
+remote_client = "github"
+remote_file_exists = "README.md"
+
+[[conditions]]
+remote_client = "gitlab"
+remote_file_not_exists = ".travis.yml"
+
+[[conditions]]
+remote_file_contains = "FROM python:"
+remote_file = "Dockerfile"
+
+# Actions - testing all action types with valid field combinations
+
+# Note: Callable actions require actual Python callable objects and cannot be
+# represented in TOML, so they are not included in this test file
+
+# 2. Claude Action
+[[actions]]
+name = "test-claude-action"
+type = "claude"
+prompt = "prompts/main-prompt.md"
+validation_prompt = "prompts/validation-prompt.md"
+max_cycles = 5
+timeout = 1800
+
+# 3. Docker Actions - all command types
+
+# Docker build
+[[actions]]
+name = "test-docker-build"
+type = "docker"
+command = "build"
+image = "myapp"
+tag = "v1.0.0"
+path = "."
+
+# Docker extract
+[[actions]]
+name = "test-docker-extract"
+type = "docker"
+command = "extract"
+image = "ubuntu"
+tag = "20.04"
+source = "/etc/passwd"
+destination = "./extracted-passwd"
+
+# Docker pull
+[[actions]]
+name = "test-docker-pull-latest"
+type = "docker"
+command = "pull"
+image = "nginx"
+
+# Docker pull with tag
+[[actions]]
+name = "test-docker-pull-tagged"
+type = "docker"
+command = "pull"
+image = "redis"
+tag = "alpine"
+
+# Docker push
+[[actions]]
+name = "test-docker-push"
+type = "docker"
+command = "push"
+image = "myregistry.com/myapp"
+tag = "latest"
+
+# 4. File Actions - all command types
+
+# File append
+[[actions]]
+name = "test-file-append"
+type = "file"
+command = "append"
+path = "CHANGELOG.md"
+content = "\n## New Release\n- Added awesome features\n"
+encoding = "utf-8"
+
+# File copy
+[[actions]]
+name = "test-file-copy"
+type = "file"
+command = "copy"
+source = "templates/config.yml"
+destination = "config/production.yml"
+
+# File delete with path
+[[actions]]
+name = "test-file-delete-path"
+type = "file"
+command = "delete"
+path = "temp/old-file.txt"
+
+# File delete with pattern
+[[actions]]
+name = "test-file-delete-pattern"
+type = "file"
+command = "delete"
+pattern = ".*\\.tmp$"
+
+# File move
+[[actions]]
+name = "test-file-move"
+type = "file"
+command = "move"
+source = "old-location/file.txt"
+destination = "new-location/file.txt"
+
+# File rename
+[[actions]]
+name = "test-file-rename"
+type = "file"
+command = "rename"
+source = "old-name.txt"
+destination = "new-name.txt"
+
+# File write
+[[actions]]
+name = "test-file-write"
+type = "file"
+command = "write"
+path = "output/results.json"
+content = '{"status": "success", "message": "Workflow completed"}'
+encoding = "utf-8"
+
+# File write with custom encoding
+[[actions]]
+name = "test-file-write-encoding"
+type = "file"
+command = "write"
+path = "output/unicode.txt"
+content = "Hello 世界! 🌍"
+encoding = "utf-16"
+
+# 5. Git Action
+[[actions]]
+name = "test-git-extract"
+type = "git"
+command = "extract"
+source = "src/config.py"
+destination = "extracted/old-config.py"
+commit_keyword = "BREAKING CHANGE"
+search_strategy = "before_last_match"
+
+# 6. GitHub Action
+[[actions]]
+name = "test-github-sync-environments"
+type = "github"
+command = "sync_environments"
+
+# 7. Shell Action
+[[actions]]
+name = "test-shell-action"
+type = "shell"
+command = "npm install && npm run build"
+timeout = 600
+
+# 8. Template Action
+[[actions]]
+name = "test-template-action"
+type = "template"
+source_path = "templates/docker/Dockerfile.j2"
+destination_path = "Dockerfile"
+
+# 9. Utility Actions - all command types
+
+# Utility docker_tag
+[[actions]]
+name = "test-utility-docker-tag"
+type = "utility"
+command = "docker_tag"
+path = "Dockerfile"
+args = ["--format", "json"]
+
+# Utility dockerfile_from
+[[actions]]
+name = "test-utility-dockerfile-from"
+type = "utility"
+command = "dockerfile_from"
+path = "docker/Dockerfile"
+
+# Utility compare_semver
+[[actions]]
+name = "test-utility-compare-semver"
+type = "utility"
+command = "compare_semver"
+args = ["1.2.3", "1.2.4"]
+kwargs = {comparison = "lt"}
+
+# Utility parse_python_constraints
+[[actions]]
+name = "test-utility-python-constraints"
+type = "utility"
+command = "parse_python_constraints"
+path = "pyproject.toml"
+
+# Cleanup action (referenced by on_failure)
+[[actions]]
+name = "cleanup-action"
+type = "shell"
+command = "rm -rf temp/ || true"
+
+# Action with complex conditions
+[[actions]]
+name = "conditional-action"
+type = "shell"
+command = "echo 'Complex conditions met'"
+condition_type = "any"
+
+# Multiple conditions for this action
+[[actions.conditions]]
+file_exists = "package.json"
+
+[[actions.conditions]]
+remote_file_contains = "node"
+remote_file = ".nvmrc"
+
+[[actions.conditions]]
+file_not_exists = "yarn.lock"
