@@ -1,5 +1,6 @@
 """Comprehensive tests for the git module."""
 
+import datetime
 import pathlib
 import tempfile
 import unittest
@@ -26,19 +27,28 @@ class GitModuleTestCase(base.AsyncTestCase):
         self, mock_run_git: mock.AsyncMock
     ) -> None:
         """Test successful repository cloning."""
-        mock_run_git.return_value = (0, 'Cloning into repository...', '')
+        # First call: git clone, Second call: git rev-parse HEAD
+        mock_run_git.side_effect = [
+            (0, 'Cloning into repository...', ''),
+            (0, 'abc1234567890abcdef\n', ''),
+        ]
 
-        await git.clone_repository(
+        result = await git.clone_repository(
             working_directory=self.working_directory,
             clone_url='https://github.com/test/repo.git',
             branch='main',
             depth=1,
         )
 
+        # Should return the HEAD commit hash
+        self.assertEqual(result, 'abc1234567890abcdef')
+
+        # Verify both git commands were called
+        self.assertEqual(mock_run_git.call_count, 2)
+
         # Verify git clone command was called correctly
-        mock_run_git.assert_called_once()
-        call_args = mock_run_git.call_args
-        command = call_args[0][0]
+        clone_call = mock_run_git.call_args_list[0]
+        command = clone_call[0][0]
 
         self.assertEqual(command[0], 'git')
         self.assertEqual(command[1], 'clone')
@@ -47,6 +57,11 @@ class GitModuleTestCase(base.AsyncTestCase):
         self.assertIn('--branch', command)
         self.assertIn('main', command)
         self.assertIn('https://github.com/test/repo.git', command)
+
+        # Verify git rev-parse HEAD command was called
+        rev_parse_call = mock_run_git.call_args_list[1]
+        rev_parse_command = rev_parse_call[0][0]
+        self.assertEqual(rev_parse_command, ['git', 'rev-parse', 'HEAD'])
 
     @mock.patch('imbi_automations.git._run_git_command')
     async def test_clone_repository_failure(
@@ -71,22 +86,48 @@ class GitModuleTestCase(base.AsyncTestCase):
         self, mock_run_git: mock.AsyncMock
     ) -> None:
         """Test repository cloning with no branch or depth specified."""
-        mock_run_git.return_value = (0, 'Cloning into repository...', '')
+        # First call: git clone, Second call: git rev-parse HEAD
+        mock_run_git.side_effect = [
+            (0, 'Cloning into repository...', ''),
+            (0, 'def5678901234567890\n', ''),
+        ]
 
-        await git.clone_repository(
+        result = await git.clone_repository(
             working_directory=self.working_directory,
             clone_url='https://github.com/test/repo.git',
         )
 
+        # Should return the HEAD commit hash
+        self.assertEqual(result, 'def5678901234567890')
+
         # Verify git clone command was called with default depth
-        call_args = mock_run_git.call_args
-        command = call_args[0][0]
+        clone_call = mock_run_git.call_args_list[0]
+        command = clone_call[0][0]
 
         # Default depth is 1, so should include --depth option
         self.assertIn('git', command)
         self.assertIn('clone', command)
         self.assertIn('--depth', command)
         self.assertIn('https://github.com/test/repo.git', command)
+
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_clone_repository_rev_parse_failure(
+        self, mock_run_git: mock.AsyncMock
+    ) -> None:
+        """Test repository cloning with rev-parse HEAD failure."""
+        # First call: git clone succeeds, Second call: git rev-parse fails
+        mock_run_git.side_effect = [
+            (0, 'Cloning into repository...', ''),
+            (128, '', 'fatal: not a git repository'),
+        ]
+
+        with self.assertRaises(RuntimeError) as exc_context:
+            await git.clone_repository(
+                working_directory=self.working_directory,
+                clone_url='https://github.com/test/repo.git',
+            )
+
+        self.assertIn('Git rev-parse HEAD failed', str(exc_context.exception))
 
     @mock.patch('imbi_automations.git._run_git_command')
     async def test_add_files_success(
@@ -677,6 +718,379 @@ class GitModuleTestCase(base.AsyncTestCase):
         self.assertEqual(returncode, 1)
         self.assertEqual(stdout, '')
         self.assertEqual(stderr, 'error output')
+
+
+class GitCommitHistoryTestCase(base.AsyncTestCase):
+    """Test cases for git commit history functionality."""
+
+    def setUp(self) -> None:
+        super().setUp()
+        self.temp_dir = tempfile.TemporaryDirectory()
+        self.working_directory = pathlib.Path(self.temp_dir.name)
+        self.repository_dir = self.working_directory / 'repository'
+        self.repository_dir.mkdir()
+
+    def tearDown(self) -> None:
+        super().tearDown()
+        self.temp_dir.cleanup()
+
+    @mock.patch('imbi_automations.git._get_current_head_commit')
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_get_commits_since_with_new_commits(
+        self, mock_run_git: mock.AsyncMock, mock_get_head: mock.AsyncMock
+    ) -> None:
+        """Test get_commits_since with new commits."""
+        mock_get_head.return_value = 'newcommit123'
+
+        # Mock git log output with commits and file changes
+        commit1_line = (
+            'abc123|John Doe|john@example.com|John Doe|john@example.com|'
+            '1640995200|1640995200|Add new feature|Initial implementation'
+        )
+        commit2_line = (
+            'def456|Jane Smith|jane@example.com|Jane Smith|jane@example.com|'
+            '1640995260|1640995260|Fix bug in authentication|Bug fix'
+        )
+        mock_stdout = (
+            f'{commit1_line}\n'
+            'M\tsrc/feature.py\n'
+            'A\ttests/test_feature.py\n'
+            '\n'
+            f'{commit2_line}\n'
+            'Fixes: #123\n'
+            'Co-authored-by: Bob <bob@example.com>\n'
+            'M\tsrc/auth.py\n'
+            'D\told_auth.py\n'
+        )
+        # Setup mock responses: git log, then git show for each commit
+        mock_run_git.side_effect = [
+            (0, mock_stdout, ''),  # git log
+            (0, 'diff content for abc123', ''),  # git show abc123
+            (0, 'diff content for def456', ''),  # git show def456
+        ]
+
+        result = await git.get_commits_since(
+            self.repository_dir, 'startcommit789'
+        )
+
+        # Verify git commands were called correctly
+        self.assertEqual(mock_run_git.call_count, 3)
+
+        # First call should be git log
+        log_call = mock_run_git.call_args_list[0]
+        self.assertEqual(
+            log_call[0][0],
+            [
+                'git',
+                'log',
+                'startcommit789..HEAD',
+                '--pretty=format:%H|%an|%ae|%cn|%ce|%at|%ct|%s|%b',
+                '--name-status',
+            ],
+        )
+
+        # Verify summary data
+        self.assertEqual(result.total_commits, 2)
+        self.assertEqual(result.commit_range, 'startcommit789..newcommit123')
+        self.assertEqual(
+            result.files_affected,
+            [
+                'src/feature.py',
+                'tests/test_feature.py',
+                'src/auth.py',
+                'old_auth.py',
+            ],
+        )
+
+        # Verify first commit
+        commit1 = result.commits[0]
+        self.assertEqual(commit1.hash, 'abc123')
+        self.assertEqual(commit1.author_name, 'John Doe')
+        self.assertEqual(commit1.author_email, 'john@example.com')
+        self.assertEqual(commit1.subject, 'Add new feature')
+        self.assertEqual(commit1.body, 'Initial implementation')
+        self.assertEqual(len(commit1.files_changed), 2)
+
+        # Check file changes for first commit
+        self.assertEqual(commit1.files_changed[0].status, 'M')
+        self.assertEqual(commit1.files_changed[0].file_path, 'src/feature.py')
+        self.assertEqual(commit1.files_changed[1].status, 'A')
+        self.assertEqual(
+            commit1.files_changed[1].file_path, 'tests/test_feature.py'
+        )
+
+        # Verify second commit
+        commit2 = result.commits[1]
+        self.assertEqual(commit2.hash, 'def456')
+        self.assertEqual(commit2.subject, 'Fix bug in authentication')
+        self.assertEqual(commit2.trailers['Fixes'], '#123')
+        self.assertEqual(
+            commit2.trailers['Co-authored-by'], 'Bob <bob@example.com>'
+        )
+
+    @mock.patch('imbi_automations.git._get_current_head_commit')
+    async def test_get_commits_since_no_new_commits(
+        self, mock_get_head: mock.AsyncMock
+    ) -> None:
+        """Test get_commits_since when no new commits exist."""
+        # HEAD is same as starting commit
+        mock_get_head.return_value = 'samecommit123'
+
+        result = await git.get_commits_since(
+            self.repository_dir, 'samecommit123'
+        )
+
+        self.assertEqual(result.total_commits, 0)
+        self.assertEqual(result.commits, [])
+        self.assertEqual(result.files_affected, [])
+        self.assertEqual(result.commit_range, 'samecommit123..samecommit123')
+
+    @mock.patch('imbi_automations.git._get_current_head_commit')
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_get_commits_since_git_log_failure(
+        self, mock_run_git: mock.AsyncMock, mock_get_head: mock.AsyncMock
+    ) -> None:
+        """Test get_commits_since with git log failure."""
+        mock_get_head.return_value = 'newcommit123'
+        mock_run_git.return_value = (128, '', 'fatal: bad revision')
+
+        with self.assertRaises(RuntimeError) as exc_context:
+            await git.get_commits_since(self.repository_dir, 'badcommit')
+
+        self.assertIn('Git log failed', str(exc_context.exception))
+
+    def test_parse_commit_body_and_trailers_with_trailers(self) -> None:
+        """Test parsing commit body with trailers."""
+        body = (
+            'This is the commit body\n'
+            'with multiple lines\n'
+            '\n'
+            'Fixes: #123\n'
+            'Co-authored-by: Bob <bob@example.com>\n'
+            'Signed-off-by: Alice <alice@example.com>'
+        )
+
+        commit_body, trailers = git._parse_commit_body_and_trailers(body)
+
+        expected_body = 'This is the commit body\nwith multiple lines'
+        expected_trailers = {
+            'Fixes': '#123',
+            'Co-authored-by': 'Bob <bob@example.com>',
+            'Signed-off-by': 'Alice <alice@example.com>',
+        }
+
+        self.assertEqual(commit_body, expected_body)
+        self.assertEqual(trailers, expected_trailers)
+
+    def test_parse_commit_body_and_trailers_no_trailers(self) -> None:
+        """Test parsing commit body without trailers."""
+        body = 'Simple commit message\nwith no trailers'
+
+        commit_body, trailers = git._parse_commit_body_and_trailers(body)
+
+        self.assertEqual(
+            commit_body, 'Simple commit message\nwith no trailers'
+        )
+        self.assertEqual(trailers, {})
+
+    def test_parse_commit_body_and_trailers_empty(self) -> None:
+        """Test parsing empty commit body."""
+        commit_body, trailers = git._parse_commit_body_and_trailers('')
+
+        self.assertEqual(commit_body, '')
+        self.assertEqual(trailers, {})
+
+    def test_parse_file_change_line_modified(self) -> None:
+        """Test parsing modified file change line."""
+        result = git._parse_file_change_line('M\tsrc/config.py')
+
+        self.assertEqual(result.status, 'M')
+        self.assertEqual(result.file_path, 'src/config.py')
+        self.assertIsNone(result.old_path)
+
+    def test_parse_file_change_line_added(self) -> None:
+        """Test parsing added file change line."""
+        result = git._parse_file_change_line('A\tnew_file.txt')
+
+        self.assertEqual(result.status, 'A')
+        self.assertEqual(result.file_path, 'new_file.txt')
+        self.assertIsNone(result.old_path)
+
+    def test_parse_file_change_line_renamed(self) -> None:
+        """Test parsing renamed file change line."""
+        result = git._parse_file_change_line('R100\told_name.py\tnew_name.py')
+
+        self.assertEqual(result.status, 'R100')
+        self.assertEqual(result.file_path, 'new_name.py')
+        self.assertEqual(result.old_path, 'old_name.py')
+
+    def test_parse_file_change_line_invalid(self) -> None:
+        """Test parsing invalid file change line."""
+        result = git._parse_file_change_line('invalid_line')
+
+        self.assertIsNone(result)
+
+    def test_parse_file_change_line_empty(self) -> None:
+        """Test parsing empty file change line."""
+        result = git._parse_file_change_line('')
+
+        self.assertIsNone(result)
+
+    def test_parse_diff_output_single_file(self) -> None:
+        """Test parsing diff output for a single file."""
+        diff_output = (
+            'diff --git a/src/config.py b/src/config.py\n'
+            'index abc123..def456 100644\n'
+            '--- a/src/config.py\n'
+            '+++ b/src/config.py\n'
+            '@@ -1,3 +1,4 @@\n'
+            ' import os\n'
+            ' \n'
+            '+NEW_SETTING = True\n'
+            ' def get_config():\n'
+        )
+
+        result = git._parse_diff_output(diff_output)
+
+        self.assertIn('src/config.py', result)
+        self.assertIn(
+            'diff --git a/src/config.py b/src/config.py',
+            result['src/config.py'],
+        )
+        self.assertIn('+NEW_SETTING = True', result['src/config.py'])
+
+    def test_parse_diff_output_multiple_files(self) -> None:
+        """Test parsing diff output for multiple files."""
+        diff_output = (
+            'diff --git a/file1.py b/file1.py\n'
+            'index abc123..def456 100644\n'
+            '--- a/file1.py\n'
+            '+++ b/file1.py\n'
+            '@@ -1,1 +1,2 @@\n'
+            ' print("hello")\n'
+            '+print("world")\n'
+            'diff --git a/file2.py b/file2.py\n'
+            'index ghi789..jkl012 100644\n'
+            '--- a/file2.py\n'
+            '+++ b/file2.py\n'
+            '@@ -1,1 +1,1 @@\n'
+            '-old_code()\n'
+            '+new_code()\n'
+        )
+
+        result = git._parse_diff_output(diff_output)
+
+        self.assertEqual(len(result), 2)
+        self.assertIn('file1.py', result)
+        self.assertIn('file2.py', result)
+        self.assertIn('+print("world")', result['file1.py'])
+        self.assertIn('+new_code()', result['file2.py'])
+        self.assertIn('-old_code()', result['file2.py'])
+
+    def test_parse_diff_output_empty(self) -> None:
+        """Test parsing empty diff output."""
+        result = git._parse_diff_output('')
+        self.assertEqual(result, {})
+
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_add_diffs_to_commit_success(
+        self, mock_run_git: mock.AsyncMock
+    ) -> None:
+        """Test adding diffs to commit file changes."""
+        # Mock diff output
+        diff_output = (
+            'diff --git a/src/config.py b/src/config.py\n'
+            'index abc123..def456 100644\n'
+            '--- a/src/config.py\n'
+            '+++ b/src/config.py\n'
+            '@@ -1,3 +1,4 @@\n'
+            ' import os\n'
+            '+NEW_SETTING = True\n'
+        )
+        mock_run_git.return_value = (0, diff_output, '')
+
+        # Create a commit with file changes
+        commit = models.GitCommit(
+            hash='abc123',
+            author_name='Test',
+            author_email='test@example.com',
+            committer_name='Test',
+            committer_email='test@example.com',
+            author_date=datetime.datetime.now(datetime.UTC),
+            commit_date=datetime.datetime.now(datetime.UTC),
+            subject='Test commit',
+            body='',
+            trailers={},
+            files_changed=[
+                models.GitFileChange(status='M', file_path='src/config.py')
+            ],
+        )
+
+        await git._add_diffs_to_commit(self.repository_dir, commit)
+
+        # Verify git show command was called
+        mock_run_git.assert_called_once_with(
+            ['git', 'show', '--format=', 'abc123'],
+            cwd=self.repository_dir,
+            timeout_seconds=60,
+        )
+
+        # Verify diff was added to file change
+        self.assertIsNotNone(commit.files_changed[0].diff)
+        self.assertIn(
+            'diff --git a/src/config.py b/src/config.py',
+            commit.files_changed[0].diff,
+        )
+        self.assertIn('+NEW_SETTING = True', commit.files_changed[0].diff)
+
+    @mock.patch('imbi_automations.git._run_git_command')
+    async def test_add_diffs_to_commit_failure(
+        self, mock_run_git: mock.AsyncMock
+    ) -> None:
+        """Test adding diffs to commit when git show fails."""
+        mock_run_git.return_value = (128, '', 'fatal: bad object')
+
+        commit = models.GitCommit(
+            hash='badcommit',
+            author_name='Test',
+            author_email='test@example.com',
+            committer_name='Test',
+            committer_email='test@example.com',
+            author_date=datetime.datetime.now(datetime.UTC),
+            commit_date=datetime.datetime.now(datetime.UTC),
+            subject='Test commit',
+            body='',
+            trailers={},
+            files_changed=[
+                models.GitFileChange(status='M', file_path='src/config.py')
+            ],
+        )
+
+        # Should not raise, but should log warning
+        await git._add_diffs_to_commit(self.repository_dir, commit)
+
+        # Diff should remain None
+        self.assertIsNone(commit.files_changed[0].diff)
+
+    async def test_add_diffs_to_commit_no_files(self) -> None:
+        """Test adding diffs to commit with no file changes."""
+        commit = models.GitCommit(
+            hash='abc123',
+            author_name='Test',
+            author_email='test@example.com',
+            committer_name='Test',
+            committer_email='test@example.com',
+            author_date=datetime.datetime.now(datetime.UTC),
+            commit_date=datetime.datetime.now(datetime.UTC),
+            subject='Test commit',
+            body='',
+            trailers={},
+            files_changed=[],  # No files changed
+        )
+
+        # Should return early without making git calls
+        await git._add_diffs_to_commit(self.repository_dir, commit)
+        # No assertions needed, just verify it doesn't crash
 
 
 class GitExtractTestCase(base.AsyncTestCase):
