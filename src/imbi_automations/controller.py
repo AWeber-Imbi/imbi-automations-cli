@@ -117,33 +117,25 @@ class Automation(mixins.WorkflowLoggerMixin):
 
         original_count = len(projects)
 
+        if self.workflow_filter.github_identifier_required:
+            self.logger.debug('GitHub Identifiers Start: %i', len(projects))
+            projects = [
+                project
+                for project in projects
+                if project.identifiers.get(
+                    self.configuration.imbi.github_identifier
+                )
+            ]
+            self.logger.debug('GitHub Identifiers Start: %i', len(projects))
+
         if self.workflow_filter.project_ids:
+            self.logger.debug('Project ID Start: %i', len(projects))
             projects = [
                 project
                 for project in projects
                 if project.id in self.workflow_filter.project_ids
             ]
-        if self.workflow_filter.project_types:
-            self.logger.debug('Project Type Start: %i', len(projects))
-            projects = [
-                project
-                for project in projects
-                if project.project_type_slug
-                in self.workflow_filter.project_types
-            ]
-            self.logger.debug('Project Type End: %i', len(projects))
-
-        if self.workflow_filter.project_facts:
-            self.logger.debug('Project Facts Start: %i', len(projects))
-            projects = [
-                project
-                for project in projects
-                if all(
-                    project.facts.get(k) == v
-                    for k, v in self.workflow_filter.project_facts.items()
-                )
-            ]
-            self.logger.debug('Project Facts End: %i', len(projects))
+            self.logger.debug('Project IDs End: %i', len(projects))
 
         if self.workflow_filter.project_environments:
             self.logger.debug('Project Environments Start: %i', len(projects))
@@ -157,7 +149,31 @@ class Automation(mixins.WorkflowLoggerMixin):
             ]
             self.logger.debug('Project Environments End: %i', len(projects))
 
-        if self.workflow_filter.exclude_github_workflow_status:
+        if self.workflow_filter.project_facts:
+            self.logger.debug('Project Facts Start: %i', len(projects))
+            projects = [
+                project
+                for project in projects
+                if all(
+                    project.facts.get(k) == v
+                    for k, v in self.workflow_filter.project_facts.items()
+                )
+            ]
+            self.logger.debug('Project Facts End: %i', len(projects))
+
+        if self.workflow_filter.project_types:
+            self.logger.debug('Project Type Start: %i', len(projects))
+            projects = [
+                project
+                for project in projects
+                if project.project_type_slug
+                in self.workflow_filter.project_types
+            ]
+            self.logger.debug('Project Type End: %i', len(projects))
+
+        # Dynamic Filters Should happen _after_ easily applied ones
+
+        if self.workflow_filter.github_workflow_status_exclude:
             self.logger.debug(
                 'Project Workflow Statuses Start: %i', len(projects)
             )
@@ -217,7 +233,7 @@ class Automation(mixins.WorkflowLoggerMixin):
             project
             for project in projects
             if statuses[github_repos[project.id].id]
-            not in self.workflow_filter.exclude_github_workflow_status
+            not in self.workflow_filter.github_workflow_status_exclude
         ]
         return projects
 
