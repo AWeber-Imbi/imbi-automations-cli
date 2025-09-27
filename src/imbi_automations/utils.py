@@ -1,3 +1,4 @@
+import json
 import logging
 import pathlib
 import re
@@ -132,3 +133,38 @@ def load_toml(toml_file: typing.TextIO) -> dict:
 
     """
     return tomllib.loads(toml_file.read())
+
+
+def extract_json(response: str) -> dict[str, typing.Any]:
+    """Extract JSON from Claude Code response text."""
+    # Try parsing as-is first
+    try:
+        return json.loads(response)
+    except json.JSONDecodeError:
+        pass
+
+    # Find JSON in code blocks
+    patterns = [
+        r'```json\s*\n(.*?)\n```',  # JSON code block
+        r'```\s*\n(.*?)\n```',  # Generic code block
+        r'(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})',  # Raw JSON object
+    ]
+
+    for pattern in patterns:
+        matches = re.findall(pattern, response, re.DOTALL)
+        for match in matches:
+            try:
+                return json.loads(match)
+            except json.JSONDecodeError:
+                continue
+
+    # Last resort: find last JSON-like structure
+    try:
+        start = response.rfind('{"')
+        end = response.rfind('"}') + 1
+        if 0 <= start < end:
+            return json.loads(response[start:end])
+    except json.JSONDecodeError:
+        pass
+
+    raise ValueError(f'No valid JSON found in response: {response[:200]}...')

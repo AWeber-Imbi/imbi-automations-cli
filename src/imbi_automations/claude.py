@@ -3,6 +3,7 @@ import json
 import logging
 import pathlib
 
+import anthropic
 import claude_code_sdk
 import pydantic
 
@@ -44,14 +45,16 @@ class Claude(mixins.WorkflowLoggerMixin):
 
     def __init__(
         self,
-        config: models.ClaudeCodeConfiguration,
+        config: models.Configuration,
         working_directory: pathlib.Path,
         commit_author: str,
         verbose: bool = False,
     ) -> None:
         super().__init__(verbose)
+        self.anthropic = anthropic.AsyncAnthropic()
+        self.anthropic_model = config.anthropic.model
         self.commit_author = commit_author
-        self.config = config
+        self.config = config.claude_code
         self.logger: logging.Logger = LOGGER
         self.working_directory = working_directory
         self.client = self._create_client()
@@ -93,6 +96,15 @@ class Claude(mixins.WorkflowLoggerMixin):
 
         await self.client.disconnect()
 
+    async def query(self, prompt: str) -> str:
+        """Use the Anthropic API to run one-off tasks"""
+        message = await self.anthropic.messages.create(
+            model=self.anthropic_model,
+            max_tokens=8192,
+            messages=[{'role': 'user', 'content': prompt}],
+        )
+        return message.content[0].text
+
     def _create_client(self) -> claude_code_sdk.ClaudeSDKClient:
         """Create the Claude SDK client, initializing the environment"""
         settings = self._initialize_working_directory()
@@ -103,7 +115,6 @@ class Claude(mixins.WorkflowLoggerMixin):
         )
 
         system_prompt = (BASE_PATH / 'prompts' / 'CLAUDE.md').read_text()
-        LOGGER.debug('Additional system prompt: \n%s', system_prompt)
         options = claude_code_sdk.ClaudeCodeOptions(
             add_dirs=[
                 self.working_directory / 'workflow',
@@ -112,6 +123,7 @@ class Claude(mixins.WorkflowLoggerMixin):
             append_system_prompt=system_prompt,
             allowed_tools=[
                 'Bash',
+                'Bash(git:*)',
                 'BashOutput',
                 'Edit',
                 'Glob',
@@ -204,7 +216,8 @@ class Claude(mixins.WorkflowLoggerMixin):
         else:
             prompt += prompt_file.read_text(encoding='utf-8')
 
-        prompt += f'\n\n# Context Data: {context.model_dump_json()}\n'
+        if agent != AgentType.commit:
+            prompt += f'\n\n# Context Data: {context.model_dump_json()}'
         return prompt
 
     def _initialize_working_directory(self) -> pathlib.Path:
@@ -299,7 +312,7 @@ class Claude(mixins.WorkflowLoggerMixin):
             LOGGER.debug('Result (%s): %r', message.session_id, message.result)
 
             try:
-                payload = json.loads(message.result)
+                payload = utils.extract_json(message.result)
             except json.JSONDecodeError as err:
                 self.logger.error('Failed to parse JSON result: %s', err)
                 return models.AgentRun(
