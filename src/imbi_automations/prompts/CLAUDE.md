@@ -87,9 +87,9 @@ VALIDATION_PASSED
 
 ## Response Validation
 
-- You **MUST** validate the response against the JSON schema above.
 - You **MUST** use the `mcp__agent_tools__response_validator` tool to validate your response.
 - **IMPORTANT**: Respond with ONLY the JSON object - no markdown, no explanation, no other text.
+- You **MUST** validate the response against the JSON schema above.
 - DO NOT INCLUDE JSON code fence in your response.
 
 ---
