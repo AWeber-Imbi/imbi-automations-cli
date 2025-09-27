@@ -1,0 +1,74 @@
+# Invalid file action workflow - tests validation failures
+# This TOML file contains invalid field combinations for file actions
+# to test that validation properly catches and rejects them
+
+name = "Invalid File Actions Test Workflow"
+description = "Tests file action validation failures"
+
+# File action with missing required fields
+[[actions]]
+name = "file-append-missing-content"
+type = "file"
+command = "append"
+path = "test.txt"
+# Missing required 'content' field - should fail validation
+
+# File action with forbidden field combinations
+[[actions]]
+name = "file-copy-with-content"
+type = "file"
+command = "copy"
+source = "src.txt"
+destination = "dst.txt"
+content = "This should not be allowed for copy"  # Forbidden field
+
+# File action with missing required fields
+[[actions]]
+name = "file-write-missing-path"
+type = "file"
+command = "write"
+content = "Hello world"
+# Missing required 'path' field - should fail validation
+
+# File action with forbidden pattern for copy
+[[actions]]
+name = "file-copy-with-pattern"
+type = "file"
+command = "copy"
+source = "src.txt"
+destination = "dst.txt"
+pattern = "*.tmp"  # Pattern not allowed for copy - should fail
+
+# Delete with neither path nor pattern
+[[actions]]
+name = "file-delete-no-path-or-pattern"
+type = "file"
+command = "delete"
+# Missing both 'path' and 'pattern' - should fail validation
+
+# Move with forbidden content field
+[[actions]]
+name = "file-move-with-content"
+type = "file"
+command = "move"
+source = "old.txt"
+destination = "new.txt"
+content = "Should not be allowed"  # Content forbidden for move
+
+# Rename with forbidden encoding field (encoding only for append/write)
+[[actions]]
+name = "file-rename-with-encoding"
+type = "file"
+command = "rename"
+source = "old_name.txt"
+destination = "new_name.txt"
+encoding = "utf-16"  # Encoding not allowed for rename
+
+# Write with forbidden source field
+[[actions]]
+name = "file-write-with-source"
+type = "file"
+command = "write"
+path = "output.txt"
+content = "Hello"
+source = "should_not_be_here.txt"  # Source not allowed for write

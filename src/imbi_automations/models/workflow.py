@@ -50,11 +50,12 @@ class WorkflowClaudeAction(WorkflowAction):
     type: Literal['claude'] = 'claude'
     prompt: str | None
     validation_prompt: str | None = None
+    max_cycles: int = 3
 
 
 class WorkflowDockerActionCommand(enum.StrEnum):
     build = 'build'
-    extract_file = 'extract_file'
+    extract = 'extract'
     pull = 'pull'
     push = 'push'
 
@@ -63,8 +64,62 @@ class WorkflowDockerAction(WorkflowAction):
     type: Literal['docker'] = 'docker'
     command: WorkflowDockerActionCommand
     image: str
+    tag: str | None = None
+    path: pathlib.Path | None = None
     source: pathlib.Path | None = None
     destination: pathlib.Path | None = None
+
+    @pydantic.model_validator(mode='after')
+    def validate_command_fields(self) -> 'WorkflowDockerAction':
+        """Validate required and forbidden fields based on command type."""
+        command = self.command
+
+        # Define required fields for each command (image is always required)
+        required_fields = {
+            WorkflowDockerActionCommand.build: {'path'},
+            WorkflowDockerActionCommand.extract: {'source', 'destination'},
+            WorkflowDockerActionCommand.pull: set(),
+            WorkflowDockerActionCommand.push: set(),
+        }
+
+        # Define allowed fields for each command (all others are forbidden)
+        # Note: image and tag are always allowed
+        allowed_fields = {
+            WorkflowDockerActionCommand.build: {'image', 'tag', 'path'},
+            WorkflowDockerActionCommand.extract: {
+                'image',
+                'tag',
+                'source',
+                'destination',
+            },
+            WorkflowDockerActionCommand.pull: {'image', 'tag'},
+            WorkflowDockerActionCommand.push: {'image', 'tag'},
+        }
+
+        # Check required fields
+        required = required_fields[command]
+        for field in required:
+            if getattr(self, field) is None:
+                raise ValueError(
+                    f"Field '{field}' is required for command '{command}'"
+                )
+
+        # Check forbidden fields
+        allowed = allowed_fields[command]
+        field_values = {
+            'path': self.path,
+            'source': self.source,
+            'destination': self.destination,
+            # Note: image and tag are not checked as they're always allowed
+        }
+
+        for field, value in field_values.items():
+            if field not in allowed and value is not None:
+                raise ValueError(
+                    f"Field '{field}' is not allowed for command '{command}'"
+                )
+
+        return self
 
 
 class WorkflowFileActionCommand(enum.StrEnum):
@@ -79,12 +134,76 @@ class WorkflowFileActionCommand(enum.StrEnum):
 class WorkflowFileAction(WorkflowAction):
     type: Literal['file'] = 'file'
     command: WorkflowFileActionCommand
-    path: pathlib.Path | None
+    path: pathlib.Path | None = None
     pattern: typing.Pattern | None = None
     source: pathlib.Path | None = None
     destination: pathlib.Path | None = None
     content: str | bytes | None = None
     encoding: str = 'utf-8'
+
+    @pydantic.model_validator(mode='after')
+    def validate_command_fields(self) -> 'WorkflowFileAction':
+        """Validate required and forbidden fields based on command type."""
+        command = self.command
+
+        # Define required fields for each command
+        required_fields = {
+            WorkflowFileActionCommand.append: {'path', 'content'},
+            WorkflowFileActionCommand.copy: {'source', 'destination'},
+            WorkflowFileActionCommand.delete: set(),
+            WorkflowFileActionCommand.move: {'source', 'destination'},
+            WorkflowFileActionCommand.rename: {'source', 'destination'},
+            WorkflowFileActionCommand.write: {'path', 'content'},
+        }
+
+        # Define allowed fields for each command (all others are forbidden)
+        allowed_fields = {
+            WorkflowFileActionCommand.append: {'path', 'content', 'encoding'},
+            WorkflowFileActionCommand.copy: {'source', 'destination'},
+            WorkflowFileActionCommand.delete: {'path', 'pattern'},
+            WorkflowFileActionCommand.move: {'source', 'destination'},
+            WorkflowFileActionCommand.rename: {'source', 'destination'},
+            WorkflowFileActionCommand.write: {'path', 'content', 'encoding'},
+        }
+
+        # Check required fields
+        required = required_fields[command]
+        for field in required:
+            if getattr(self, field) is None:
+                raise ValueError(
+                    f"Field '{field}' is required for command '{command}'"
+                )
+
+        # Special case for delete: requires path OR pattern
+        if (
+            command == WorkflowFileActionCommand.delete
+            and self.path is None
+            and self.pattern is None
+        ):
+            raise ValueError(
+                "Field 'path' or 'pattern' is required for command 'delete'"
+            )
+
+        # Check forbidden fields
+        allowed = allowed_fields[command]
+        field_values = {
+            'path': self.path,
+            'pattern': self.pattern,
+            'source': self.source,
+            'destination': self.destination,
+            'content': self.content,
+            'encoding': self.encoding
+            if self.encoding != 'utf-8'
+            else None,  # Default encoding is allowed
+        }
+
+        for field, value in field_values.items():
+            if field not in allowed and value is not None:
+                raise ValueError(
+                    f"Field '{field}' is not allowed for command '{command}'"
+                )
+
+        return self
 
 
 class WorkflowGitActionCommand(enum.StrEnum):

@@ -343,18 +343,18 @@ class Automation(mixins.WorkflowLoggerMixin):
     ) -> bool:
         github_repository = await self._get_github_repository(project)
         gitlab_project = await self._get_gitlab_project(project)
-        self._log_verbose_info(
-            'Processing Imbi project %s (%i)', project.name, project.id
-        )
-        if (
-            not await self.workflow_engine.execute(
-                project, github_repository, gitlab_project
-            )
-            and self.args.stop_on_failure
+        self._log_verbose_info('Processing %s (%i)', project.name, project.id)
+        if not await self.workflow_engine.execute(
+            project, github_repository, gitlab_project
         ):
-            raise RuntimeError(
-                f'Workflow failed for project {project.name} ({project.id})'
+            if self.args.exit_on_error:
+                raise RuntimeError(
+                    f'Workflow failed for {project.name} ({project.id})'
+                )
+            self.logger.error(
+                'Workflow failed for %s (%i)', project.name, project.id
             )
+            return False
         self._log_verbose_info(
             'Completed processing Imbi project %s (%i)',
             project.name,
