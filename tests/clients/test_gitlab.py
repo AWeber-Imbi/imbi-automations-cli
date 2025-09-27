@@ -3,12 +3,13 @@ import unittest
 
 import httpx
 
-from imbi_automations import gitlab, models
-from imbi_automations import http as ia_http
-from tests.base import AsyncTestCase
+from imbi_automations import models
+from imbi_automations.clients import gitlab
+from imbi_automations.clients import http as ia_http
+from tests import base
 
 
-class TestGitLabClient(AsyncTestCase):
+class TestGitLabClient(base.AsyncTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.config = models.GitLabConfiguration(
@@ -234,8 +235,8 @@ class TestGitLabClient(AsyncTestCase):
         self.assertEqual(client.base_url, 'https://git.company.com')
 
     async def test_gitlab_inheritance_from_base_url_client(self) -> None:
-        """Test that GitLab inherits properly from BaseURLClient."""
-        self.assertIsInstance(self.instance, ia_http.BaseURLClient)
+        """Test that GitLab inherits properly from BaseURLHTTPClient."""
+        self.assertIsInstance(self.instance, ia_http.BaseURLHTTPClient)
         self.assertTrue(hasattr(self.instance, 'get'))
         self.assertTrue(hasattr(self.instance, 'post'))
         self.assertTrue(hasattr(self.instance, 'put'))

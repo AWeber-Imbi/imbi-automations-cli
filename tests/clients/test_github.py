@@ -4,12 +4,13 @@ from unittest import mock
 
 import httpx
 
-from imbi_automations import github, models
-from imbi_automations import http as ia_http
-from tests.base import AsyncTestCase
+from imbi_automations import errors, models
+from imbi_automations.clients import github
+from imbi_automations.clients import http as ia_http
+from tests import base
 
 
-class TestGitHubClient(AsyncTestCase):
+class TestGitHubClient(base.AsyncTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.config = models.GitHubConfiguration(
@@ -193,7 +194,7 @@ class TestGitHubClient(AsyncTestCase):
             ),
         )
 
-        with self.assertRaises(models.GitHubNotFoundError) as cm:
+        with self.assertRaises(errors.GitHubNotFoundError) as cm:
             await self.instance.get_repository('testorg', 'private-repo')
 
         self.assertIn('Access denied for repository', str(cm.exception))
@@ -207,7 +208,7 @@ class TestGitHubClient(AsyncTestCase):
             ),
         )
 
-        with self.assertRaises(models.GitHubNotFoundError) as cm:
+        with self.assertRaises(errors.GitHubNotFoundError) as cm:
             await self.instance.get_repository('testorg', 'private-repo')
 
         self.assertIn('Access denied for repository', str(cm.exception))
@@ -290,7 +291,7 @@ class TestGitHubClient(AsyncTestCase):
             ),
         )
 
-        with self.assertRaises(models.GitHubNotFoundError):
+        with self.assertRaises(errors.GitHubNotFoundError):
             await self.instance.get_repository_by_id(12345)
 
     async def test_get_repository_by_id_server_error(self) -> None:
@@ -422,8 +423,8 @@ class TestGitHubClient(AsyncTestCase):
         self.assertEqual(client.base_url, 'https://github.enterprise.com')
 
     async def test_github_inheritance_from_base_url_client(self) -> None:
-        """Test that GitHub inherits properly from BaseURLClient."""
-        self.assertIsInstance(self.instance, ia_http.BaseURLClient)
+        """Test that GitHub inherits properly from BaseURLHTTPClient."""
+        self.assertIsInstance(self.instance, ia_http.BaseURLHTTPClient)
         self.assertTrue(hasattr(self.instance, 'get'))
         self.assertTrue(hasattr(self.instance, 'post'))
         self.assertTrue(hasattr(self.instance, 'put'))

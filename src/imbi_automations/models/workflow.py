@@ -1,6 +1,7 @@
 import enum
 import pathlib
 import typing
+from typing import Annotated, Literal
 
 import pydantic
 
@@ -38,6 +39,7 @@ class WorkflowAction(pydantic.BaseModel):
 
 
 class WorkflowCallableAction(WorkflowAction):
+    type: Literal['callable'] = 'callable'
     import_name: str = pydantic.Field(alias='import')
     callable: typing.Callable
     args: list[typing.Any] = pydantic.Field(default_factory=list)
@@ -45,6 +47,7 @@ class WorkflowCallableAction(WorkflowAction):
 
 
 class WorkflowClaudeAction(WorkflowAction):
+    type: Literal['claude'] = 'claude'
     prompt: str | None
     validation_prompt: str | None = None
 
@@ -57,6 +60,7 @@ class WorkflowDockerActionCommand(enum.StrEnum):
 
 
 class WorkflowDockerAction(WorkflowAction):
+    type: Literal['docker'] = 'docker'
     command: WorkflowDockerActionCommand
     image: str
     source: pathlib.Path | None = None
@@ -73,6 +77,7 @@ class WorkflowFileActionCommand(enum.StrEnum):
 
 
 class WorkflowFileAction(WorkflowAction):
+    type: Literal['file'] = 'file'
     command: WorkflowFileActionCommand
     path: pathlib.Path | None
     pattern: typing.Pattern | None = None
@@ -92,6 +97,7 @@ class WorkflowGitActionCommitMatchStrategy(enum.StrEnum):
 
 
 class WorkflowGitAction(WorkflowAction):
+    type: Literal['git'] = 'git'
     command: WorkflowGitActionCommand
     source: pathlib.Path
     destination: pathlib.Path
@@ -104,14 +110,17 @@ class WorkflowGitHubCommand(enum.StrEnum):
 
 
 class WorkflowGitHubAction(WorkflowAction):
+    type: Literal['github'] = 'github'
     command: WorkflowGitHubCommand
 
 
 class WorkflowShellAction(WorkflowAction):
+    type: Literal['shell'] = 'shell'
     command: str
 
 
 class WorkflowTemplateAction(WorkflowAction):
+    type: Literal['template'] = 'template'
     source_path: pathlib.Path
     destination_path: pathlib.Path
 
@@ -124,10 +133,27 @@ class WorkflowUtilityCommands(enum.StrEnum):
 
 
 class WorkflowUtilityAction(WorkflowAction):
+    type: Literal['utility'] = 'utility'
     command: WorkflowUtilityCommands
     path: pathlib.Path | None = None
     args: list[typing.Any] = pydantic.Field(default_factory=list)
     kwargs: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
+
+
+WorkflowActionUnion = Annotated[
+    (
+        WorkflowCallableAction
+        | WorkflowClaudeAction
+        | WorkflowDockerAction
+        | WorkflowFileAction
+        | WorkflowGitAction
+        | WorkflowGitHubAction
+        | WorkflowShellAction
+        | WorkflowTemplateAction
+        | WorkflowUtilityAction
+    ),
+    pydantic.Field(discriminator='type'),
+]
 
 
 class WorkflowConditionRemoteClient(enum.StrEnum):
@@ -194,7 +220,7 @@ class WorkflowConfiguration(pydantic.BaseModel):
     condition_type: WorkflowConditionType = WorkflowConditionType.all
     conditions: list[WorkflowCondition] = pydantic.Field(default_factory=list)
     create_pull_request: bool = True
-    actions: list[WorkflowAction] = pydantic.Field(default_factory=list)
+    actions: list[WorkflowActionUnion] = pydantic.Field(default_factory=list)
 
 
 class WorkflowActionResult(pydantic.BaseModel):

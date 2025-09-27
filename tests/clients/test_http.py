@@ -3,7 +3,8 @@ from unittest import mock
 
 import httpx
 
-from imbi_automations import http, version
+from imbi_automations import version
+from imbi_automations.clients import http
 from tests import base
 
 
@@ -12,7 +13,7 @@ class ClientTestCase(base.AsyncTestCase):
 
     async def asyncSetUp(self) -> None:
         await super().asyncSetUp()
-        await http.Client.aclose()
+        await http.HTTPClient.aclose()
 
     async def test_init(self) -> None:
         """Test the initialization of Client."""
@@ -22,7 +23,7 @@ class ClientTestCase(base.AsyncTestCase):
 
             with mock.patch('httpx.AsyncClient') as mock_async_client:
                 # Initialize the client
-                client = http.Client()
+                client = http.HTTPClient()
 
                 # Verify SSLContext was called correctly
                 mock_ssl_context.assert_called_once_with(
@@ -45,7 +46,7 @@ class ClientTestCase(base.AsyncTestCase):
 
     async def test_getattr(self) -> None:
         """Test the __getattr__ method."""
-        client = http.Client()
+        client = http.HTTPClient()
         client.http_client = mock.MagicMock()
         client.http_client.get = mock.MagicMock(return_value='test')
 
@@ -58,7 +59,7 @@ class ClientTestCase(base.AsyncTestCase):
 
     async def test_getattr_attribute_error(self) -> None:
         """Test __getattr__ raises AttributeError for missing attributes."""
-        client = http.Client()
+        client = http.HTTPClient()
         client.http_client = mock.MagicMock()
 
         # Configure the mock to raise AttributeError when a non-existent
@@ -77,7 +78,7 @@ class ClientTestCase(base.AsyncTestCase):
 
     async def test_add_header(self) -> None:
         """Test the add_header method."""
-        client = http.Client()
+        client = http.HTTPClient()
         client.http_client = mock.MagicMock()
         client.http_client.headers = httpx.Headers()
 
@@ -111,13 +112,13 @@ class ClientTestCase(base.AsyncTestCase):
         instance2.http_client.aclose = mock.AsyncMock()
 
         # Add the instances to the _instances dict
-        http.Client._instances = {
+        http.HTTPClient._instances = {
             'instance1': instance1,
             'instance2': instance2,
         }
 
         # Call the aclose method
-        await http.Client.aclose()
+        await http.HTTPClient.aclose()
 
         # Verify all instances had aclose called
         instance1.http_client.aclose.assert_called_once()
@@ -126,42 +127,42 @@ class ClientTestCase(base.AsyncTestCase):
     async def test_aclose_empty(self) -> None:
         """Test the aclose class method with no instances."""
         # Ensure _instances is empty
-        http.Client._instances = {}
+        http.HTTPClient._instances = {}
 
         # Call the aclose method (should not raise)
-        await http.Client.aclose()
+        await http.HTTPClient.aclose()
 
     async def test_get_instance(self) -> None:
         """Test the get_instance method."""
         # Clear any existing instances
-        http.Client._instances = {}
+        http.HTTPClient._instances = {}
 
         # Get an instance
-        instance1 = http.Client.get_instance()
+        instance1 = http.HTTPClient.get_instance()
 
         # Verify it's a Client
-        self.assertIsInstance(instance1, http.Client)
+        self.assertIsInstance(instance1, http.HTTPClient)
 
         # Get another instance
-        instance2 = http.Client.get_instance()
+        instance2 = http.HTTPClient.get_instance()
 
         # Verify it's the same instance
         self.assertIs(instance1, instance2)
 
         # Verify the instance is stored in _instances
-        self.assertIn(http.Client, http.Client._instances)
-        self.assertIs(http.Client._instances[http.Client], instance1)
+        self.assertIn(http.HTTPClient, http.HTTPClient._instances)
+        self.assertIs(http.HTTPClient._instances[http.HTTPClient], instance1)
 
     async def test_inheritance(self) -> None:
         """Test inheritance and separate singleton instances."""
         # Clear any existing instances
-        http.Client._instances = {}
+        http.HTTPClient._instances = {}
 
         # Get a base Client instance
-        base_instance = http.Client.get_instance()
+        base_instance = http.HTTPClient.get_instance()
 
         # Create a subclass
-        class SubClient(http.Client):
+        class SubClient(http.HTTPClient):
             pass
 
         # Get an instance of the subclass
@@ -182,20 +183,22 @@ class ClientTestCase(base.AsyncTestCase):
         self.assertIs(sub_instance, sub_instance2)
 
 
-class BaseURLClientTestCase(base.AsyncTestCase):
-    """Tests for the BaseURLClient class in the http module."""
+class BaseURLHTTPClientTestCase(base.AsyncTestCase):
+    """Tests for the BaseURLHTTPClient class in the http module."""
 
     async def asyncSetUp(self) -> None:
         await super().asyncSetUp()
-        await http.Client.aclose()
+        await http.HTTPClient.aclose()
 
     async def test_init(self) -> None:
-        """Test the initialization of BaseURLClient."""
-        with mock.patch('imbi_automations.http.Client.__init__') as mock_init:
+        """Test the initialization of BaseURLHTTPClient."""
+        with mock.patch(
+            'imbi_automations.clients.http.HTTPClient.__init__'
+        ) as mock_init:
             mock_init.return_value = None
 
             # Initialize the client
-            client = http.BaseURLClient()
+            client = http.BaseURLHTTPClient()
 
             # Verify Client.__init__ was called
             mock_init.assert_called_once()
@@ -207,7 +210,7 @@ class BaseURLClientTestCase(base.AsyncTestCase):
         """Test the base_url property."""
 
         # Create a subclass with a custom base URL
-        class CustomClient(http.BaseURLClient):
+        class CustomClient(http.BaseURLHTTPClient):
             _base_url = 'https://custom.example.com'
 
         # Create an instance of the subclass
@@ -224,7 +227,7 @@ class BaseURLClientTestCase(base.AsyncTestCase):
 
     async def test_prepend_base_url(self) -> None:
         """Test the _prepend_base_url method."""
-        client = http.BaseURLClient()
+        client = http.BaseURLHTTPClient()
 
         # Test with absolute URLs (should be returned unchanged)
         self.assertEqual(
@@ -260,12 +263,12 @@ class BaseURLClientTestCase(base.AsyncTestCase):
             client._prepend_base_url('/path'), 'https://api.example.com/path'
         )
 
-    @mock.patch('imbi_automations.http.LOGGER')
+    @mock.patch('imbi_automations.clients.http.LOGGER')
     async def test_http_method_wrapping(
         self, mock_logger: mock.MagicMock
     ) -> None:
         """Test the HTTP method wrapping functionality."""
-        client = http.BaseURLClient()
+        client = http.BaseURLHTTPClient()
         client.http_client = mock.MagicMock()
 
         # Create mock for HTTP method
@@ -314,7 +317,7 @@ class BaseURLClientTestCase(base.AsyncTestCase):
 
     async def test_non_http_method_attribute(self) -> None:
         """Test accessing non-HTTP method attributes."""
-        client = http.BaseURLClient()
+        client = http.BaseURLHTTPClient()
         client.http_client = mock.MagicMock()
 
         # Set up a non-HTTP method attribute
@@ -324,43 +327,46 @@ class BaseURLClientTestCase(base.AsyncTestCase):
         self.assertEqual(client.headers, {'key': 'value'})
 
     async def test_base_url_client_singleton(self) -> None:
-        """Test the BaseURLClient singleton functionality."""
+        """Test the BaseURLHTTPClient singleton functionality."""
         # Clear any existing instances
-        http.BaseURLClient._instances = {}
+        http.BaseURLHTTPClient._instances = {}
 
         # Get an instance
-        instance1 = http.BaseURLClient.get_instance()
+        instance1 = http.BaseURLHTTPClient.get_instance()
 
-        # Verify it's a BaseURLClient
-        self.assertIsInstance(instance1, http.BaseURLClient)
+        # Verify it's a BaseURLHTTPClient
+        self.assertIsInstance(instance1, http.BaseURLHTTPClient)
 
         # Get another instance
-        instance2 = http.BaseURLClient.get_instance()
+        instance2 = http.BaseURLHTTPClient.get_instance()
 
         # Verify it's the same instance
         self.assertIs(instance1, instance2)
 
         # Verify the instance is stored in _instances
-        self.assertIn(http.BaseURLClient, http.BaseURLClient._instances)
+        self.assertIn(
+            http.BaseURLHTTPClient, http.BaseURLHTTPClient._instances
+        )
         self.assertIs(
-            http.BaseURLClient._instances[http.BaseURLClient], instance1
+            http.BaseURLHTTPClient._instances[http.BaseURLHTTPClient],
+            instance1,
         )
 
     async def test_base_url_inheritance(self) -> None:
-        """Test inheritance of BaseURLClient."""
+        """Test inheritance of BaseURLHTTPClient."""
 
         # Define a subclass
-        class CustomURLClient(http.BaseURLClient):
+        class CustomURLClient(http.BaseURLHTTPClient):
             _base_url = 'https://custom.example.com'
 
         # Define another subclass
-        class AnotherURLClient(http.BaseURLClient):
+        class AnotherURLClient(http.BaseURLHTTPClient):
             _base_url = 'https://another.example.com'
 
         # Get instances
         custom_instance = CustomURLClient.get_instance()
         another_instance = AnotherURLClient.get_instance()
-        base_instance = http.BaseURLClient.get_instance()
+        base_instance = http.BaseURLHTTPClient.get_instance()
 
         # Verify they're different instances
         self.assertIsNot(custom_instance, another_instance)
@@ -377,24 +383,24 @@ class BaseURLClientTestCase(base.AsyncTestCase):
         self.assertEqual(base_instance.base_url, 'https://api.example.com')
 
     async def test_base_url_client_aclose(self) -> None:
-        """Test that aclose works with BaseURLClient instances."""
-        # Get a BaseURLClient instance
-        instance = http.BaseURLClient()
+        """Test that aclose works with BaseURLHTTPClient instances."""
+        # Get a BaseURLHTTPClient instance
+        instance = http.BaseURLHTTPClient()
         instance.http_client = mock.MagicMock()
         instance.http_client.aclose = mock.AsyncMock()
 
         # Add to instances dict
-        http.BaseURLClient._instances = {http.BaseURLClient: instance}
+        http.BaseURLHTTPClient._instances = {http.BaseURLHTTPClient: instance}
 
         # Call aclose
-        await http.BaseURLClient.aclose()
+        await http.BaseURLHTTPClient.aclose()
 
         # Verify aclose was called
         instance.http_client.aclose.assert_called_once()
 
     async def test_retry_on_rate_limit_success_first_attempt(self) -> None:
         """Test retry logic when request succeeds on first attempt."""
-        client = http.BaseURLClient()
+        client = http.BaseURLHTTPClient()
         client._base_url = 'https://api.example.com'
 
         # Mock response that succeeds
@@ -415,7 +421,7 @@ class BaseURLClientTestCase(base.AsyncTestCase):
         self, mock_sleep: mock.AsyncMock
     ) -> None:
         """Test retry logic when request succeeds after 429 error."""
-        client = http.BaseURLClient()
+        client = http.BaseURLHTTPClient()
         client._base_url = 'https://api.example.com'
 
         # First response: 429, second response: 200
@@ -443,7 +449,7 @@ class BaseURLClientTestCase(base.AsyncTestCase):
         self, mock_sleep: mock.AsyncMock
     ) -> None:
         """Test retry logic when max retries are exceeded."""
-        client = http.BaseURLClient()
+        client = http.BaseURLHTTPClient()
         client._base_url = 'https://api.example.com'
 
         # Always return 429
@@ -471,7 +477,7 @@ class BaseURLClientTestCase(base.AsyncTestCase):
         self, mock_sleep: mock.AsyncMock
     ) -> None:
         """Test retry logic respects Retry-After header."""
-        client = http.BaseURLClient()
+        client = http.BaseURLHTTPClient()
         client._base_url = 'https://api.example.com'
 
         rate_limit_response = mock.MagicMock()
@@ -498,7 +504,7 @@ class BaseURLClientTestCase(base.AsyncTestCase):
         self, mock_sleep: mock.AsyncMock
     ) -> None:
         """Test retry logic with invalid Retry-After header."""
-        client = http.BaseURLClient()
+        client = http.BaseURLHTTPClient()
         client._base_url = 'https://api.example.com'
 
         rate_limit_response = mock.MagicMock()
@@ -525,7 +531,7 @@ class BaseURLClientTestCase(base.AsyncTestCase):
         self, mock_sleep: mock.AsyncMock
     ) -> None:
         """Test retry logic handles httpx.RequestError."""
-        client = http.BaseURLClient()
+        client = http.BaseURLHTTPClient()
         client._base_url = 'https://api.example.com'
 
         request_error = httpx.ConnectError('Connection failed')
@@ -549,7 +555,7 @@ class BaseURLClientTestCase(base.AsyncTestCase):
         self, mock_sleep: mock.AsyncMock
     ) -> None:
         """Test retry logic raises error when max retries exceeded."""
-        client = http.BaseURLClient()
+        client = http.BaseURLHTTPClient()
         client._base_url = 'https://api.example.com'
 
         request_error = httpx.ConnectError('Connection failed')

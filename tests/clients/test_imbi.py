@@ -4,9 +4,10 @@ import unittest
 
 import httpx
 
-from imbi_automations import http as ia_http
-from imbi_automations import imbi, models
-from tests.base import AsyncTestCase
+from imbi_automations import models
+from imbi_automations.clients import http as ia_http
+from imbi_automations.clients import imbi
+from tests import base
 
 
 def create_mock_project_data(
@@ -42,7 +43,7 @@ def create_mock_project_data(
     }
 
 
-class TestImbiClient(AsyncTestCase):
+class TestImbiClient(base.AsyncTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.config = models.ImbiConfiguration(
@@ -460,8 +461,8 @@ class TestImbiClient(AsyncTestCase):
         self.assertIn(101, project_ids)  # From second page
 
     async def test_imbi_inheritance_from_base_url_client(self) -> None:
-        """Test that Imbi inherits properly from BaseURLClient."""
-        self.assertIsInstance(self.instance, ia_http.BaseURLClient)
+        """Test that Imbi inherits properly from BaseURLHTTPClient."""
+        self.assertIsInstance(self.instance, ia_http.BaseURLHTTPClient)
         self.assertTrue(hasattr(self.instance, 'get'))
         self.assertTrue(hasattr(self.instance, 'post'))
         self.assertTrue(hasattr(self.instance, 'put'))
