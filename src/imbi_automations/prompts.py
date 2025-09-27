@@ -1,10 +1,11 @@
 import logging
 import pathlib
+import typing
 
 import jinja2
 
 
-def render(source: pathlib.Path, **kwargs: dict) -> str | bytes:
+def render(source: pathlib.Path, **kwargs: typing.Any) -> str | bytes:
     jinja_env = jinja2.Environment(
         autoescape=False,  # noqa: S701
         undefined=jinja2.StrictUndefined,
@@ -14,7 +15,7 @@ def render(source: pathlib.Path, **kwargs: dict) -> str | bytes:
 
 
 def render_file(
-    source: pathlib.Path, destination: pathlib.Path, **kwargs: dict
+    source: pathlib.Path, destination: pathlib.Path, **kwargs: typing.Any
 ) -> None:
     """Render a file from source to destination."""
     logging.info('Rendering %s to %s', source, destination)
