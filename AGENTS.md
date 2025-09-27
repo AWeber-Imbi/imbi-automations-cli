@@ -58,13 +58,37 @@ pre-commit run --all-files
 
 ### Core Components
 
-- **CLI Interface** (`cli.py`): Argument parsing, logging configuration, entry point
-- **Models** (`models.py`): Pydantic data models for configuration and Imbi entities
-- **HTTP Client** (`http.py`): Base HTTP client with authentication and error handling
-- **Imbi Client** (`imbi.py`): Integration with Imbi project management API
-- **GitHub Client** (`github.py`): GitHub API integration for repository operations with pattern-aware workflow file detection
-- **Git Operations** (`git.py`): Git repository management and operations
+#### Primary Architecture
+- **CLI Interface** (`cli.py`): Argument parsing, colored logging configuration, entry point with workflow validation
+- **Controller** (`controller.py`): Main automation controller implementing iterator pattern for different target types
+- **Workflow Engine** (`engine.py`): Executes workflow actions with context management and temporary directory handling
+- **Claude Integration** (`claude.py`): Claude Code SDK integration for AI-powered transformations
+
+#### Client Layer (under `clients/`)
+- **HTTP Client** (`clients/http.py`): Base async HTTP client with authentication and error handling
+- **Imbi Client** (`clients/imbi.py`): Integration with Imbi project management API
+- **GitHub Client** (`clients/github.py`): GitHub API integration with pattern-aware workflow file detection
+- **GitLab Client** (`clients/gitlab.py`): GitLab API integration for repository operations
+
+#### Models (under `models/`)
+- **Configuration** (`models/configuration.py`): TOML-based configuration with Pydantic validation
+- **Workflow** (`models/workflow.py`): Comprehensive workflow definition with actions, conditions, and filters
+  - **Action Types**: `callable`, `claude`, `docker`, `git`, `file`, `shell`, `utility`, `templates`
+- **GitHub** (`models/github.py`): GitHub repository and API response models
+- **GitLab** (`models/gitlab.py`): GitLab project and API response models
+- **Imbi** (`models/imbi.py`): Imbi project management system models
+- **Claude** (`models/claude.py`): Claude Code integration models
+- **Base** (`models/base.py`): Common base models and utilities
+
+#### Supporting Components
+- **Git Operations** (`git.py`): Repository cloning and Git operations
+- **AI Editor** (`ai_editor.py`): Fast, focused file edits using Claude Haiku
+- **Docker Integration** (`docker.py`): Docker container operations and extractions
+- **Environment Sync** (`environment_sync.py`): GitHub environment synchronization logic
 - **Utilities** (`utils.py`): Configuration loading, directory management, URL sanitization
+- **Error Handling** (`errors.py`): Custom exception classes
+- **Mixins** (`mixins.py`): Reusable workflow logging functionality
+- **Prompts** (`prompts.py`): AI prompt management and templates
 
 ### Configuration Structure
 
@@ -85,12 +109,16 @@ executable = "claude"  # Optional, defaults to 'claude'
 
 ### Transformation Architecture
 
-Based on the PRD, the system supports four transformation types:
+The system supports multiple transformation types through the workflow action system:
 
-1. **Template Manager**: Jinja2-based file placement with project context
-2. **AI Editor**: Fast, focused file edits using Claude 3.5 Haiku
-3. **Claude Code**: Complex multi-file analysis and transformation
-4. **Shell**: Arbitrary command execution with context variables
+1. **Callable Actions**: Direct method calls on client instances with dynamic kwargs
+2. **Claude Code Integration**: Complex multi-file analysis and transformation using Claude Code SDK
+3. **Docker Operations**: Container-based file extraction and manipulation
+4. **Git Operations**: Version control operations (revert, extract, branch management)
+5. **File Operations**: Direct file manipulation (copy, move, regex replacement)
+6. **Shell Commands**: Arbitrary command execution with templated variables
+7. **Utility Actions**: Helper operations for common workflow tasks
+8. **Template System**: Jinja2-based file generation with full project context
 
 ### Workflow Structure
 
@@ -338,11 +366,46 @@ repo = "{{ github_repository.name }}"
 imbi_environments = "{{ imbi_project.environments }}"
 ```
 
-## Future Implementation Areas
+## Current Implementation Status
 
-Based on the PRD, these areas are planned but not yet implemented:
-- Workflow discovery and execution engine
-- Transaction-style rollback operations
-- File action transformations (rename, remove, regex)
-- Batch processing with checkpoint resumption
-- Provider abstraction for GitLab support
+### Completed Features
+- **Workflow Engine**: Full workflow execution with action-based processing
+- **Multi-Provider Support**: GitHub and GitLab client implementations
+- **Batch Processing**: Concurrent processing with resumption from specific projects
+- **File Operations**: Copy, move, regex replacement, and template generation
+- **AI Integration**: Claude Code SDK integration with prompt management
+- **Git Operations**: Repository cloning, branch management, and version control
+- **Configuration System**: TOML-based configuration with comprehensive validation
+- **Error Handling**: Robust error recovery with action restart capabilities
+- **Testing Infrastructure**: Comprehensive test suite with async support and HTTP mocking
+
+### Architecture Improvements Made
+- **Controller Refactoring**: Replaced `AutomationEngine` with modern `Automation` controller
+- **Modular Structure**: Organized codebase into logical modules (`clients/`, `models/`)
+- **Async Optimization**: Full async/await implementation with concurrency controls
+- **Memory Optimization**: LRU caching for expensive operations
+- **Type Safety**: Comprehensive type hints and Pydantic models throughout
+
+### Future Enhancement Areas
+- **Transaction Rollback**: Atomic workflow operations with rollback capabilities
+- **Workflow Templates**: Reusable workflow components and templates
+- **Advanced Filtering**: More sophisticated project filtering and targeting
+- **Monitoring Integration**: Enhanced logging and metrics collection
+- **Plugin System**: Extensible action types and client providers
+
+## Recent Refactoring Summary
+
+**Major Changes Made**:
+- Replaced `AutomationEngine` with `Automation` controller pattern
+- Reorganized code into logical modules (`clients/`, `models/`)
+- Enhanced workflow engine with comprehensive action support
+- Added `async_lru` dependency for improved caching performance
+- Implemented robust error handling and recovery mechanisms
+- Added comprehensive type safety throughout the codebase
+
+**Architecture Benefits**:
+- Cleaner separation of concerns between controller and engine
+- More maintainable client abstraction layer
+- Enhanced testability with modular structure
+- Better performance with async optimizations
+- Improved developer experience with comprehensive type hints
