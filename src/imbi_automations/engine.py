@@ -61,15 +61,41 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         return True
 
     async def _execute_action(
-        self, context: models.WorkflowContext, action: models.WorkflowActions
+        self,
+        context: models.WorkflowContext,
+        action: (
+            models.WorkflowCallableAction
+            | models.WorkflowClaudeAction
+            | models.WorkflowDockerAction
+            | models.WorkflowFileAction
+            | models.WorkflowGitAction
+            | models.WorkflowGitHubAction
+            | models.WorkflowShellAction
+            | models.WorkflowTemplateAction
+            | models.WorkflowUtilityAction
+        ),
     ) -> None:
         """Execute an action."""
         self._log_verbose_info('Executing action: %s', action.name)
         match action.type:
+            case models.WorkflowActionTypes.callable:
+                await self._execute_action_callable(context, action)
             case models.WorkflowActionTypes.claude:
                 await self._execute_action_claude(context, action)
+            case models.WorkflowActionTypes.docker:
+                await self._execute_action_docker(context, action)
+            case models.WorkflowActionTypes.file:
+                await self._execute_action_file(context, action)
             case models.WorkflowActionTypes.git:
                 await self._execute_action_git(context, action)
+            case models.WorkflowActionTypes.github:
+                await self._execute_action_github(context, action)
+            case models.WorkflowActionTypes.shell:
+                await self._execute_action_shell(context, action)
+            case models.WorkflowActionTypes.template:
+                await self._execute_action_template(context, action)
+            case models.WorkflowActionTypes.utility:
+                await self._execute_action_utility(context, action)
             case _:
                 raise RuntimeError(f'Unsupported action type: {action.type}')
 
@@ -108,6 +134,88 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         match action.command:
             case models.WorkflowGitActionCommand.extract:
                 raise NotImplementedError('Extract not yet supported')
+            case _:
+                raise RuntimeError(f'Unsupported command: {action.command}')
+
+    async def _execute_action_callable(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowCallableAction,
+    ) -> None:
+        """Execute the callable action."""
+        raise NotImplementedError('Callable actions not yet supported')
+
+    async def _execute_action_docker(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowDockerAction,
+    ) -> None:
+        """Execute the docker action."""
+        match action.command:
+            case models.WorkflowDockerActionCommand.build:
+                raise NotImplementedError('Docker build not yet supported')
+            case models.WorkflowDockerActionCommand.extract:
+                raise NotImplementedError('Docker extract not yet supported')
+            case models.WorkflowDockerActionCommand.pull:
+                raise NotImplementedError('Docker pull not yet supported')
+            case models.WorkflowDockerActionCommand.push:
+                raise NotImplementedError('Docker push not yet supported')
+            case _:
+                raise RuntimeError(f'Unsupported command: {action.command}')
+
+    async def _execute_action_github(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowGitHubAction,
+    ) -> None:
+        """Execute the github action."""
+        match action.command:
+            case models.WorkflowGitHubCommand.sync_environments:
+                raise NotImplementedError(
+                    'GitHub sync environments not yet supported'
+                )
+            case _:
+                raise RuntimeError(f'Unsupported command: {action.command}')
+
+    async def _execute_action_shell(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowShellAction,
+    ) -> None:
+        """Execute the shell action."""
+        raise NotImplementedError('Shell actions not yet supported')
+
+    async def _execute_action_template(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowTemplateAction,
+    ) -> None:
+        """Execute the template action."""
+        raise NotImplementedError('Template actions not yet supported')
+
+    async def _execute_action_utility(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowUtilityAction,
+    ) -> None:
+        """Execute the utility action."""
+        match action.command:
+            case models.WorkflowUtilityCommands.docker_tag:
+                raise NotImplementedError(
+                    'Utility docker_tag not yet supported'
+                )
+            case models.WorkflowUtilityCommands.dockerfile_from:
+                raise NotImplementedError(
+                    'Utility dockerfile_from not yet supported'
+                )
+            case models.WorkflowUtilityCommands.compare_semver:
+                raise NotImplementedError(
+                    'Utility compare_semver not yet supported'
+                )
+            case models.WorkflowUtilityCommands.parse_python_constraints:
+                raise NotImplementedError(
+                    'Utility parse_python_constraints not yet supported'
+                )
             case _:
                 raise RuntimeError(f'Unsupported command: {action.command}')
 
