@@ -55,6 +55,13 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             self.verbose,
         )
 
+        if not await self.condition_checker.check_remote(
+            context,
+            self.workflow.configuration.condition_type,
+            self.workflow.configuration.conditions,
+        ):
+            return False
+
         if self.workflow.configuration.git.clone:
             context.starting_commit = await git.clone_repository(
                 context.working_directory,
@@ -62,6 +69,13 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
                 self.workflow.configuration.git.starting_branch,
                 1 if self.workflow.configuration.git.shallow else None,
             )
+
+        if not await self.condition_checker.check(
+            context,
+            self.workflow.configuration.condition_type,
+            self.workflow.configuration.conditions,
+        ):
+            return False
 
         try:
             for action in self.workflow.configuration.actions:
@@ -152,7 +166,18 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         ),
     ) -> None:
         """Execute an action."""
-        if not await self.condition_checker.check(context, action.conditions):
+        if not await self.condition_checker.check(
+            context,
+            self.workflow.configuration.condition_type,
+            action.conditions,
+        ):
+            self.logger.debug(
+                'Skipping %s due to failed condition check', action.name
+            )
+            return
+        elif not await self.condition_checker.check_remote(
+            context, action.conditions
+        ):
             self._log_verbose_info(
                 'Skipping action %s due to failed condition check', action.name
             )

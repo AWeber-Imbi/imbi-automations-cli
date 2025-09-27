@@ -292,6 +292,7 @@ class WorkflowCondition(pydantic.BaseModel):
     file_exists: str | typing.Pattern | None = None
     file_not_exists: str | typing.Pattern | None = None
     file_contains: str | None = None
+    file: pathlib.Path | None = None
 
     remote_client: WorkflowConditionRemoteClient = (
         WorkflowConditionRemoteClient.github
@@ -299,6 +300,18 @@ class WorkflowCondition(pydantic.BaseModel):
     remote_file_exists: str | None = None
     remote_file_not_exists: str | None = None
     remote_file_contains: str | None = None
+    remote_file: pathlib.Path | None = None
+
+    @pydantic.model_validator(mode='after')
+    def validate_file_contains_requirements(self) -> 'WorkflowCondition':
+        """Validate that file_contains and file are both set together."""
+        if self.file_contains and not self.file:
+            raise ValueError(
+                'file_contains condition requires file field to be set'
+            )
+        if self.file and not self.file_contains:
+            raise ValueError('file field requires file_contains to be set')
+        return self
 
 
 class WorkflowFilter(pydantic.BaseModel):
