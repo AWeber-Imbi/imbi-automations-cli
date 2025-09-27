@@ -35,22 +35,22 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
                 )
             if condition.file_exists:
                 raise NotImplementedError(
-                    'Git commit conditions not yet supported'
+                    'File exists conditions not yet supported'
                 )
             if condition.file_not_exists:
                 raise NotImplementedError(
-                    'Git tag conditions not yet supported'
+                    'File not exists conditions not yet supported'
                 )
             if condition.remote_file_contains:
                 raise NotImplementedError(
-                    'File contains conditions not yet supported'
+                    'Remote file contains conditions not yet supported'
                 )
             if condition.remote_file_exists:
                 raise NotImplementedError(
-                    'Git commit conditions not yet supported'
+                    'Remote file exists conditions not yet supported'
                 )
             if condition.remote_file_not_exists:
                 raise NotImplementedError(
-                    'Git tag conditions not yet supported'
+                    'Remote file not exists conditions not yet supported'
                 )
         return True
