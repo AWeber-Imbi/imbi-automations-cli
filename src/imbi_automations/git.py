@@ -1,11 +1,8 @@
 """Git Related Functionality"""
 
 import asyncio
-import contextlib
 import logging
 import pathlib
-import shutil
-import typing
 
 LOGGER = logging.getLogger(__name__)
 
@@ -108,47 +105,6 @@ async def clone_repository(
             f'Git clone failed (exit code {returncode}): {stderr or stdout}'
         )
     LOGGER.debug('Successfully cloned repository to %s', repo_dir)
-
-
-@contextlib.asynccontextmanager
-async def clone_repository_context(
-    clone_url: str, branch: str | None = None, depth: int | None = 1
-) -> typing.AsyncGenerator[pathlib.Path, None]:
-    """Context manager for cloning a repository with automatic cleanup.
-
-    Args:
-        clone_url: Repository clone URL (HTTPS or SSH)
-        branch: Specific branch to clone (optional)
-        depth: Clone depth (default: 1 for shallow clone, None for full clone)
-
-    Yields:
-        Path to the cloned repository directory
-
-    """
-    repo_dir = None
-    temp_dir = None
-
-    try:
-        repo_dir = await clone_repository(clone_url, branch, depth)
-        temp_dir = repo_dir.parent
-        yield repo_dir
-
-    except Exception as exc:
-        LOGGER.error('Repository cloning failed: %s', exc)
-        raise
-
-    finally:
-        # Clean up temporary directory
-        if temp_dir and temp_dir.exists():
-            try:
-                shutil.rmtree(temp_dir)
-                LOGGER.debug('Cleaned up temporary directory: %s', temp_dir)
-            except OSError as exc:
-                LOGGER.warning(
-                    'Failed to clean up temporary directory %s: %s',
-                    temp_dir,
-                    exc,
-                )
 
 
 async def add_files(working_directory: pathlib.Path, files: list[str]) -> None:
@@ -478,7 +434,7 @@ async def get_commit_messages_since_branch(
                 '--pretty=format:%s',
             ]
             returncode, stdout, stderr = await _run_git_command(
-                command, cwd=working_directory, timeout=30
+                command, cwd=working_directory, timeout_seconds=30
             )
 
         if returncode != 0:

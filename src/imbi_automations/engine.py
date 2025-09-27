@@ -68,14 +68,48 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         match action.type:
             case models.WorkflowActionTypes.claude:
                 await self._execute_action_claude(context, action)
+            case models.WorkflowActionTypes.git:
+                await self._execute_action_git(context, action)
             case _:
                 raise RuntimeError(f'Unsupported action type: {action.type}')
 
     async def _execute_action_claude(
-        self, context: models.WorkflowContext, action: models.WorkflowAction
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowClaudeAction,
     ) -> None:
         """Execute the Claude Code action."""
         await self.claude.execute(context, action)
+
+    async def _execute_action_file(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowFileAction,
+    ) -> None:
+        match action.command:
+            case models.WorkflowFileActionCommand.append:
+                raise NotImplementedError('Append not yet supported')
+            case models.WorkflowFileActionCommand.copy:
+                raise NotImplementedError('Copy not yet supported')
+            case models.WorkflowFileActionCommand.delete:
+                raise NotImplementedError('Delete not yet supported')
+            case models.WorkflowFileActionCommand.move:
+                raise NotImplementedError('Move not yet supported')
+            case models.WorkflowFileActionCommand.rename:
+                raise NotImplementedError('Rename not yet supported')
+            case models.WorkflowFileActionCommand.write:
+                raise NotImplementedError('Write not yet supported')
+            case _:
+                raise RuntimeError(f'Unsupported command: {action.command}')
+
+    async def _execute_action_git(
+        self, context: models.WorkflowContext, action: models.WorkflowGitAction
+    ) -> None:
+        match action.command:
+            case models.WorkflowGitActionCommand.extract:
+                raise NotImplementedError('Extract not yet supported')
+            case _:
+                raise RuntimeError(f'Unsupported command: {action.command}')
 
     def _git_clone_url(
         self,
