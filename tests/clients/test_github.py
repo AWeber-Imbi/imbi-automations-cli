@@ -1,4 +1,5 @@
 import http
+import pathlib
 import unittest
 from unittest import mock
 
@@ -1331,6 +1332,82 @@ jobs:
         )
 
         self.assertFalse(result)
+
+    async def test_create_pull_request_success(self) -> None:
+        """Test successful pull request creation."""
+        self.http_mock_transport_alt_file = pathlib.Path(
+            'repos/testorg/testrepo/pulls.json'
+        )
+
+        # Create mock context with minimal GitHub repository info
+        mock_org = mock.MagicMock()
+        mock_org.login = 'testorg'
+
+        mock_repo = mock.MagicMock()
+        mock_repo.name = 'testrepo'
+        mock_repo.owner = mock_org
+
+        context = mock.MagicMock()
+        context.github_repository = mock_repo
+
+        pr_url = await self.instance.create_pull_request(
+            context=context,
+            title='Test Pull Request',
+            body='This is a test PR\n\n- Add new feature\n- Fix existing bug',
+            head_branch='imbi-automations/test-workflow',
+            base_branch='main',
+        )
+
+        self.assertEqual(
+            pr_url, 'https://github.com/testorg/testrepo/pull/123'
+        )
+
+    async def test_create_pull_request_no_github_repository(self) -> None:
+        """Test pull request creation without GitHub repository in context."""
+        context = mock.MagicMock()
+        context.github_repository = None
+
+        with self.assertRaises(ValueError) as exc_context:
+            await self.instance.create_pull_request(
+                context=context,
+                title='Test Pull Request',
+                body='Test body',
+                head_branch='feature/test',
+                base_branch='main',
+            )
+
+        self.assertIn(
+            'No GitHub repository in workflow context',
+            str(exc_context.exception),
+        )
+
+    async def test_create_pull_request_api_failure(self) -> None:
+        """Test pull request creation with API failure."""
+        self.http_client_side_effect = httpx.Response(
+            status_code=422,
+            request=httpx.Request('POST', 'http://example.com'),
+            json={'message': 'Validation Failed'},
+        )
+
+        # Create mock context with GitHub repository
+        mock_org = mock.MagicMock()
+        mock_org.login = 'testorg'
+
+        mock_repo = mock.MagicMock()
+        mock_repo.name = 'testrepo'
+        mock_repo.owner = mock_org
+
+        context = mock.MagicMock()
+        context.github_repository = mock_repo
+
+        with self.assertRaises(httpx.HTTPError):
+            await self.instance.create_pull_request(
+                context=context,
+                title='Test Pull Request',
+                body='Test body',
+                head_branch='feature/test',
+                base_branch='main',
+            )
 
 
 if __name__ == '__main__':

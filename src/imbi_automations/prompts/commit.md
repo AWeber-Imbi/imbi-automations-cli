@@ -26,7 +26,6 @@ Follow these guidelines:
    - Interdependent changes that should stay together
 
 3. For each commit:
-   - Write clear, descriptive commit messages
    - Include only changes that logically belong together
    - Ensure each commit represents a complete, coherent unit of work
 
@@ -38,20 +37,27 @@ Follow these guidelines:
 
 MANDATORY COMMIT MESSAGE FORMAT:
 
-Subject line (first line):
+The subject line MUST be EXACTLY:
 imbi-automations: {workflow_name}: {action_name}
 
-Body (starting on third line after blank line):
-{detailed description of changes}
+DO NOT create your own descriptive subject. DO NOT add any other text to the subject line.
 
-{blank line}
-🤖 Generated with [Imbi Automations](https://github.com/AWeber-Imbi/).
+The body should contain:
+- Detailed description of what changed
+- Bullet points for multiple changes
+- Blank line before the robot emoji line
+- The exact text: 🤖 Generated with [Imbi Automations](https://github.com/AWeber-Imbi/).
 
-Trailers (use git trailer format):
+Use git trailers for attribution:
 Authored-By: {commit_author}
 Co-Authored-By: Claude <noreply@anthropic.com>
 
-CRITICAL: Use git commit with -m for subject and --trailer for each trailer:
-git commit -m "imbi-automations: {workflow_name}: {action_name}" -m "{body with details and robot emoji line}" --trailer "Authored-By: {commit_author}" --trailer "Co-Authored-By: Claude <noreply@anthropic.com>"
+Execute this exact command structure:
+git commit -m "imbi-automations: {workflow_name}: {action_name}" \
+  -m "{your detailed description here}
 
-The workflow_name, action_name, and commit_author will be provided below.
+🤖 Generated with [Imbi Automations](https://github.com/AWeber-Imbi/)." \
+  --trailer "Authored-By: {commit_author}" \
+  --trailer "Co-Authored-By: Claude <noreply@anthropic.com>"
+
+CRITICAL: Replace ONLY the placeholders in curly braces. The subject must be "imbi-automations: {workflow_name}: {action_name}" with NO modifications.

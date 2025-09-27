@@ -2,7 +2,7 @@ import logging
 import pathlib
 import tempfile
 
-from imbi_automations import claude, git, mixins, models, prompts
+from imbi_automations import claude, clients, git, mixins, models, prompts
 
 LOGGER = logging.getLogger(__name__)
 BASE_PATH = pathlib.Path(__file__).parent
@@ -19,6 +19,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
     ) -> None:
         super().__init__(verbose)
         self.claude: claude.Claude | None = None
+        self.github = clients.GitHub.get_instance(config=configuration.github)
         self.configuration = configuration
         self.workflow = workflow
         self._set_workflow_logger(workflow)
@@ -63,8 +64,12 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         if self.workflow.configuration.create_pull_request:
             await self._create_pull_request(context)
         else:
-            # Push to default branch
-            pass
+            await git.push_changes(
+                working_directory=context.working_directory / 'repository',
+                remote='origin',
+                branch='main',
+                set_upstream=True,
+            )
 
         working_directory.cleanup()
         return True
@@ -111,7 +116,13 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         self.logger.debug('Prompt: %s', prompt)
 
         body = await self.claude.query(prompt)
-        self.logger.debug('Claude PR body response: %s', body)
+        pr_url = await self.github.create_pull_request(
+            context=context,
+            title=f'imbi-automations: {context.workflow.configuration.name}',
+            body=body,
+            head_branch=branch_name,
+        )
+        self._log_verbose_info('Created pull request: %s', pr_url)
 
     async def _execute_action(
         self,
@@ -300,11 +311,6 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
                 return gitlab_project.ssh_url_to_repo
             return gitlab_project.http_url_to_repo
         raise ValueError('No repository provided')
-
-    async def _git_commit_action_changes(
-        self, context: models.WorkflowContext, action: models.WorkflowAction
-    ) -> bool:
-        pass
 
     def _setup_workflow_run(
         self,

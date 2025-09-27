@@ -1389,3 +1389,64 @@ class GitHub(http.BaseURLHTTPClient):
         return await environment_sync.sync_project_environments(
             org, repo, imbi_environments, self
         )
+
+    async def create_pull_request(
+        self,
+        context: 'models.WorkflowContext',
+        title: str,
+        body: str,
+        head_branch: str,
+        base_branch: str = 'main',
+    ) -> str:
+        """Create a pull request and return the PR URL.
+
+        Args:
+            context: Workflow context containing GitHub repository info
+            title: Pull request title
+            body: Pull request description
+            head_branch: Source branch name
+            base_branch: Target branch name (default: 'main')
+
+        Returns:
+            Pull request URL
+
+        Raises:
+            httpx.HTTPError: If pull request creation fails
+
+        """
+        if not context.github_repository:
+            raise ValueError('No GitHub repository in workflow context')
+
+        org = context.github_repository.owner.login
+        repo = context.github_repository.name
+
+        LOGGER.debug(
+            'Creating pull request for %s/%s: %s -> %s',
+            org,
+            repo,
+            head_branch,
+            base_branch,
+        )
+
+        payload = {
+            'title': title,
+            'body': body,
+            'head': head_branch,
+            'base': base_branch,
+        }
+
+        response = await self.post(f'/repos/{org}/{repo}/pulls', json=payload)
+        response.raise_for_status()
+
+        pr_data = response.json()
+        pr_url = pr_data['html_url']
+
+        LOGGER.info(
+            'Created pull request #%d for %s/%s: %s',
+            pr_data['number'],
+            org,
+            repo,
+            pr_url,
+        )
+
+        return pr_url
