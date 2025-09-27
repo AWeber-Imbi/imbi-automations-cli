@@ -1,123 +1,153 @@
 import enum
 import pathlib
+import typing
 
 import pydantic
 
 from . import github, gitlab, imbi
 
 
-class WorkflowActionKwargs(pydantic.BaseModel):
-    """Dynamic kwargs for workflow actions."""
-
-    model_config = pydantic.ConfigDict(extra='allow')
-
-
-class WorkflowActionValue(pydantic.BaseModel):
-    """Configuration for retrieving a value via client method call."""
-
-    client: str
-    method: str
-    kwargs: WorkflowActionKwargs = pydantic.Field(
-        default_factory=WorkflowActionKwargs
-    )
-
-
-class WorkflowActionTarget(pydantic.BaseModel):
-    """Configuration for updating a target via client method call."""
-
-    client: str
-    method: str
-    kwargs: WorkflowActionKwargs = pydantic.Field(
-        default_factory=WorkflowActionKwargs
-    )
-
-
 class WorkflowActionTypes(enum.StrEnum):
-    """Enumeration of supported workflow action types."""
-
     callable = 'callable'
-    templates = 'templates'
-    file = 'file'
     claude = 'claude'
+    docker = 'docker'
+    file = 'file'
+    git = 'git'
+    github = 'github'
     shell = 'shell'
-    ai_editor = 'ai-editor'
-    git_revert = 'git-revert'
-    git_extract = 'git-extract'
-    docker_extract = 'docker-extract'
-    add_trailing_whitespace = 'add-trailing-whitespace'
+    template = 'template'
+    utility = 'utility'
 
 
 class WorkflowConditionType(enum.StrEnum):
-    """Enumeration of supported condition logic types."""
-
     all = 'all'
     any = 'any'
 
 
 class WorkflowAction(pydantic.BaseModel):
-    """A single action in a workflow."""
-
     name: str
     type: WorkflowActionTypes = WorkflowActionTypes.callable
-    value: WorkflowActionValue | None = None
-    target: WorkflowActionTarget | str | None = None
-    value_mapping: dict[str, str] | None = None
 
-    # Conditional execution - action only runs if condition is met
-    condition: str | None = None
-
-    # Rich conditions - same options as top-level conditions
     conditions: list['WorkflowCondition'] = pydantic.Field(
         default_factory=list
     )
     condition_type: WorkflowConditionType = WorkflowConditionType.all
-
-    # File action fields
-    command: str | None = None
-    source: str | None = None
-    destination: str | None = None
-    pattern: str | None = None
-    replacement: str | None = None
-
-    # Claude action fields
-    prompt_file: str | None = None  # Legacy single prompt (deprecated)
-    prompt: str | None = None  # Primary prompt file (generator for agents)
-    validation_prompt: str | None = (
-        None  # Validator prompt file (enables agent mode)
-    )
+    on_failure: str | None = None
     timeout: int = 3600
-    max_retries: int | None = None
-    on_failure: str | None = None  # Action name to restart from on failure
-    max_cycles: int = 3  # Maximum generation→validation cycles
+    data: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
 
-    # AI Editor action fields
-    target_file: str | None = None
 
-    # Git revert action fields
-    keyword: str | None = None
-    strategy: str | None = None  # before_first_match, before_last_match
-    # target_path: If specified, save reverted content to different file
+class WorkflowCallableAction(WorkflowAction):
+    _import: str = pydantic.Field(alias='import')
+    callable: typing.Callable
+    args: list[typing.Any] = pydantic.Field(default_factory=list)
+    kwargs: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
 
-    # Docker extract action fields
-    dockerfile_path: str | None = None
-    source_path: str | None = None
-    target_path: str | None = None
+
+class WorkflowClaudeAction(WorkflowAction):
+    prompt: str | None
+    validation_prompt: str | None = None
+
+
+class WorkflowDockerActionCommand(enum.StrEnum):
+    build = 'build'
+    extract_file = 'extract_file'
+    pull = 'pull'
+    push = 'push'
+
+
+class WorkflowDockerAction(WorkflowAction):
+    command: WorkflowDockerActionCommand
+    image: str
+    source: pathlib.Path | None = None
+    destination: pathlib.Path | None = None
+
+
+class WorkflowFileActionCommand(enum.StrEnum):
+    append = 'append'
+    copy = 'copy'
+    delete = 'delete'
+    move = 'move'
+    rename = 'rename'
+    write = 'write'
+
+
+class WorkflowFileAction(WorkflowAction):
+    command: WorkflowFileActionCommand
+    path: pathlib.Path | None
+    pattern: typing.Pattern | None = None
+    source: pathlib.Path | None = None
+    destination: pathlib.Path | None = None
+    content: str | bytes | None = None
+    encoding: str = 'utf-8'
+
+
+class WorkflowGitActionCommand(enum.StrEnum):
+    extract = 'extract'
+
+
+class WorkflowGitActionCommitMatchStrategy(enum.StrEnum):
+    before_first_match = 'before_first_match'
+    before_last_match = 'before_last_match'
+
+
+class WorkflowGitAction(WorkflowAction):
+    command: WorkflowGitActionCommand
+    source: pathlib.Path
+    destination: pathlib.Path
+    commit_keyword: str | None = None
+    search_strategy: WorkflowGitActionCommitMatchStrategy | None = None
+
+
+class WorkflowGitHubCommand(enum.StrEnum):
+    sync_environments = 'sync_environments'
+
+
+class WorkflowGitHubAction(WorkflowAction):
+    command: WorkflowGitHubCommand
+
+
+class WorkflowShellAction(WorkflowAction):
+    command: str
+
+
+class WorkflowTemplateAction(WorkflowAction):
+    source_path: pathlib.Path
+    destination_path: pathlib.Path
+
+
+class WorkflowUtilityCommands(enum.StrEnum):
+    docker_tag = 'docker_tag'
+    dockerfile_from = 'dockerfile_from'
+    compare_semver = 'compare_semver'
+    parse_python_constraints = 'parse_python_constraints'
+
+
+class WorkflowUtilityAction(WorkflowAction):
+    command: WorkflowUtilityCommands
+    path: pathlib.Path | None = None
+    args: list[typing.Any] = pydantic.Field(default_factory=list)
+    kwargs: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
+
+
+class WorkflowConditionRemoteClient(enum.StrEnum):
+    github = 'github'
+    gitlab = 'gitlab'
 
 
 class WorkflowCondition(pydantic.BaseModel):
-    """A single condition in a workflow."""
-
-    # Local conditions (require cloned repository)
-    file_exists: str | None = None
-    file_not_exists: str | None = None
+    file_exists: str | typing.Pattern | None = None
+    file_not_exists: str | typing.Pattern | None = None
     file_contains: str | None = None
-    file: str | None = None
+    file: str | typing.Pattern | None = None
 
-    # Remote conditions (checked before cloning using GitHub API)
+    remote_client: WorkflowConditionRemoteClient = (
+        WorkflowConditionRemoteClient.github
+    )
     remote_file_exists: str | None = None
     remote_file_not_exists: str | None = None
     remote_file_contains: str | None = None
-    remote_file: str | None = None
+    remote_file: str | typing.Pattern | None = None
 
 
 class WorkflowFilter(pydantic.BaseModel):
@@ -125,22 +155,18 @@ class WorkflowFilter(pydantic.BaseModel):
     project_types: set[str] = pydantic.Field(default_factory=set)
     project_facts: dict[str, str] = pydantic.Field(default_factory=dict)
     project_environments: set[str] = pydantic.Field(default_factory=set)
-    requires_github_identifier: bool = False
-    exclude_github_workflow_status: set[str] = pydantic.Field(
+    github_identifier_required: bool = False
+    github_workflow_status_exclude: set[str] = pydantic.Field(
         default_factory=set
     )
 
 
 class WorkflowGitCloneType(enum.StrEnum):
-    """Enumeration of supported git clone types."""
-
     http = 'http'
     ssh = 'ssh'
 
 
 class WorkflowGit(pydantic.BaseModel):
-    """Configuration for a source repository."""
-
     clone: bool = True
     shallow: bool = True
     starting_branch: str | None = None
@@ -172,8 +198,6 @@ class WorkflowConfiguration(pydantic.BaseModel):
 
 
 class WorkflowActionResult(pydantic.BaseModel):
-    """Result of a workflow action."""
-
     name: str
 
 
