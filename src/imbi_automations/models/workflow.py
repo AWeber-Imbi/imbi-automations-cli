@@ -259,7 +259,7 @@ class WorkflowUtilityAction(WorkflowAction):
     kwargs: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
 
 
-WorkflowActionUnion = Annotated[
+WorkflowActions = Annotated[
     (
         WorkflowCallableAction
         | WorkflowClaudeAction
@@ -339,7 +339,7 @@ class WorkflowConfiguration(pydantic.BaseModel):
     condition_type: WorkflowConditionType = WorkflowConditionType.all
     conditions: list[WorkflowCondition] = pydantic.Field(default_factory=list)
     create_pull_request: bool = True
-    actions: list[WorkflowActionUnion] = pydantic.Field(default_factory=list)
+    actions: list[WorkflowActions] = pydantic.Field(default_factory=list)
 
 
 class WorkflowActionResult(pydantic.BaseModel):

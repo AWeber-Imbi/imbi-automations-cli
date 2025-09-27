@@ -61,7 +61,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         return True
 
     async def _execute_action(
-        self, context: models.WorkflowContext, action: models.WorkflowAction
+        self, context: models.WorkflowContext, action: models.WorkflowActions
     ) -> None:
         """Execute an action."""
         self._log_verbose_info('Executing action: %s', action.name)

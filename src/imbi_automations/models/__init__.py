@@ -36,6 +36,7 @@ from .imbi import (
 from .workflow import (
     Workflow,
     WorkflowAction,
+    WorkflowActions,
     WorkflowActionTypes,
     WorkflowCallableAction,
     WorkflowClaudeAction,
@@ -95,6 +96,7 @@ __all__ = [
     'ImbiProjectLink',
     'Workflow',
     'WorkflowAction',
+    'WorkflowActions',
     'WorkflowActionTypes',
     'WorkflowCallableAction',
     'WorkflowClaudeAction',
