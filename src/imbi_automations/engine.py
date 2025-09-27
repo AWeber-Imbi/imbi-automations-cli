@@ -2,7 +2,16 @@ import logging
 import pathlib
 import tempfile
 
-from imbi_automations import claude, clients, git, mixins, models, prompts
+from imbi_automations import (
+    claude,
+    clients,
+    condition_checker,
+    git,
+    mixins,
+    models,
+    prompts,
+    shell,
+)
 
 LOGGER = logging.getLogger(__name__)
 BASE_PATH = pathlib.Path(__file__).parent
@@ -19,6 +28,9 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
     ) -> None:
         super().__init__(verbose)
         self.claude: claude.Claude | None = None
+        self.condition_checker = condition_checker.ConditionChecker(
+            configuration, verbose
+        )
         self.github = clients.GitHub.get_instance(config=configuration.github)
         self.configuration = configuration
         self.workflow = workflow
@@ -140,6 +152,12 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         ),
     ) -> None:
         """Execute an action."""
+        if not await self.condition_checker.check(context, action.conditions):
+            self._log_verbose_info(
+                'Skipping action %s due to failed condition check', action.name
+            )
+            return
+
         match action.type:
             case models.WorkflowActionTypes.callable:
                 await self._execute_action_callable(context, action)
@@ -255,7 +273,8 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         action: models.WorkflowShellAction,
     ) -> None:
         """Execute the shell action."""
-        raise NotImplementedError('Shell actions not yet supported')
+        shell_executor = shell.Shell(verbose=self.verbose)
+        await shell_executor.execute(context, action)
 
     async def _execute_action_template(
         self,

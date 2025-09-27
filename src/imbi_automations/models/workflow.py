@@ -292,7 +292,6 @@ class WorkflowCondition(pydantic.BaseModel):
     file_exists: str | typing.Pattern | None = None
     file_not_exists: str | typing.Pattern | None = None
     file_contains: str | None = None
-    file: str | typing.Pattern | None = None
 
     remote_client: WorkflowConditionRemoteClient = (
         WorkflowConditionRemoteClient.github
@@ -300,7 +299,6 @@ class WorkflowCondition(pydantic.BaseModel):
     remote_file_exists: str | None = None
     remote_file_not_exists: str | None = None
     remote_file_contains: str | None = None
-    remote_file: str | typing.Pattern | None = None
 
 
 class WorkflowFilter(pydantic.BaseModel):
