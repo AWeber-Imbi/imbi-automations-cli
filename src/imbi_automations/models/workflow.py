@@ -366,3 +366,4 @@ class WorkflowContext(pydantic.BaseModel):
     gitlab_project: gitlab.GitLabProject | None = None
     imbi_project: imbi.ImbiProject
     working_directory: pathlib.Path | None = None
+    starting_commit: str | None = None

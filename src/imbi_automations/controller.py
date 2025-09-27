@@ -41,7 +41,9 @@ class Automation(mixins.WorkflowLoggerMixin):
         self.counter = collections.Counter()
         self.logger = LOGGER
         self.workflow_engine = engine.WorkflowEngine(
-            configuration=self.configuration, workflow=workflow
+            configuration=self.configuration,
+            workflow=workflow,
+            verbose=args.verbose,
         )
         self.workflow_filter = workflow.configuration.filter
 

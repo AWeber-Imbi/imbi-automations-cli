@@ -2,9 +2,10 @@ import logging
 import pathlib
 import tempfile
 
-from imbi_automations import claude, git, mixins, models
+from imbi_automations import claude, git, mixins, models, prompts
 
 LOGGER = logging.getLogger(__name__)
+BASE_PATH = pathlib.Path(__file__).parent
 
 
 class WorkflowEngine(mixins.WorkflowLoggerMixin):
@@ -35,14 +36,14 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         )
 
         self.claude = claude.Claude(
-            self.configuration.claude_code,
+            self.configuration,
             context.working_directory,
             self.configuration.commit_author,
             self.verbose,
         )
 
         if self.workflow.configuration.git.clone:
-            await git.clone_repository(
+            context.starting_commit = await git.clone_repository(
                 context.working_directory,
                 self._git_clone_url(github_repository, gitlab_project),
                 self.workflow.configuration.git.starting_branch,
@@ -59,8 +60,58 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             working_directory.cleanup()
             return False
 
+        if self.workflow.configuration.create_pull_request:
+            await self._create_pull_request(context)
+        else:
+            # Push to default branch
+            pass
+
         working_directory.cleanup()
         return True
+
+    async def _create_pull_request(
+        self, context: models.WorkflowContext
+    ) -> None:
+        """Create a pull request by creating a branch and pushing changes."""
+        repository_dir = context.working_directory / 'repository'
+
+        branch_name = f'imbi-automations/{context.workflow.path.name}'
+
+        self._log_verbose_info('Creating pull request branch: %s', branch_name)
+
+        # Create and checkout new branch
+        await git.create_branch(
+            working_directory=repository_dir,
+            branch_name=branch_name,
+            checkout=True,
+        )
+
+        # Push the new branch to remote
+        await git.push_changes(
+            working_directory=repository_dir,
+            remote='origin',
+            branch=branch_name,
+            set_upstream=True,
+        )
+
+        self._log_verbose_info(
+            'Successfully pushed branch %s for pull request', branch_name
+        )
+
+        summary = await git.get_commits_since(
+            working_directory=repository_dir,
+            starting_commit=context.starting_commit,
+        )
+        self.logger.debug('%i commits made in workflow', len(summary.commits))
+
+        prompt = prompts.render(
+            BASE_PATH / 'prompts' / 'pull-request-summary.md.j2',
+            summary=summary.model_dump_json(indent=2),
+        )
+        self.logger.debug('Prompt: %s', prompt)
+
+        body = await self.claude.query(prompt)
+        self.logger.debug('Claude PR body response: %s', body)
 
     async def _execute_action(
         self,
@@ -78,7 +129,6 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         ),
     ) -> None:
         """Execute an action."""
-        self._log_verbose_info('Executing action: %s', action.name)
         match action.type:
             case models.WorkflowActionTypes.callable:
                 await self._execute_action_callable(context, action)
@@ -139,6 +189,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
                     working_directory=context.working_directory / 'repository',
                     source_file=action.source,
                     destination_file=context.working_directory
+                    / 'extracted'
                     / action.destination,
                     commit_keyword=action.commit_keyword,
                     search_strategy=action.search_strategy
