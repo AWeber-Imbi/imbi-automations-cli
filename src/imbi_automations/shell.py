@@ -83,17 +83,24 @@ class Shell(mixins.WorkflowLoggerMixin):
                 self.logger.debug('Command stderr: %s', stderr_str)
 
             if process.returncode != 0:
-                self.logger.error(
-                    'Shell command failed with exit code %d: %s',
-                    process.returncode,
-                    stderr_str or stdout_str,
-                )
-                raise subprocess.CalledProcessError(
-                    process.returncode,
-                    command_args,
-                    output=stdout,
-                    stderr=stderr,
-                )
+                if action.ignore_errors:
+                    self.logger.info(
+                        'Shell command failed with exit code %d (ignored): %s',
+                        process.returncode,
+                        stderr_str or stdout_str,
+                    )
+                else:
+                    self.logger.error(
+                        'Shell command failed with exit code %d: %s',
+                        process.returncode,
+                        stderr_str or stdout_str,
+                    )
+                    raise subprocess.CalledProcessError(
+                        process.returncode,
+                        command_args,
+                        output=stdout,
+                        stderr=stderr,
+                    )
 
         except FileNotFoundError as exc:
             raise FileNotFoundError(

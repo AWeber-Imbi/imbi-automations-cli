@@ -244,6 +244,7 @@ class WorkflowGitHubAction(WorkflowAction):
 class WorkflowShellAction(WorkflowAction):
     type: Literal['shell'] = 'shell'
     command: str
+    ignore_errors: bool = False
 
 
 class WorkflowTemplateAction(WorkflowAction):

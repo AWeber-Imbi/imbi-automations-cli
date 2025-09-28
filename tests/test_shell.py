@@ -105,6 +105,27 @@ class ShellTestCase(base.AsyncTestCase):
         self.assertEqual(exc_context.exception.returncode, 1)
 
     @mock.patch('asyncio.create_subprocess_exec')
+    async def test_execute_command_failure_ignored(
+        self, mock_subprocess: mock.AsyncMock
+    ) -> None:
+        """Test shell command execution failure with ignore_errors=True."""
+        # Mock failed process
+        mock_process = mock.AsyncMock()
+        mock_process.returncode = 1
+        mock_process.communicate.return_value = (b'', b'command failed')
+        mock_subprocess.return_value = mock_process
+
+        action = models.WorkflowShellAction(
+            name='test-fail-ignored',
+            type='shell',
+            command='false',
+            ignore_errors=True,
+        )
+
+        # Should not raise exception when ignore_errors=True
+        await self.shell_executor.execute(self.context, action)
+
+    @mock.patch('asyncio.create_subprocess_exec')
     async def test_execute_command_not_found(
         self, mock_subprocess: mock.AsyncMock
     ) -> None:
