@@ -1,0 +1,13 @@
+{
+  "name": "package.json",
+  "path": "package.json",
+  "sha": "abc1234567890",
+  "size": 123,
+  "url": "https://api.github.com/repos/testorg/testrepo/contents/package.json",
+  "html_url": "https://github.com/testorg/testrepo/blob/main/package.json",
+  "git_url": "https://api.github.com/repos/testorg/testrepo/git/blobs/abc1234567890",
+  "download_url": "https://raw.githubusercontent.com/testorg/testrepo/main/package.json",
+  "type": "file",
+  "content": "ewogICJuYW1lIjogInRlc3QtcHJvamVjdCIsCiAgInZlcnNpb24iOiAiMS4wLjAiCn0K",
+  "encoding": "base64"
+}

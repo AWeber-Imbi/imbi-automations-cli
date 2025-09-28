@@ -1450,3 +1450,103 @@ class GitHub(http.BaseURLHTTPClient):
         )
 
         return pr_url
+
+    async def get_file_contents(
+        self, context: 'models.WorkflowContext', file_path: str
+    ) -> str | None:
+        """Get file contents from GitHub repository.
+
+        Args:
+            context: Workflow context containing GitHub repository info
+            file_path: Path to the file in the repository
+
+        Returns:
+            File contents as string, or None if file doesn't exist
+
+        Raises:
+            ValueError: If no GitHub repository in context
+            httpx.HTTPError: If API request fails (other than 404)
+
+        """
+        if not context.github_repository:
+            raise ValueError('No GitHub repository in workflow context')
+
+        org = context.github_repository.owner.login
+        repo = context.github_repository.name
+
+        LOGGER.debug(
+            'Getting file contents for %s from %s/%s', file_path, org, repo
+        )
+
+        try:
+            response = await self.get(
+                f'/repos/{org}/{repo}/contents/{file_path}'
+            )
+            response.raise_for_status()
+
+            file_data = response.json()
+
+            # Handle file vs directory response
+            if isinstance(file_data, list):
+                # Path points to directory, not file
+                LOGGER.debug(
+                    'Path %s is a directory in %s/%s, not a file',
+                    file_path,
+                    org,
+                    repo,
+                )
+                return None
+
+            # Check if it's a file
+            if file_data.get('type') != 'file':
+                LOGGER.debug(
+                    'Path %s is not a file in %s/%s (type: %s)',
+                    file_path,
+                    org,
+                    repo,
+                    file_data.get('type'),
+                )
+                return None
+
+            # Decode file content
+            import base64
+
+            content = file_data.get('content', '')
+            if content:
+                try:
+                    decoded_content = base64.b64decode(content).decode('utf-8')
+                    LOGGER.debug(
+                        'Retrieved %d bytes from %s in %s/%s',
+                        len(decoded_content),
+                        file_path,
+                        org,
+                        repo,
+                    )
+                    return decoded_content
+                except (ValueError, UnicodeDecodeError) as exc:
+                    LOGGER.warning(
+                        'Failed to decode file %s from %s/%s: %s',
+                        file_path,
+                        org,
+                        repo,
+                        exc,
+                    )
+                    return None
+
+            return ''  # Empty file
+
+        except httpx.HTTPError as exc:
+            if exc.response.status_code == 404:
+                LOGGER.debug(
+                    'File %s not found in %s/%s', file_path, org, repo
+                )
+                return None
+            else:
+                LOGGER.error(
+                    'Failed to get file %s from %s/%s: %s',
+                    file_path,
+                    org,
+                    repo,
+                    exc,
+                )
+                raise

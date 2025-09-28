@@ -1409,6 +1409,93 @@ jobs:
                 base_branch='main',
             )
 
+    async def test_get_file_contents_success(self) -> None:
+        """Test successful file contents retrieval."""
+        # HTTP mock uses URL path to find test data file
+
+        # Create mock context with GitHub repository
+        mock_org = mock.MagicMock()
+        mock_org.login = 'testorg'
+
+        mock_repo = mock.MagicMock()
+        mock_repo.name = 'testrepo'
+        mock_repo.owner = mock_org
+
+        context = mock.MagicMock()
+        context.github_repository = mock_repo
+
+        result = await self.instance.get_file_contents(
+            context=context, file_path='package.json'
+        )
+
+        # The base64 content decodes to package.json content
+        expected_content = (
+            '{\n  "name": "test-project",\n  "version": "1.0.0"\n}\n'
+        )
+        self.assertEqual(result, expected_content)
+
+    async def test_get_file_contents_not_found(self) -> None:
+        """Test file contents retrieval for non-existent file."""
+        self.http_client_side_effect = httpx.Response(
+            status_code=404,
+            request=httpx.Request('GET', 'http://example.com'),
+            json={'message': 'Not Found'},
+        )
+
+        mock_org = mock.MagicMock()
+        mock_org.login = 'testorg'
+
+        mock_repo = mock.MagicMock()
+        mock_repo.name = 'testrepo'
+        mock_repo.owner = mock_org
+
+        context = mock.MagicMock()
+        context.github_repository = mock_repo
+
+        result = await self.instance.get_file_contents(
+            context=context, file_path='nonexistent.txt'
+        )
+
+        self.assertIsNone(result)
+
+    async def test_get_file_contents_no_github_repository(self) -> None:
+        """Test file contents retrieval without GitHub repository."""
+        context = mock.MagicMock()
+        context.github_repository = None
+
+        with self.assertRaises(ValueError) as exc_context:
+            await self.instance.get_file_contents(
+                context=context, file_path='test.txt'
+            )
+
+        self.assertIn(
+            'No GitHub repository in workflow context',
+            str(exc_context.exception),
+        )
+
+    async def test_get_file_contents_api_error(self) -> None:
+        """Test file contents retrieval with API error."""
+        self.http_client_side_effect = httpx.Response(
+            status_code=500,
+            request=httpx.Request('GET', 'http://example.com'),
+            json={'message': 'Internal Server Error'},
+        )
+
+        mock_org = mock.MagicMock()
+        mock_org.login = 'testorg'
+
+        mock_repo = mock.MagicMock()
+        mock_repo.name = 'testrepo'
+        mock_repo.owner = mock_org
+
+        context = mock.MagicMock()
+        context.github_repository = mock_repo
+
+        with self.assertRaises(httpx.HTTPError):
+            await self.instance.get_file_contents(
+                context=context, file_path='test.txt'
+            )
+
 
 if __name__ == '__main__':
     unittest.main()

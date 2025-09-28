@@ -1,5 +1,7 @@
 import logging
 import pathlib
+import re
+import typing
 
 from imbi_automations import clients, mixins, models
 
@@ -44,11 +46,17 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
             if condition.file_contains and condition.file:
                 results.append(self._check_file_contains(base_path, condition))
             elif condition.file_exists:
-                file_path = base_path / condition.file_exists
-                results.append(file_path.exists())
+                results.append(
+                    self._check_file_pattern_exists(
+                        base_path, condition.file_exists
+                    )
+                )
             elif condition.file_not_exists:
-                file_path = base_path / condition.file_not_exists
-                results.append(not file_path.exists())
+                results.append(
+                    not self._check_file_pattern_exists(
+                        base_path, condition.file_not_exists
+                    )
+                )
         if condition_type == models.WorkflowConditionType.any:
             return any(results)
         return all(results)
@@ -64,6 +72,7 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
             return True
         results = []
         for condition in conditions:
+            self.logger.debug('%r', condition.model_dump())
             client = await self._check_remote_client(condition)
             file_path = (
                 condition.remote_file
@@ -101,6 +110,34 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
             )
             return False
         return condition.file_contains in file_content
+
+    @staticmethod
+    def _check_file_pattern_exists(
+        base_path: pathlib.Path, file: str | typing.Pattern
+    ) -> bool:
+        """Check if a file exists using either exact path or regex pattern.
+
+        Args:
+            base_path: Repository base path
+            file: File path string or compiled regex pattern
+
+        Returns:
+            True if file exists (string) or pattern matches any file (regex)
+
+        """
+        if isinstance(file, str):
+            return (base_path / file).exists()
+
+        try:
+            pattern = re.compile(file)
+        except re.error as exc:
+            raise RuntimeError(f'Invalid regex pattern "{file}"') from exc
+
+        for file_path in base_path.rglob('*'):
+            relative_path = file_path.relative_to(base_path)
+            if pattern.search(str(relative_path)):
+                return True
+        return False
 
     async def _check_remote_client(
         self, condition: models.WorkflowCondition
