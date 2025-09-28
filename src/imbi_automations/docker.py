@@ -3,7 +3,7 @@
 import asyncio
 import logging
 
-from imbi_automations import mixins, models
+from imbi_automations import mixins, models, prompts
 
 LOGGER = logging.getLogger(__name__)
 
@@ -61,65 +61,48 @@ class Docker(mixins.WorkflowLoggerMixin):
         action: models.WorkflowDockerAction,
     ) -> None:
         """Execute docker extract command to copy files from container."""
-        # Build image tag
-        image_tag = (
-            f'{action.image}:{action.tag}' if action.tag else action.image
+        image = (
+            prompts.render(context, str(action.image))
+            if '{{' in action.image
+            else action.image
         )
-
-        # Resolve paths - source is container path, dest goes to extracted/
+        image = f'{image}:{action.tag}' if action.tag else image
         source_path = str(action.source)
         dest_path = (
             context.working_directory / 'extracted' / action.destination
         )
-
         self._log_verbose_info(
             'Extracting %s from container %s to %s',
             source_path,
-            image_tag,
+            image,
             dest_path,
         )
-
-        # Ensure destination directory exists
         dest_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # Create temporary container to extract files
         container_name = f'imbi-extract-{id(action)}'
-
         try:
-            # Create container from image
-            create_cmd = [
-                'docker',
-                'create',
-                '--name',
-                container_name,
-                image_tag,
-            ]
-
-            await self._run_docker_command(create_cmd)
-
-            # Copy file from container to host
-            copy_cmd = [
-                'docker',
-                'cp',
-                f'{container_name}:{source_path}',
-                str(dest_path),
-            ]
-
-            await self._run_docker_command(copy_cmd)
-
-            self._log_verbose_info(
+            await self._run_docker_command(['docker', 'pull', image])
+            await self._run_docker_command(
+                ['docker', 'create', '--name', container_name, image]
+            )
+            await self._run_docker_command(
+                [
+                    'docker',
+                    'cp',
+                    f'{container_name}:{source_path}',
+                    str(dest_path),
+                ]
+            )
+            self.logger.debug(
                 'Successfully extracted %s to %s', source_path, dest_path
             )
 
-        finally:
-            # Always clean up container
+        finally:  # Always clean up container
             try:
-                remove_cmd = ['docker', 'rm', container_name]
                 await self._run_docker_command(
-                    remove_cmd, check_exit_code=False
+                    ['docker', 'rm', container_name], check_exit_code=False
                 )
             except RuntimeError as exc:
-                self.logger.warning(
+                self.logger.debug(
                     'Failed to cleanup container %s: %s', container_name, exc
                 )
 

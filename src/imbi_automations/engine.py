@@ -69,7 +69,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
                 context.working_directory,
                 self._git_clone_url(github_repository, gitlab_project),
                 self.workflow.configuration.git.starting_branch,
-                1 if self.workflow.configuration.git.shallow else None,
+                self.workflow.configuration.git.depth,
             )
 
         if not self.condition_checker.check(

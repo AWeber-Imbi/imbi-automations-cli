@@ -24,7 +24,10 @@ class WorkflowEnginePullRequestTestCase(base.AsyncTestCase):
         self.config = models.Configuration(
             imbi=models.ImbiConfiguration(
                 api_key='test-key', hostname='imbi.test.com'
-            )
+            ),
+            github=models.GitHubConfiguration(
+                api_key='test-github-key', hostname='github.com'
+            ),
         )
 
         # Create mock workflow with path name for slugification

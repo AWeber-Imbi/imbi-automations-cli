@@ -26,6 +26,8 @@ class WorkflowConditionType(enum.StrEnum):
 
 
 class WorkflowAction(pydantic.BaseModel):
+    model_config = pydantic.ConfigDict(extra='forbid')
+
     name: str
     type: WorkflowActionTypes = WorkflowActionTypes.callable
 
@@ -69,6 +71,7 @@ class WorkflowDockerAction(WorkflowAction):
     path: pathlib.Path | None = None
     source: pathlib.Path | None = None
     destination: pathlib.Path | None = None
+    committable: bool = False
 
     @pydantic.model_validator(mode='after')
     def validate_command_fields(self) -> 'WorkflowDockerAction':
@@ -388,7 +391,8 @@ class WorkflowGitCloneType(enum.StrEnum):
 
 class WorkflowGit(pydantic.BaseModel):
     clone: bool = True
-    shallow: bool = True
+    depth: int = 1
+    ref: str | None = None
     starting_branch: str | None = None
     ci_skip_checks: bool = False
     clone_type: WorkflowGitCloneType = WorkflowGitCloneType.ssh
