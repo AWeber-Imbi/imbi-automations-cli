@@ -63,7 +63,7 @@ class Docker(mixins.WorkflowLoggerMixin):
         """Execute docker extract command to copy files from container."""
         image = (
             prompts.render(context, str(action.image))
-            if '{{' in action.image
+            if prompts.has_template_syntax(action.image)
             else action.image
         )
         image = f'{image}:{action.tag}' if action.tag else image

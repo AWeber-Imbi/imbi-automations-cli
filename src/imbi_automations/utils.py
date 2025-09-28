@@ -213,15 +213,3 @@ def extract_json(response: str) -> dict[str, typing.Any]:
         pass
 
     raise ValueError(f'No valid JSON found in response: {response[:200]}...')
-
-
-def has_template_syntax(value: str) -> bool:
-    """Check if value contains Jinja2 templating syntax."""
-    # Look for common Jinja2 patterns
-    template_patterns = [
-        '{{',  # Variable substitution
-        '{%',  # Control structures
-        '{#',  # Comments
-    ]
-
-    return any(pattern in value for pattern in template_patterns)

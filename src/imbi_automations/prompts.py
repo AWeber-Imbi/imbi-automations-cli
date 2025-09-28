@@ -36,3 +36,13 @@ def render_file(
     """Render a file from source to destination."""
     logging.info('Rendering %s to %s', source, destination)
     destination.write_text(render(context, source, **kwargs), encoding='utf-8')
+
+
+def has_template_syntax(value: str) -> bool:
+    """Check if value contains Jinja2 templating syntax."""
+    template_patterns = [
+        '{{',  # Variable substitution
+        '{%',  # Control structures
+        '{#',  # Comments
+    ]
+    return any(pattern in value for pattern in template_patterns)
