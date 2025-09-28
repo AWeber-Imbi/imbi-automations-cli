@@ -38,10 +38,10 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
         if not conditions:
             return True
 
+        self._set_workflow_logger(context.workflow)
+
         results = []
-
         base_path = context.working_directory / 'repository'
-
         for condition in conditions:
             if condition.file_contains and condition.file:
                 results.append(self._check_file_contains(base_path, condition))
@@ -70,6 +70,9 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
         """Run the condition checks"""
         if not conditions:
             return True
+
+        self._set_workflow_logger(context.workflow)
+
         results = []
         for condition in conditions:
             self.logger.debug('%r', condition.model_dump())

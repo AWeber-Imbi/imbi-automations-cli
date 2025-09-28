@@ -111,49 +111,61 @@ class FileActions(mixins.WorkflowLoggerMixin):
         action: models.WorkflowFileAction,
     ) -> None:
         """Execute delete file action."""
-        base_path = self._get_base_path(context)
-
         if action.path:
-            # Delete specific file/directory
-            file_path = self._resolve_path(context, action.path)
-            self._log_verbose_info('Deleting file/directory: %s', file_path)
-
-            if file_path.exists():
-                if file_path.is_file():
-                    file_path.unlink()
-                elif file_path.is_dir():
-                    shutil.rmtree(file_path)
-                self._log_verbose_info('Successfully deleted %s', file_path)
-            else:
-                self.logger.warning(
-                    'File to delete does not exist: %s', file_path
-                )
-
+            await self._delete_by_path(context, action)
         elif action.pattern:
-            # Delete files matching pattern
-            self._log_verbose_info(
-                'Deleting files matching pattern: %s', action.pattern
-            )
+            await self._delete_by_pattern(context, action)
 
-            deleted_count = 0
-            if isinstance(action.pattern, str):
-                pattern = re.compile(action.pattern)
-            else:
-                pattern = action.pattern
+    async def _delete_by_path(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowFileAction,
+    ) -> None:
+        """Delete a specific file or directory by path."""
+        file_path = self._resolve_path(context, action.path)
+        self._log_verbose_info('Deleting file/directory: %s', file_path)
 
-            for file_path in base_path.rglob('*'):
-                if file_path.is_file():
-                    relative_path = file_path.relative_to(base_path)
-                    if pattern.search(str(relative_path)):
-                        self.logger.debug(
-                            'Deleting file matching pattern: %s', file_path
-                        )
-                        file_path.unlink()
-                        deleted_count += 1
+        if file_path.exists():
+            if file_path.is_file():
+                file_path.unlink()
+            elif file_path.is_dir():
+                shutil.rmtree(file_path)
+            self._log_verbose_info('Successfully deleted %s', file_path)
+        else:
+            self.logger.warning('File to delete does not exist: %s', file_path)
 
-            self._log_verbose_info(
-                'Deleted %d files matching pattern', deleted_count
-            )
+    async def _delete_by_pattern(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowFileAction,
+    ) -> None:
+        """Delete files matching a regex pattern."""
+        base_path = context.working_directory
+
+        self._log_verbose_info(
+            'Deleting files matching pattern: %s', action.pattern
+        )
+
+        # Compile pattern if it's a string
+        if isinstance(action.pattern, str):
+            pattern = re.compile(action.pattern)
+        else:
+            pattern = action.pattern
+
+        deleted_count = 0
+        for file_path in base_path.rglob('*'):
+            if file_path.is_file():
+                relative_path = file_path.relative_to(base_path)
+                if pattern.search(str(relative_path)):
+                    self.logger.debug(
+                        'Deleting file matching pattern: %s', file_path
+                    )
+                    file_path.unlink()
+                    deleted_count += 1
+
+        self._log_verbose_info(
+            'Deleted %d files matching pattern', deleted_count
+        )
 
     async def _execute_move(
         self,
@@ -224,14 +236,11 @@ class FileActions(mixins.WorkflowLoggerMixin):
 
         self._log_verbose_info('Successfully wrote to %s', file_path)
 
+    @staticmethod
     def _resolve_path(
-        self, context: models.WorkflowContext, path: pathlib.Path
+        context: models.WorkflowContext, path: pathlib.Path
     ) -> pathlib.Path:
         """Resolve a path relative to the working directory."""
         if path.is_absolute():
             return path
         return context.working_directory / path
-
-    def _get_base_path(self, context: models.WorkflowContext) -> pathlib.Path:
-        """Get the base path for file operations (working directory)."""
-        return context.working_directory

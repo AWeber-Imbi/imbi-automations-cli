@@ -225,8 +225,9 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         file_executor = file_actions.FileActions(verbose=self.verbose)
         await file_executor.execute(context, action)
 
+    @staticmethod
     async def _execute_action_git(
-        self, context: models.WorkflowContext, action: models.WorkflowGitAction
+        context: models.WorkflowContext, action: models.WorkflowGitAction
     ) -> None:
         match action.command:
             case models.WorkflowGitActionCommand.extract:
