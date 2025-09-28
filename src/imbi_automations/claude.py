@@ -66,7 +66,7 @@ class Claude(mixins.WorkflowLoggerMixin):
         """Leverage the `commit` agent in Claude Code to commit changes."""
         self.session_id = None
         self._log_verbose_info(
-            'Using Claude Code to commit changes fir %s', action.name
+            'Using Claude Code to commit changes for %s', action.name
         )
         await self.client.connect()
         run = await self._execute_agent(context, action, AgentType.commit)
