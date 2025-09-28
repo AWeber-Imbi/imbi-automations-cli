@@ -70,7 +70,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
                 1 if self.workflow.configuration.git.shallow else None,
             )
 
-        if not await self.condition_checker.check(
+        if not self.condition_checker.check(
             context,
             self.workflow.configuration.condition_type,
             self.workflow.configuration.conditions,
@@ -166,7 +166,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         ),
     ) -> None:
         """Execute an action."""
-        if not await self.condition_checker.check(
+        if not self.condition_checker.check(
             context,
             self.workflow.configuration.condition_type,
             action.conditions,
@@ -176,7 +176,9 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             )
             return
         elif not await self.condition_checker.check_remote(
-            context, action.conditions
+            context,
+            self.workflow.configuration.condition_type,
+            action.conditions,
         ):
             self._log_verbose_info(
                 'Skipping action %s due to failed condition check', action.name

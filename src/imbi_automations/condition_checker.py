@@ -83,9 +83,9 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
             if condition.remote_file_contains:
                 results.append(condition.remote_file_contains in content or '')
             elif condition.remote_file_exists:
-                conditions.append(content is not None)
+                results.append(content is not None)
             elif condition.remote_file_not_exists:
-                conditions.append(content is None)
+                results.append(content is None)
         if condition_type == models.WorkflowConditionType.any:
             return any(results)
         return all(results)
