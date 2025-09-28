@@ -72,7 +72,21 @@ class Claude(mixins.WorkflowLoggerMixin):
         run = await self._execute_agent(context, action, AgentType.commit)
         await self.client.disconnect()
         if run.result == models.AgentRunResult.failure:
-            raise RuntimeError(f'Claude Code commit failed: {run.message}')
+            # Check if it's "no changes to commit" which is not an error
+            if run.message and 'no changes to commit' in run.message.lower():
+                self.logger.info(
+                    'No changes to commit for action %s', action.name
+                )
+                return
+            elif (
+                run.message and 'working tree is clean' in run.message.lower()
+            ):
+                self.logger.info(
+                    'Working tree is clean for action %s', action.name
+                )
+                return
+            else:
+                raise RuntimeError(f'Claude Code commit failed: {run.message}')
 
     async def execute(
         self,

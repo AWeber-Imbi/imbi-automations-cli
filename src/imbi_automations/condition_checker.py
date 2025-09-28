@@ -80,7 +80,7 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
                 or condition.remote_file_not_exists
             )
             content = await client.get_file_contents(context, file_path)
-            if condition.remote_file_contains:
+            if condition.remote_file_contains and condition.remote_file:
                 results.append(condition.remote_file_contains in content or '')
             elif condition.remote_file_exists:
                 results.append(content is not None)
