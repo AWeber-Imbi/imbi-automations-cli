@@ -82,9 +82,11 @@ pre-commit run --all-files
 
 #### Supporting Components
 - **Git Operations** (`git.py`): Repository cloning and Git operations
-- **AI Editor** (`ai_editor.py`): Fast, focused file edits using Claude Haiku
 - **Docker Integration** (`docker.py`): Docker container operations and extractions
 - **Environment Sync** (`environment_sync.py`): GitHub environment synchronization logic
+- **File Actions** (`file_actions.py`): File manipulation operations (copy, move, regex replacement)
+- **Shell Integration** (`shell.py`): Shell command execution with templating support
+- **Condition Checker** (`condition_checker.py`): Workflow condition evaluation system
 - **Utilities** (`utils.py`): Configuration loading, directory management, URL sanitization
 - **Error Handling** (`errors.py`): Custom exception classes
 - **Mixins** (`mixins.py`): Reusable workflow logging functionality
@@ -122,18 +124,21 @@ The system supports multiple transformation types through the workflow action sy
 
 ### Workflow Structure
 
-Workflows are organized in a directory structure:
+Workflows are organized in a directory structure with TOML configuration files:
 
 ```
 workflows/
-├── sync-github-metadata/
-│   ├── workflow.toml              # Workflow definition
-│   ├── transformations/           # Transformation steps
-│   │   ├── ai-editor/priority-75-update-readme/
-│   │   ├── templates/priority-50-add-codeowners/
-│   │   └── shell/priority-25-run-tests/
-│   └── conditions/                # Workflow applicability
+├── workflow-name/
+│   ├── config.toml                # Workflow definition with actions, conditions, and filters
+│   └── files/                     # Optional: Template files and resources
+└── another-workflow/
+    └── config.toml
 ```
+
+Each workflow's `config.toml` file contains:
+- **Actions**: Sequence of operations to perform
+- **Conditions**: Repository state requirements for execution
+- **Filters**: Project targeting and filtering criteria
 
 ### Workflow Conditions
 
@@ -299,23 +304,32 @@ exclude_github_workflow_status = ["success"]
 ## Dependencies
 
 ### Runtime Dependencies
+- `anthropic`: Anthropic API client for Claude integration
+- `async_lru`: Async LRU cache for performance optimization
+- `claude-code-sdk`: Claude Code SDK for AI-powered transformations
 - `colorlog`: Colored logging for CLI applications
 - `httpx`: Modern async HTTP client
+- `jinja2`: Template engine for file generation and variable substitution
 - `pydantic`: Data validation and configuration management
 - `rich`: Rich text and progress displays
+- `semver`: Semantic versioning utilities
 - `truststore`: SSL certificate handling
 - `yarl`: URL parsing and manipulation
 
 ### Development Dependencies
 - `build`: Package building
 - `coverage[toml]`: Test coverage with TOML configuration
+- `mkdocs`: Documentation site generation
+- `mkdocs-material`: Material theme for MkDocs
+- `mkdocstrings[python]`: Auto-generated API documentation
 - `pre-commit`: Git hooks for code quality
 - `pytest`: Test framework
+- `pytest-cov`: Test coverage integration with pytest
 - `ruff`: Fast Python linter and formatter
 
 ## Claude Code Standards
 
-All Claude Code actions follow standards defined in the `base-prompt.md` file, including:
+All Claude Code actions follow standards defined in the `prompts/CLAUDE.md` file, including:
 
 - **Failure Indication**: Create failure files (`ACTION_FAILED`, `{ACTION_NAME}_FAILED`, etc.) to signal workflow abortion
 - **Success Indication**: No action required - successful completion is implicit when no failure files are created

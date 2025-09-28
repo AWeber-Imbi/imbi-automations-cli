@@ -153,7 +153,7 @@ COPY . /app
             self.context, pathlib.Path('Dockerfile')
         )
 
-        self.assertIsNone(result)
+        self.assertEqual(result, 'ERROR: FROM not found')
 
     def test_extract_image_from_dockerfile_empty_file(self) -> None:
         """Test extracting Docker image from empty file."""
@@ -164,7 +164,7 @@ COPY . /app
             self.context, pathlib.Path('Dockerfile')
         )
 
-        self.assertIsNone(result)
+        self.assertEqual(result, 'ERROR: FROM not found')
 
     def test_extract_image_from_dockerfile_comments_only(self) -> None:
         """Test extracting Docker image from file with only comments."""
@@ -179,14 +179,16 @@ COPY . /app
             self.context, pathlib.Path('Dockerfile')
         )
 
-        self.assertIsNone(result)
+        self.assertEqual(result, 'ERROR: FROM not found')
 
     def test_extract_image_from_dockerfile_file_not_found(self) -> None:
         """Test extracting Docker image from non-existent file."""
-        nonexistent_path = self.temp_path / 'nonexistent'
+        # Test with non-existent file
+        result = utils.extract_image_from_dockerfile(
+            self.context, pathlib.Path('nonexistent')
+        )
 
-        with self.assertRaises(OSError):
-            utils.extract_docker_image(nonexistent_path)
+        self.assertEqual(result, 'ERROR: file_not_found')
 
     def test_extract_image_from_dockerfile_malformed_from(self) -> None:
         """Test extracting Docker image from malformed FROM instruction."""
@@ -200,7 +202,7 @@ RUN echo "hello"
             self.context, pathlib.Path('Dockerfile')
         )
 
-        self.assertIsNone(result)
+        self.assertEqual(result, 'ERROR: FROM not found')
 
     def test_extract_image_from_dockerfile_from_with_build_args(self) -> None:
         """Test extracting Docker image with build args in FROM."""

@@ -68,7 +68,11 @@ class ClaudeTestCase(base.AsyncTestCase):
         super().setUp()
         self.temp_dir = tempfile.TemporaryDirectory()
         self.working_directory = pathlib.Path(self.temp_dir.name)
-        self.config = models.ClaudeCodeConfiguration(executable='claude')
+        self.config = models.Configuration(
+            claude_code=models.ClaudeCodeConfiguration(executable='claude'),
+            anthropic=models.AnthropicConfiguration(),
+            imbi=models.ImbiConfiguration(api_key='test', hostname='test.com'),
+        )
 
         # Create required directory structure
         (self.working_directory / 'workflow').mkdir()
@@ -137,7 +141,7 @@ class ClaudeTestCase(base.AsyncTestCase):
         )
 
         # Verify initialization
-        self.assertEqual(claude_instance.config, self.config)
+        self.assertEqual(claude_instance.config, self.config.claude_code)
         self.assertEqual(
             claude_instance.working_directory, self.working_directory
         )

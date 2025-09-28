@@ -63,6 +63,7 @@ class DockerTestCase(base.AsyncTestCase):
         """Test successful docker extract operation."""
         # Mock successful docker commands
         mock_run_docker.side_effect = [
+            (0, '', ''),  # docker pull
             (0, 'container_id', ''),  # docker create
             (0, '', ''),  # docker cp
             (0, '', ''),  # docker rm (cleanup)
@@ -81,10 +82,14 @@ class DockerTestCase(base.AsyncTestCase):
         await self.docker_executor.execute(self.context, action)
 
         # Verify docker commands were called correctly
-        self.assertEqual(mock_run_docker.call_count, 3)
+        self.assertEqual(mock_run_docker.call_count, 4)
+
+        # Check docker pull command
+        pull_call = mock_run_docker.call_args_list[0]
+        self.assertEqual(pull_call[0][0], ['docker', 'pull', 'ubuntu:20.04'])
 
         # Check docker create command
-        create_call = mock_run_docker.call_args_list[0]
+        create_call = mock_run_docker.call_args_list[1]
         self.assertEqual(
             create_call[0][0],
             [
@@ -97,7 +102,7 @@ class DockerTestCase(base.AsyncTestCase):
         )
 
         # Check docker cp command
-        cp_call = mock_run_docker.call_args_list[1]
+        cp_call = mock_run_docker.call_args_list[2]
         expected_cp_cmd = [
             'docker',
             'cp',
@@ -107,7 +112,7 @@ class DockerTestCase(base.AsyncTestCase):
         self.assertEqual(cp_call[0][0], expected_cp_cmd)
 
         # Check docker rm command (cleanup)
-        rm_call = mock_run_docker.call_args_list[2]
+        rm_call = mock_run_docker.call_args_list[3]
         self.assertEqual(
             rm_call[0][0], ['docker', 'rm', f'imbi-extract-{id(action)}']
         )

@@ -1,9 +1,7 @@
 import asyncio
 import logging
-import pathlib
 import shlex
 import subprocess
-import tempfile
 
 from imbi_automations import mixins, models, prompts
 
@@ -120,44 +118,7 @@ class Shell(mixins.WorkflowLoggerMixin):
             Rendered command string
 
         """
-        # Detect if command contains Jinja2 templating syntax
         if self._has_template_syntax(command):
             self.logger.debug('Rendering templated command: %s', command)
-
-            try:
-                # Create temporary file for template rendering
-                with tempfile.NamedTemporaryFile(
-                    mode='w', suffix='.j2', delete=False
-                ) as temp_file:
-                    temp_file.write(command)
-                    temp_file.flush()
-
-                    temp_path = pathlib.Path(temp_file.name)
-
-                    try:
-                        rendered = prompts.render(
-                            context, temp_path, **context.model_dump()
-                        )
-                        self.logger.debug('Rendered command: %s', rendered)
-                        return rendered
-                    finally:
-                        temp_path.unlink()  # Clean up temp file
-
-            except Exception as exc:
-                raise ValueError(
-                    f'Failed to render command template: {exc}'
-                ) from exc
-
+            return prompts.render(context, command, **context.model_dump())
         return command
-
-    @staticmethod
-    def _has_template_syntax(command: str) -> bool:
-        """Check if command contains Jinja2 templating syntax."""
-        # Look for common Jinja2 patterns
-        template_patterns = [
-            '{{',  # Variable substitution
-            '{%',  # Control structures
-            '{#',  # Comments
-        ]
-
-        return any(pattern in command for pattern in template_patterns)
