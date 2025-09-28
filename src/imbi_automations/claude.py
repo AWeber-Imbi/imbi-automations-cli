@@ -189,6 +189,9 @@ class Claude(mixins.WorkflowLoggerMixin):
         cycle: int,
     ) -> bool:
         for agent in [AgentType.generator, AgentType.validator]:
+            if agent == AgentType.validator and not action.validation_prompt:
+                self.logger.debug('No validation prompt, skipping')
+                continue
             self._log_verbose_info(
                 'Executing Claude Code %s agent in cycle %d', agent, cycle
             )
@@ -329,7 +332,7 @@ class Claude(mixins.WorkflowLoggerMixin):
 
             try:
                 payload = utils.extract_json(message.result)
-            except json.JSONDecodeError as err:
+            except ValueError as err:
                 self.logger.error('Failed to parse JSON result: %s', err)
                 return models.AgentRun(
                     result=models.AgentRunResult.failure,

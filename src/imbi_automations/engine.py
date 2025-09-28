@@ -208,6 +208,14 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             case _:
                 raise RuntimeError(f'Unsupported action type: {action.type}')
 
+    async def _execute_action_callable(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowCallableAction,
+    ) -> None:
+        """Execute the callable action."""
+        raise NotImplementedError('Callable actions not yet supported')
+
     async def _execute_action_claude(
         self,
         context: models.WorkflowContext,
@@ -215,6 +223,24 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
     ) -> None:
         """Execute the Claude Code action."""
         await self.claude.execute(context, action)
+
+    async def _execute_action_docker(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowDockerAction,
+    ) -> None:
+        """Execute the docker action."""
+        match action.command:
+            case models.WorkflowDockerActionCommand.build:
+                raise NotImplementedError('Docker build not yet supported')
+            case models.WorkflowDockerActionCommand.extract:
+                raise NotImplementedError('Docker extract not yet supported')
+            case models.WorkflowDockerActionCommand.pull:
+                raise NotImplementedError('Docker pull not yet supported')
+            case models.WorkflowDockerActionCommand.push:
+                raise NotImplementedError('Docker push not yet supported')
+            case _:
+                raise RuntimeError(f'Unsupported command: {action.command}')
 
     async def _execute_action_file(
         self,
@@ -241,32 +267,6 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
                     search_strategy=action.search_strategy
                     or 'before_last_match',
                 )
-            case _:
-                raise RuntimeError(f'Unsupported command: {action.command}')
-
-    async def _execute_action_callable(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowCallableAction,
-    ) -> None:
-        """Execute the callable action."""
-        raise NotImplementedError('Callable actions not yet supported')
-
-    async def _execute_action_docker(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowDockerAction,
-    ) -> None:
-        """Execute the docker action."""
-        match action.command:
-            case models.WorkflowDockerActionCommand.build:
-                raise NotImplementedError('Docker build not yet supported')
-            case models.WorkflowDockerActionCommand.extract:
-                raise NotImplementedError('Docker extract not yet supported')
-            case models.WorkflowDockerActionCommand.pull:
-                raise NotImplementedError('Docker pull not yet supported')
-            case models.WorkflowDockerActionCommand.push:
-                raise NotImplementedError('Docker push not yet supported')
             case _:
                 raise RuntimeError(f'Unsupported command: {action.command}')
 
@@ -370,5 +370,6 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             github_repository=github_repository,
             gitlab_project=gitlab_project,
             imbi_project=project,
+            starting_commit=None,
             working_directory=working_directory,
         )
