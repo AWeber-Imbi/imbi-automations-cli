@@ -6,6 +6,7 @@ from imbi_automations import (
     claude,
     clients,
     condition_checker,
+    file_actions,
     git,
     mixins,
     models,
@@ -220,21 +221,9 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         context: models.WorkflowContext,
         action: models.WorkflowFileAction,
     ) -> None:
-        match action.command:
-            case models.WorkflowFileActionCommand.append:
-                raise NotImplementedError('Append not yet supported')
-            case models.WorkflowFileActionCommand.copy:
-                raise NotImplementedError('Copy not yet supported')
-            case models.WorkflowFileActionCommand.delete:
-                raise NotImplementedError('Delete not yet supported')
-            case models.WorkflowFileActionCommand.move:
-                raise NotImplementedError('Move not yet supported')
-            case models.WorkflowFileActionCommand.rename:
-                raise NotImplementedError('Rename not yet supported')
-            case models.WorkflowFileActionCommand.write:
-                raise NotImplementedError('Write not yet supported')
-            case _:
-                raise RuntimeError(f'Unsupported command: {action.command}')
+        """Execute the file action."""
+        file_executor = file_actions.FileActions(verbose=self.verbose)
+        await file_executor.execute(context, action)
 
     async def _execute_action_git(
         self, context: models.WorkflowContext, action: models.WorkflowGitAction
