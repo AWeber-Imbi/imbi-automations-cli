@@ -11,5 +11,3 @@ class BaseModel(pydantic.BaseModel):
         if not isinstance(other, self.__class__):
             return False
         return self.model_dump() == other.model_dump()
-
-    model_config = pydantic.ConfigDict(extra='ignore')
