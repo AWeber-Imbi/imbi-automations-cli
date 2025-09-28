@@ -8,7 +8,9 @@ from imbi_automations import models, utils
 
 
 def render(
-    context: models.WorkflowContext, source: pathlib.Path, **kwargs: typing.Any
+    context: models.WorkflowContext,
+    source: pathlib.Path | str,
+    **kwargs: typing.Any,
 ) -> str | bytes:
     env = jinja2.Environment(
         autoescape=False,  # noqa: S701
@@ -19,8 +21,9 @@ def render(
             context, dockerfile
         )
     )
-
-    template = env.from_string(source.read_text(encoding='utf-8'))
+    if isinstance(source, pathlib.Path):
+        source = source.read_text(encoding='utf-8')
+    template = env.from_string(source)
     return template.render(kwargs)
 
 
