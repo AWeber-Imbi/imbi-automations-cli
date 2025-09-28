@@ -165,16 +165,16 @@ def extract_image_from_dockerfile(
             image_spec = line[5:].strip()
             if ' AS ' in image_spec.upper():
                 image_spec = image_spec.split(' AS ')[0].strip()
-                if '#' in image_spec:  # Remove any trailing comments
-                    image_spec = image_spec.split('#')[0].strip()
-                if image_spec:
-                    LOGGER.debug(
-                        'Found Docker image "%s" at line %d in %s',
-                        image_spec,
-                        line_num,
-                        path,
-                    )
-                    return image_spec
+            if '#' in image_spec:  # Remove any trailing comments
+                image_spec = image_spec.split('#')[0].strip()
+            if image_spec:
+                LOGGER.debug(
+                    'Found Docker image "%s" at line %d in %s',
+                    image_spec,
+                    line_num,
+                    path,
+                )
+                return image_spec
 
     LOGGER.warning('No FROM instruction found in Dockerfile %s', path)
     return 'ERROR: FROM not found'

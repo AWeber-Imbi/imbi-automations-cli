@@ -138,6 +138,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         self.logger.debug('%i commits made in workflow', len(summary.commits))
 
         prompt = prompts.render(
+            context,
             BASE_PATH / 'prompts' / 'pull-request-summary.md.j2',
             summary=summary.model_dump_json(indent=2),
         )

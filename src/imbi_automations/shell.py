@@ -136,7 +136,7 @@ class Shell(mixins.WorkflowLoggerMixin):
 
                     try:
                         rendered = prompts.render(
-                            temp_path, **context.model_dump()
+                            context, temp_path, **context.model_dump()
                         )
                         self.logger.debug('Rendered command: %s', rendered)
                         return rendered
