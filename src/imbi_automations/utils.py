@@ -7,6 +7,8 @@ import typing
 
 import pydantic
 
+from imbi_automations import models
+
 LOGGER = logging.getLogger(__name__)
 
 
@@ -130,6 +132,52 @@ def load_toml(toml_file: typing.TextIO) -> dict:
 
     """
     return tomllib.loads(toml_file.read())
+
+
+def extract_image_from_dockerfile(
+    context: models.WorkflowContext, path: pathlib.Path
+) -> str | None:
+    """Extract the Docker image name from a Dockerfile in the workflow context.
+
+    Args:
+        context: Workflow context containing working directory
+        path: Path to the Dockerfile relative to working directory
+
+    Returns:
+        Docker image name from FROM instruction, or error string if not found
+
+    """
+    LOGGER.debug('Extracting Docker image from %s', path)
+    dockerfile = context.working_directory / path
+    if not dockerfile.exists():
+        LOGGER.error('Dockerfile does not exist at %s', path)
+        return 'ERROR: file_not_found'
+
+    try:
+        content = dockerfile.read_text(encoding='utf-8')
+    except (OSError, UnicodeDecodeError) as exc:
+        LOGGER.error('Failed to read Dockerfile %s: %s', path, exc)
+        return f'ERROR: {exc}'
+
+    for line_num, line in enumerate(content.splitlines(), 1):
+        line = line.strip()
+        if line.upper().startswith('FROM '):
+            image_spec = line[5:].strip()
+            if ' AS ' in image_spec.upper():
+                image_spec = image_spec.split(' AS ')[0].strip()
+                if '#' in image_spec:  # Remove any trailing comments
+                    image_spec = image_spec.split('#')[0].strip()
+                if image_spec:
+                    LOGGER.debug(
+                        'Found Docker image "%s" at line %d in %s',
+                        image_spec,
+                        line_num,
+                        path,
+                    )
+                    return image_spec
+
+    LOGGER.warning('No FROM instruction found in Dockerfile %s', path)
+    return 'ERROR: FROM not found'
 
 
 def extract_json(response: str) -> dict[str, typing.Any]:

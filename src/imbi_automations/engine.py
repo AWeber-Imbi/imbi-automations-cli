@@ -6,6 +6,7 @@ from imbi_automations import (
     claude,
     clients,
     condition_checker,
+    docker,
     file_actions,
     git,
     mixins,
@@ -230,17 +231,8 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         action: models.WorkflowDockerAction,
     ) -> None:
         """Execute the docker action."""
-        match action.command:
-            case models.WorkflowDockerActionCommand.build:
-                raise NotImplementedError('Docker build not yet supported')
-            case models.WorkflowDockerActionCommand.extract:
-                raise NotImplementedError('Docker extract not yet supported')
-            case models.WorkflowDockerActionCommand.pull:
-                raise NotImplementedError('Docker pull not yet supported')
-            case models.WorkflowDockerActionCommand.push:
-                raise NotImplementedError('Docker push not yet supported')
-            case _:
-                raise RuntimeError(f'Unsupported command: {action.command}')
+        docker_executor = docker.Docker(verbose=self.verbose)
+        await docker_executor.execute(context, action)
 
     async def _execute_action_file(
         self,

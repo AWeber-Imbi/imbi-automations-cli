@@ -1,183 +1,193 @@
-"""Docker operations for workflow actions."""
+"""Docker operations for workflow execution."""
 
+import asyncio
 import logging
-import pathlib
-import re
-import subprocess
+
+from imbi_automations import mixins, models
 
 LOGGER = logging.getLogger(__name__)
 
 
-async def extract_docker_image_from_dockerfile(
-    dockerfile_path: pathlib.Path,
-) -> str | None:
-    """Extract Docker image name from Dockerfile FROM line.
+class Docker(mixins.WorkflowLoggerMixin):
+    """Docker executor for workflow actions."""
 
-    Args:
-        dockerfile_path: Path to Dockerfile
+    def __init__(self, verbose: bool = False) -> None:
+        super().__init__(verbose)
+        self.logger = LOGGER
 
-    Returns:
-        Docker image name or None if not found
+    async def execute(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowDockerAction,
+    ) -> None:
+        """Execute a docker action based on the command type.
 
-    """
-    try:
-        content = dockerfile_path.read_text(encoding='utf-8')
+        Args:
+            context: Workflow context
+            action: Docker action containing the command and parameters
 
-        # Look for FROM line with image name
-        from_match = re.search(r'^FROM\s+([^\s]+)', content, re.MULTILINE)
+        Raises:
+            RuntimeError: If docker operation fails
+            ValueError: If required parameters are missing or invalid
 
-        if from_match:
-            image_name = from_match.group(1)
-            LOGGER.debug(
-                'Extracted Docker image from %s: %s',
-                dockerfile_path,
-                image_name,
-            )
-            return image_name
-        else:
-            LOGGER.warning(
-                'No FROM line found in Dockerfile: %s', dockerfile_path
-            )
-            return None
+        """
+        self._set_workflow_logger(context.workflow)
 
-    except (OSError, UnicodeDecodeError) as exc:
-        LOGGER.error('Failed to read Dockerfile %s: %s', dockerfile_path, exc)
-        return None
+        match action.command:
+            case models.WorkflowDockerActionCommand.build:
+                await self._execute_build(context, action)
+            case models.WorkflowDockerActionCommand.extract:
+                await self._execute_extract(context, action)
+            case models.WorkflowDockerActionCommand.pull:
+                await self._execute_pull(context, action)
+            case models.WorkflowDockerActionCommand.push:
+                await self._execute_push(context, action)
+            case _:
+                raise RuntimeError(
+                    f'Unsupported docker command: {action.command}'
+                )
 
+    async def _execute_build(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowDockerAction,
+    ) -> None:
+        """Execute docker build command."""
+        raise NotImplementedError('Docker build not yet supported')
 
-async def extract_file_from_docker_image(
-    image_name: str, source_path: str, timeout_seconds: int = 60
-) -> str | None:
-    """Extract file content from a Docker image.
-
-    Args:
-        image_name: Docker image name (e.g., "python3-service:3.12.10-5")
-        source_path: Path to file inside the container
-        timeout_seconds: Timeout for Docker command
-
-    Returns:
-        File content as string, or None if extraction fails
-
-    """
-    LOGGER.debug(
-        'Extracting file %s from Docker image %s', source_path, image_name
-    )
-
-    # Use docker run to extract file content
-    command = [
-        'docker',
-        'run',
-        '--rm',
-        '--entrypoint=cat',
-        image_name,
-        source_path,
-    ]
-
-    try:
-        # Use asyncio subprocess for non-blocking execution
-        import asyncio
-
-        process = await asyncio.create_subprocess_exec(
-            *command,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
+    async def _execute_extract(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowDockerAction,
+    ) -> None:
+        """Execute docker extract command to copy files from container."""
+        # Build image tag
+        image_tag = (
+            f'{action.image}:{action.tag}' if action.tag else action.image
         )
 
-        stdout, stderr = await asyncio.wait_for(
-            process.communicate(), timeout=timeout_seconds
+        # Resolve paths - source is container path, dest goes to extracted/
+        source_path = str(action.source)
+        dest_path = (
+            context.working_directory / 'extracted' / action.destination
         )
 
-        stdout_str = stdout.decode('utf-8') if stdout else ''
-        stderr_str = stderr.decode('utf-8') if stderr else ''
-        returncode = process.returncode or 0
-
-        if returncode == 0:
-            LOGGER.debug(
-                'Successfully extracted %d bytes from %s in image %s',
-                len(stdout_str),
-                source_path,
-                image_name,
-            )
-            return stdout_str
-        else:
-            # Check if it's a "file not found" error vs other Docker issues
-            if 'no such file or directory' in stderr_str.lower():
-                LOGGER.debug(
-                    'File %s not found in Docker image %s',
-                    source_path,
-                    image_name,
-                )
-                return None
-            elif (
-                'unable to find image' in stderr_str.lower()
-                or 'not found' in stderr_str.lower()
-            ):
-                LOGGER.error(
-                    'Docker image %s not available locally or accessible: %s',
-                    image_name,
-                    stderr_str,
-                )
-                error_msg = f'Docker image not available: {image_name}'
-                raise RuntimeError(f'Docker extraction failed: {error_msg}')
-            else:
-                LOGGER.error(
-                    'Docker extraction failed for %s from %s: %s',
-                    source_path,
-                    image_name,
-                    stderr_str or stdout_str,
-                )
-                error_msg = stderr_str or stdout_str
-                raise RuntimeError(f'Docker extraction failed: {error_msg}')
-
-    except TimeoutError:
-        LOGGER.error(
-            'Docker extraction timed out after %d seconds for %s from %s',
-            timeout_seconds,
+        self._log_verbose_info(
+            'Extracting %s from container %s to %s',
             source_path,
-            image_name,
+            image_tag,
+            dest_path,
         )
-        raise RuntimeError(
-            f'Docker extraction timed out after {timeout_seconds} seconds'
-        ) from None
 
-    except (OSError, subprocess.SubprocessError) as exc:
-        LOGGER.error(
-            'Docker command failed for %s from %s: %s',
-            source_path,
-            image_name,
-            exc,
-        )
-        raise RuntimeError(f'Docker command failed: {exc}') from exc
+        # Ensure destination directory exists
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
 
+        # Create temporary container to extract files
+        container_name = f'imbi-extract-{id(action)}'
 
-def parse_constraints_file(content: str) -> list[str]:
-    """Parse constraints file content to extract package names.
+        try:
+            # Create container from image
+            create_cmd = [
+                'docker',
+                'create',
+                '--name',
+                container_name,
+                image_tag,
+            ]
 
-    Args:
-        content: Content of constraints file
+            await self._run_docker_command(create_cmd)
 
-    Returns:
-        List of package names (without version constraints)
+            # Copy file from container to host
+            copy_cmd = [
+                'docker',
+                'cp',
+                f'{container_name}:{source_path}',
+                str(dest_path),
+            ]
 
-    """
-    packages = []
-    for line in content.split('\n'):
-        line = line.strip()
+            await self._run_docker_command(copy_cmd)
 
-        # Skip empty lines and comments
-        if not line or line.startswith('#'):
-            continue
+            self._log_verbose_info(
+                'Successfully extracted %s to %s', source_path, dest_path
+            )
 
-        # Extract package name (before ==, >=, <=, etc.)
-        package_match = re.match(r'^([a-zA-Z0-9_.-]+)', line)
-        if package_match:
-            package_name = package_match.group(1)
-            packages.append(package_name)
+        finally:
+            # Always clean up container
+            try:
+                remove_cmd = ['docker', 'rm', container_name]
+                await self._run_docker_command(
+                    remove_cmd, check_exit_code=False
+                )
+            except RuntimeError as exc:
+                self.logger.warning(
+                    'Failed to cleanup container %s: %s', container_name, exc
+                )
 
-    LOGGER.debug(
-        'Parsed %d packages from constraints file: %s',
-        len(packages),
-        packages[:10] if len(packages) > 10 else packages,  # Show first 10
-    )
+    async def _execute_pull(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowDockerAction,
+    ) -> None:
+        """Execute docker pull command."""
+        raise NotImplementedError('Docker pull not yet supported')
 
-    return packages
+    async def _execute_push(
+        self,
+        context: models.WorkflowContext,
+        action: models.WorkflowDockerAction,
+    ) -> None:
+        """Execute docker push command."""
+        raise NotImplementedError('Docker push not yet supported')
+
+    async def _run_docker_command(
+        self, command: list[str], check_exit_code: bool = True
+    ) -> tuple[int, str, str]:
+        """Run a docker command and return exit code, stdout, stderr.
+
+        Args:
+            command: Docker command as list of arguments
+            check_exit_code: Whether to raise exception on non-zero exit
+
+        Returns:
+            Tuple of (exit_code, stdout, stderr)
+
+        Raises:
+            RuntimeError: If command fails and check_exit_code is True
+
+        """
+        self.logger.debug('Running docker command: %s', ' '.join(command))
+
+        try:
+            process = await asyncio.create_subprocess_exec(
+                *command,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+
+            stdout, stderr = await process.communicate()
+
+            stdout_str = stdout.decode('utf-8') if stdout else ''
+            stderr_str = stderr.decode('utf-8') if stderr else ''
+
+            self.logger.debug(
+                'Docker command completed with exit code %d',
+                process.returncode,
+            )
+
+            if stdout_str:
+                self.logger.debug('Docker stdout: %s', stdout_str)
+            if stderr_str:
+                self.logger.debug('Docker stderr: %s', stderr_str)
+
+            if check_exit_code and process.returncode != 0:
+                raise RuntimeError(
+                    f'Docker command failed (exit code {process.returncode}): '
+                    f'{stderr_str or stdout_str}'
+                )
+
+            return process.returncode, stdout_str, stderr_str
+
+        except FileNotFoundError as exc:
+            raise RuntimeError(
+                'Docker command not found - is Docker installed and in PATH?'
+            ) from exc
