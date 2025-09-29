@@ -78,7 +78,10 @@ pre-commit run --all-files
 - **GitLab** (`models/gitlab.py`): GitLab project and API response models
 - **Imbi** (`models/imbi.py`): Imbi project management system models
 - **Claude** (`models/claude.py`): Claude Code integration models
+- **SonarQube** (`models/sonarqube.py`): SonarQube integration models
+- **Git** (`models/git.py`): Git operation models
 - **Base** (`models/base.py`): Common base models and utilities
+- **Validators** (`models/validators.py`): Pydantic field validators
 
 #### Supporting Components
 - **Git Operations** (`git.py`): Repository cloning and Git operations
@@ -91,6 +94,8 @@ pre-commit run --all-files
 - **Error Handling** (`errors.py`): Custom exception classes
 - **Mixins** (`mixins.py`): Reusable workflow logging functionality
 - **Prompts** (`prompts.py`): AI prompt management and templates
+- **Prompts Templates** (`prompts/`): Jinja2 template files for Claude Code prompts and PR generation
+- **Workflow Filter** (`workflow_filter.py`): Project filtering and targeting logic
 
 ### Configuration Structure
 
@@ -339,23 +344,31 @@ All Claude Code actions follow standards defined in the `prompts/CLAUDE.md` file
 
 ## Available Workflows
 
-The system includes 25+ pre-built workflows organized by category:
+The system includes 18 pre-built workflows organized by category:
 
-### Infrastructure and Tooling
-- **Python Version Upgrades**: Update projects to newer Python versions with comprehensive dependency management
-- **Docker Image Updates**: Update base images and container configurations
-- **GitHub Actions Optimization**: Fix and enhance CI/CD pipeline configurations
-- **Pre-commit Hook Management**: Apply and configure code quality tools
+### Infrastructure and Tooling (8 workflows)
+- **docker-image-update**: Update base images and container configurations
+- **docker-healthchecker**: Add health check configurations to Docker containers
+- **dockerfile-wheel-fix**: Fix wheel installation patterns in Dockerfiles
+- **python39-project-fix**: Update Python 3.9 specific configurations
+- **compose-fix**: Fix Docker Compose configuration issues
+- **compose-volume-fix**: Fix Docker Compose volume mount issues
+- **infrastructure-services**: Infrastructure service configuration updates
+- **frontend-actions**: Frontend build and deployment action updates
 
-### Code Quality and Standards
-- **Linting and Formatting**: Apply consistent code style across projects
-- **Dependency Management**: Update and synchronize project dependencies
-- **Configuration Standardization**: Ensure consistent project configurations
+### Code Quality and Standards (4 workflows)
+- **enforce-ci-pipelines**: Ensure CI pipeline configurations are present
+- **fix-workflow**: Fix broken GitHub Actions workflows
+- **failing-sonarqube**: Fix failing SonarQube quality gates
+- **remove-extra-ci-files**: Clean up redundant CI configuration files
 
-### Project Maintenance
-- **Legacy File Cleanup**: Remove outdated configuration and dependency files
-- **Documentation Updates**: Standardize and update project documentation
-- **Metadata Synchronization**: Keep project metadata in sync across platforms
+### Project Maintenance (6 workflows)
+- **backend-gitignore**: Apply standard backend .gitignore templates
+- **frontend-gitignore**: Apply standard frontend .gitignore templates
+- **ensure-github-teams**: Synchronize GitHub team access with Imbi
+- **sync-project-environments**: Synchronize GitHub environments with Imbi
+- **validate-github-identifier**: Validate GitHub identifier consistency
+- **github-actions-status**: Check and report GitHub Actions workflow status
 
 ## Current Implementation Status
 

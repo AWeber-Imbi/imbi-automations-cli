@@ -947,7 +947,7 @@ async def extract_file_from_commit(
     destination_file: pathlib.Path,
     commit_keyword: str | None = None,
     search_strategy: str = 'before_last_match',
-) -> None:
+) -> bool:
     """Extract a file from a git commit to a destination path.
 
     Args:
@@ -992,9 +992,12 @@ async def extract_file_from_commit(
         commit_display = (
             target_commit[:8] if target_commit != 'HEAD' else 'HEAD'
         )
-        raise RuntimeError(
-            f'File "{source_file}" does not exist at commit {commit_display}'
+        LOGGER.debug(
+            'File "%s" does not exist at commit %s',
+            source_file,
+            commit_display,
         )
+        return False
 
     # Ensure destination directory exists
     destination_file.parent.mkdir(parents=True, exist_ok=True)
@@ -1008,6 +1011,7 @@ async def extract_file_from_commit(
         len(file_content),
         destination_file,
     )
+    return True
 
 
 async def get_file_at_commit(

@@ -274,16 +274,23 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
     ) -> None:
         match action.command:
             case models.WorkflowGitActionCommand.extract:
-                await git.extract_file_from_commit(
-                    working_directory=context.working_directory / 'repository',
-                    source_file=action.source,
-                    destination_file=context.working_directory
-                    / 'extracted'
-                    / action.destination,
-                    commit_keyword=action.commit_keyword,
-                    search_strategy=action.search_strategy
-                    or 'before_last_match',
-                )
+                if (
+                    not await git.extract_file_from_commit(
+                        working_directory=context.working_directory
+                        / 'repository',
+                        source_file=action.source,
+                        destination_file=context.working_directory
+                        / 'extracted'
+                        / action.destination,
+                        commit_keyword=action.commit_keyword,
+                        search_strategy=action.search_strategy
+                        or 'before_last_match',
+                    )
+                    and not action.ignore_errors
+                ):
+                    raise RuntimeError(
+                        f'Git extraction failed for {action.source}'
+                    )
             case _:
                 raise RuntimeError(f'Unsupported command: {action.command}')
 

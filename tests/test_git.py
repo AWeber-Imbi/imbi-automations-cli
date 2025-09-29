@@ -1260,18 +1260,14 @@ class GitExtractTestCase(base.AsyncTestCase):
         source_file = pathlib.Path('nonexistent.txt')
         destination_file = self.working_directory / 'extracted/file.txt'
 
-        with self.assertRaises(RuntimeError) as exc_context:
-            await git.extract_file_from_commit(
-                working_directory=self.repository_dir,
-                source_file=source_file,
-                destination_file=destination_file,
-                commit_keyword='BREAKING CHANGE',
-            )
-
-        self.assertIn(
-            'File "nonexistent.txt" does not exist at commit abc12345',
-            str(exc_context.exception),
+        result = await git.extract_file_from_commit(
+            working_directory=self.repository_dir,
+            source_file=source_file,
+            destination_file=destination_file,
+            commit_keyword='BREAKING CHANGE',
         )
+
+        self.assertFalse(result)
 
     @mock.patch('imbi_automations.git.get_file_at_commit')
     async def test_extract_file_from_commit_file_not_found_at_head(
@@ -1283,18 +1279,14 @@ class GitExtractTestCase(base.AsyncTestCase):
         source_file = pathlib.Path('missing.txt')
         destination_file = self.working_directory / 'extracted/file.txt'
 
-        with self.assertRaises(RuntimeError) as exc_context:
-            await git.extract_file_from_commit(
-                working_directory=self.repository_dir,
-                source_file=source_file,
-                destination_file=destination_file,
-                # No commit_keyword, so uses HEAD
-            )
-
-        self.assertIn(
-            'File "missing.txt" does not exist at commit HEAD',
-            str(exc_context.exception),
+        result = await git.extract_file_from_commit(
+            working_directory=self.repository_dir,
+            source_file=source_file,
+            destination_file=destination_file,
+            # No commit_keyword, so uses HEAD
         )
+
+        self.assertFalse(result)
 
     @mock.patch('imbi_automations.git.find_commit_before_keyword')
     @mock.patch('imbi_automations.git.get_file_at_commit')

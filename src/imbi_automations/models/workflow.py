@@ -176,6 +176,7 @@ class WorkflowGitAction(WorkflowAction):
     destination: pathlib.Path
     commit_keyword: str | None = None
     search_strategy: WorkflowGitActionCommitMatchStrategy | None = None
+    ignore_errors: bool = False
 
     @pydantic.model_validator(mode='after')
     def set_committable_for_extract(self) -> 'WorkflowGitAction':
