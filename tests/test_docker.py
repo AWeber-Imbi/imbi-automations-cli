@@ -121,8 +121,9 @@ class DockerTestCase(base.AsyncTestCase):
     async def test_execute_extract_no_tag(
         self, mock_run_docker: mock.AsyncMock
     ) -> None:
-        """Test docker extract without tag (uses latest)."""
+        """Test docker extract without tag defaults to :latest and pulls."""
         mock_run_docker.side_effect = [
+            (0, '', ''),  # docker pull
             (0, 'container_id', ''),  # docker create
             (0, '', ''),  # docker cp
             (0, '', ''),  # docker rm
@@ -133,17 +134,28 @@ class DockerTestCase(base.AsyncTestCase):
             type='docker',
             command='extract',
             image='nginx',
-            # No tag specified
+            # No tag specified (defaults to latest)
             source=pathlib.Path('/etc/nginx/nginx.conf'),
             destination=pathlib.Path('nginx.conf'),
         )
 
         await self.docker_executor.execute(self.context, action)
 
-        # Verify docker create uses image without tag
-        create_call = mock_run_docker.call_args_list[0]
-        self.assertIn('nginx', create_call[0][0])
-        self.assertNotIn('nginx:', ' '.join(create_call[0][0]))
+        # Verify docker pull and create use nginx:latest
+        pull_call = mock_run_docker.call_args_list[0]
+        self.assertEqual(pull_call[0][0], ['docker', 'pull', 'nginx:latest'])
+
+        create_call = mock_run_docker.call_args_list[1]
+        self.assertEqual(
+            create_call[0][0],
+            [
+                'docker',
+                'create',
+                '--name',
+                f'imbi-extract-{id(action)}',
+                'nginx:latest',
+            ],
+        )
 
     @mock.patch('imbi_automations.docker.Docker._run_docker_command')
     async def test_execute_extract_create_failure(
@@ -151,7 +163,11 @@ class DockerTestCase(base.AsyncTestCase):
     ) -> None:
         """Test docker extract with container creation failure."""
         # Mock failed docker create
-        mock_run_docker.side_effect = [RuntimeError('Docker create failed')]
+        mock_run_docker.side_effect = [
+            (0, '', ''),  # docker pull
+            RuntimeError('Docker create failed'),  # docker create
+            (0, '', ''),  # docker rm (cleanup)
+        ]
 
         action = models.WorkflowDockerAction(
             name='extract-fail-create',
@@ -172,8 +188,9 @@ class DockerTestCase(base.AsyncTestCase):
         self, mock_run_docker: mock.AsyncMock
     ) -> None:
         """Test docker extract with copy failure."""
-        # Mock successful create, failed copy, successful cleanup
+        # Mock successful pull and create, failed copy, successful cleanup
         mock_run_docker.side_effect = [
+            (0, '', ''),  # docker pull
             (0, 'container_id', ''),  # docker create
             RuntimeError('Docker cp failed'),  # docker cp
             (0, '', ''),  # docker rm (cleanup)
@@ -193,16 +210,17 @@ class DockerTestCase(base.AsyncTestCase):
 
         self.assertIn('Docker cp failed', str(exc_context.exception))
 
-        # Verify cleanup was still attempted
-        self.assertEqual(mock_run_docker.call_count, 3)
+        # Verify cleanup was still attempted (including initial pull)
+        self.assertEqual(mock_run_docker.call_count, 4)
 
     @mock.patch('imbi_automations.docker.Docker._run_docker_command')
     async def test_execute_extract_cleanup_failure(
         self, mock_run_docker: mock.AsyncMock
     ) -> None:
         """Test docker extract with cleanup failure."""
-        # Mock successful create and copy, failed cleanup
+        # Mock successful pull, create and copy, failed cleanup
         mock_run_docker.side_effect = [
+            (0, '', ''),  # docker pull
             (0, 'container_id', ''),  # docker create
             (0, '', ''),  # docker cp
             RuntimeError('Docker rm failed'),  # docker rm (cleanup)

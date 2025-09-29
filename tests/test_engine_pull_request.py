@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from imbi_automations import engine, models
+from imbi_automations import models, workflow_engine
 from tests import base
 
 
@@ -63,7 +63,7 @@ class WorkflowEnginePullRequestTestCase(base.AsyncTestCase):
         )
 
         # Create engine instance
-        self.engine = engine.WorkflowEngine(
+        self.engine = workflow_engine.WorkflowEngine(
             configuration=self.config, workflow=self.workflow
         )
 

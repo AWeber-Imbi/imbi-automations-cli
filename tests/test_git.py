@@ -6,7 +6,7 @@ import tempfile
 import unittest
 from unittest import mock
 
-from imbi_automations import engine, git, models
+from imbi_automations import git, models, workflow_engine
 from tests import base
 
 
@@ -1409,7 +1409,7 @@ class WorkflowEngineGitTestCase(base.AsyncTestCase):
         )
 
         # Create engine instance
-        self.engine = engine.WorkflowEngine(
+        self.engine = workflow_engine.WorkflowEngine(
             configuration=self.config, workflow=self.workflow
         )
 

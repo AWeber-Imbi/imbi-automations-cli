@@ -66,7 +66,7 @@ class Docker(mixins.WorkflowLoggerMixin):
             if prompts.has_template_syntax(action.image)
             else action.image
         )
-        image = f'{image}:{action.tag}' if action.tag else image
+        image = f'{image}:{action.tag}' if ':' not in image else image
         source_path = str(action.source)
         dest_path = (
             context.working_directory / 'extracted' / action.destination
@@ -95,8 +95,7 @@ class Docker(mixins.WorkflowLoggerMixin):
             self.logger.debug(
                 'Successfully extracted %s to %s', source_path, dest_path
             )
-
-        finally:  # Always clean up container
+        finally:
             try:
                 await self._run_docker_command(
                     ['docker', 'rm', container_name], check_exit_code=False
