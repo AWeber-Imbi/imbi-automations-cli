@@ -13,12 +13,14 @@ LOGGER = logging.getLogger(__name__)
 class GitLab(http.BaseURLHTTPClient):
     def __init__(
         self,
-        config: models.GitLabConfiguration,
+        config: models.Configuration,
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         super().__init__(transport)
-        self._base_url = f'https://{config.hostname}'
-        self.add_header('PRIVATE-TOKEN', config.api_key.get_secret_value())
+        self._base_url = f'https://{config.gitlab.hostname}'
+        self.add_header(
+            'PRIVATE-TOKEN', config.gitlab.api_key.get_secret_value()
+        )
 
     async def get_project(
         self, project: models.ImbiProject
