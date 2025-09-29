@@ -28,6 +28,7 @@ class WorkflowEnginePullRequestTestCase(base.AsyncTestCase):
             github=models.GitHubConfiguration(
                 api_key='test-github-key', hostname='github.com'
             ),
+            claude_code=models.ClaudeCodeConfiguration(enabled=True),
         )
 
         # Create mock workflow with path name for slugification
@@ -66,17 +67,33 @@ class WorkflowEnginePullRequestTestCase(base.AsyncTestCase):
         self.engine = workflow_engine.WorkflowEngine(
             configuration=self.config, workflow=self.workflow
         )
+        # Provide mocked Claude and GitHub clients to avoid external calls
+        self.engine.claude = mock.AsyncMock()
+        self.engine.claude.query.return_value = 'Generated PR body'
+        self.engine.github = mock.AsyncMock()
+        self.engine.github.create_pull_request.return_value = (
+            'https://example.com/pr/1'
+        )
 
     def tearDown(self) -> None:
         super().tearDown()
         self.temp_dir.cleanup()
 
+    @mock.patch('imbi_automations.git.get_commits_since')
     @mock.patch('imbi_automations.git.create_branch')
     @mock.patch('imbi_automations.git.push_changes')
     async def test_create_pull_request_success(
-        self, mock_push: mock.AsyncMock, mock_create_branch: mock.AsyncMock
+        self,
+        mock_push: mock.AsyncMock,
+        mock_create_branch: mock.AsyncMock,
+        mock_get_commits: mock.AsyncMock,
     ) -> None:
         """Test successful pull request branch creation and push."""
+        # Provide a minimal commit summary to satisfy prompt rendering
+        mock_get_commits.return_value = models.GitCommitSummary(
+            total_commits=0, commits=[], files_affected=[], commit_range=''
+        )
+
         await self.engine._create_pull_request(self.context)
 
         # Verify branch creation

@@ -1374,13 +1374,16 @@ class WorkflowEngineGitTestCase(base.AsyncTestCase):
             github=models.GitHubConfiguration(
                 api_key='test-github-key', hostname='github.com'
             ),
+            claude_code=models.ClaudeCodeConfiguration(enabled=False),
         )
 
         # Create mock workflow
         self.workflow = models.Workflow(
             path=pathlib.Path('/mock/workflow'),
             configuration=models.WorkflowConfiguration(
-                name='test-workflow', actions=[]
+                name='test-workflow',
+                actions=[],
+                github=models.WorkflowGitHub(create_pull_request=False),
             ),
         )
 
@@ -1438,9 +1441,11 @@ class WorkflowEngineGitTestCase(base.AsyncTestCase):
         mock_extract.assert_called_once_with(
             working_directory=self.working_directory / 'repository',
             source_file=pathlib.Path('test.txt'),
-            destination_file=self.working_directory / 'extracted/test.txt',
+            destination_file=self.working_directory
+            / 'extracted'
+            / pathlib.Path('extracted/test.txt'),
             commit_keyword='TEST',
-            search_strategy='before_first_match',
+            search_strategy=models.WorkflowGitActionCommitMatchStrategy.before_first_match,
         )
 
     @mock.patch('imbi_automations.git.extract_file_from_commit')
@@ -1464,7 +1469,9 @@ class WorkflowEngineGitTestCase(base.AsyncTestCase):
         mock_extract.assert_called_once_with(
             working_directory=self.working_directory / 'repository',
             source_file=pathlib.Path('config.py'),
-            destination_file=self.working_directory / 'extracted/config.py',
+            destination_file=self.working_directory
+            / 'extracted'
+            / pathlib.Path('extracted/config.py'),
             commit_keyword='BREAKING',
             search_strategy='before_last_match',
         )

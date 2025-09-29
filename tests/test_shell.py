@@ -7,7 +7,9 @@ import tempfile
 import unittest
 from unittest import mock
 
-from imbi_automations import models, shell
+import jinja2
+
+from imbi_automations import models, prompts, shell
 from tests import base
 
 
@@ -224,9 +226,7 @@ class ShellTestCase(base.AsyncTestCase):
 
         for command in templated_commands:
             with self.subTest(command=command):
-                self.assertTrue(
-                    self.shell_executor._has_template_syntax(command)
-                )
+                self.assertTrue(prompts.has_template_syntax(command))
 
         # Test commands without templating
         non_templated_commands = [
@@ -238,9 +238,7 @@ class ShellTestCase(base.AsyncTestCase):
 
         for command in non_templated_commands:
             with self.subTest(command=command):
-                self.assertFalse(
-                    self.shell_executor._has_template_syntax(command)
-                )
+                self.assertFalse(prompts.has_template_syntax(command))
 
     def test_render_command_no_templating(self) -> None:
         """Test command rendering when no templating is present."""
@@ -258,12 +256,8 @@ class ShellTestCase(base.AsyncTestCase):
         """Test command rendering with template error."""
         command = 'echo "{{ nonexistent.field }}"'
 
-        with self.assertRaises(ValueError) as exc_context:
+        with self.assertRaises(jinja2.exceptions.UndefinedError):
             self.shell_executor._render_command(command, self.context)
-
-        self.assertIn(
-            'Failed to render command template', str(exc_context.exception)
-        )
 
     @mock.patch('asyncio.create_subprocess_exec')
     async def test_execute_working_directory_fallback(

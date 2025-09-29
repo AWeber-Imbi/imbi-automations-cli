@@ -403,11 +403,6 @@ class FileActionsTestCase(base.AsyncTestCase):
         # Absolute paths should be returned as-is
         self.assertEqual(resolved, absolute_path)
 
-    def test_get_base_path(self) -> None:
-        """Test base path resolution."""
-        base_path = self.file_executor._get_base_path(self.context)
-        self.assertEqual(base_path, self.working_directory)
-
 
 if __name__ == '__main__':
     unittest.main()

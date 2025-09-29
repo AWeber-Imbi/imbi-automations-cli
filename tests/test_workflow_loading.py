@@ -90,14 +90,10 @@ class WorkflowLoadingTestCase(unittest.TestCase):
             has_pattern_delete, 'Missing pattern-based delete action'
         )
 
-        # Check docker actions with and without tags
-        docker_with_tag = [a for a in docker_actions if a.tag is not None]
-        docker_without_tag = [a for a in docker_actions if a.tag is None]
+        # Check docker actions tags; default tag is 'latest' when omitted
+        docker_with_tag = [a for a in docker_actions if a.tag]
 
         self.assertTrue(docker_with_tag, 'Missing docker actions with tags')
-        self.assertTrue(
-            docker_without_tag, 'Missing docker actions without tags'
-        )
 
         # Check conditions (both local and remote)
         local_conditions = [
