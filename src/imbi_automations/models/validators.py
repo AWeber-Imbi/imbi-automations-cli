@@ -44,6 +44,8 @@ class CommandRulesMixin:
         'conditions',
         'condition_type',
         'committable',
+        'filter',
+        'on_success',
         'on_failure',
         'timeout',
         'data',

@@ -9,6 +9,17 @@ from . import github, gitlab, imbi
 from .validators import CommandRulesMixin, ExclusiveGroupsMixin, Variant
 
 
+class WorkflowFilter(pydantic.BaseModel):
+    project_ids: set[int] = pydantic.Field(default_factory=set)
+    project_types: set[str] = pydantic.Field(default_factory=set)
+    project_facts: dict[str, str] = pydantic.Field(default_factory=dict)
+    project_environments: set[str] = pydantic.Field(default_factory=set)
+    github_identifier_required: bool = False
+    github_workflow_status_exclude: set[str] = pydantic.Field(
+        default_factory=set
+    )
+
+
 class WorkflowActionTypes(enum.StrEnum):
     callable = 'callable'
     claude = 'claude'
@@ -37,6 +48,8 @@ class WorkflowAction(pydantic.BaseModel):
     )
     condition_type: WorkflowConditionType = WorkflowConditionType.all
     committable: bool = True
+    filter: WorkflowFilter | None = None
+    on_success: str | None = None
     on_failure: str | None = None
     timeout: int = 3600
     data: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
@@ -68,7 +81,7 @@ class WorkflowDockerAction(CommandRulesMixin, WorkflowAction):
     type: Literal['docker'] = 'docker'
     command: WorkflowDockerActionCommand
     image: str
-    tag: str | None = None
+    tag: str = 'latest'
     path: pathlib.Path | None = None
     source: pathlib.Path | None = None
     destination: pathlib.Path | None = None
@@ -279,17 +292,6 @@ class WorkflowCondition(ExclusiveGroupsMixin, pydantic.BaseModel):
             requires_all=('remote_file_doesnt_contain', 'remote_file'),
             paired=(('remote_file_doesnt_contain', 'remote_file'),),
         ),
-    )
-
-
-class WorkflowFilter(pydantic.BaseModel):
-    project_ids: set[int] = pydantic.Field(default_factory=set)
-    project_types: set[str] = pydantic.Field(default_factory=set)
-    project_facts: dict[str, str] = pydantic.Field(default_factory=dict)
-    project_environments: set[str] = pydantic.Field(default_factory=set)
-    github_identifier_required: bool = False
-    github_workflow_status_exclude: set[str] = pydantic.Field(
-        default_factory=set
     )
 
 
