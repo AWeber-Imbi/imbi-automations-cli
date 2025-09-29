@@ -19,14 +19,10 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
         self.logger = LOGGER
         self.github: clients.GitHub | None = None
         if configuration.github:
-            self.github = clients.GitHub.get_instance(
-                config=configuration.github
-            )
+            self.github = clients.GitHub.get_instance(config=configuration)
         self.gitlab: clients.GitLab | None = None
         if configuration.gitlab:
-            self.gitlab = clients.GitLab.get_instance(
-                config=configuration.gitlab
-            )
+            self.gitlab = clients.GitLab.get_instance(config=configuration)
 
     def check(
         self,

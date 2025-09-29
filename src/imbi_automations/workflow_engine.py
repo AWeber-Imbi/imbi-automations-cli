@@ -13,6 +13,7 @@ from imbi_automations import (
     models,
     prompts,
     shell,
+    workflow_filter,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -36,6 +37,9 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         self.github = clients.GitHub.get_instance(config=configuration.github)
         self.configuration = configuration
         self.workflow = workflow
+        self.workflow_filter = workflow_filter.Filter(
+            configuration, workflow, verbose
+        )
         self._set_workflow_logger(workflow)
 
         if (
@@ -180,6 +184,12 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         ),
     ) -> None:
         """Execute an action."""
+        if action.filter and not await self.workflow_filter.filter_project(
+            context.imbi_project, action.filter
+        ):
+            self.logger.debug('Skipping %s due to project filter', action.name)
+            return
+
         if not self.condition_checker.check(
             context,
             self.workflow.configuration.condition_type,

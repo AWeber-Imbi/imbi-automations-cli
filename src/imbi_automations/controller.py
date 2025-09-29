@@ -6,7 +6,13 @@ import logging
 
 import async_lru
 
-from imbi_automations import clients, engine, mixins, models
+from imbi_automations import (
+    clients,
+    mixins,
+    models,
+    workflow_engine,
+    workflow_filter,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -40,13 +46,15 @@ class Automation(mixins.WorkflowLoggerMixin):
         self.configuration = configuration
         self.counter = collections.Counter()
         self.logger = LOGGER
-        self.workflow_engine = engine.WorkflowEngine(
+        self.workflow = workflow
+        self.workflow_engine = workflow_engine.WorkflowEngine(
             configuration=self.configuration,
             workflow=workflow,
             verbose=args.verbose,
         )
-        self.workflow_filter = workflow.configuration.filter
-
+        self.workflow_filter = workflow_filter.Filter(
+            configuration, workflow, args.verbose
+        )
         self._set_workflow_logger(workflow)
 
     @property
@@ -118,169 +126,47 @@ class Automation(mixins.WorkflowLoggerMixin):
             return projects
 
         original_count = len(projects)
-
-        if self.workflow_filter.github_identifier_required:
-            self.logger.debug('GitHub Identifiers Start: %i', len(projects))
-            projects = [
-                project
-                for project in projects
-                if project.identifiers.get(
-                    self.configuration.imbi.github_identifier
-                )
-            ]
-            self.logger.debug('GitHub Identifiers Start: %i', len(projects))
-
-        if self.workflow_filter.project_ids:
-            self.logger.debug('Project ID Start: %i', len(projects))
-            projects = [
-                project
-                for project in projects
-                if project.id in self.workflow_filter.project_ids
-            ]
-            self.logger.debug('Project IDs End: %i', len(projects))
-
-        if self.workflow_filter.project_environments:
-            self.logger.debug('Project Environments Start: %i', len(projects))
-            projects = [
-                project
-                for project in projects
-                if any(
-                    env in project.environments
-                    for env in self.workflow_filter.project_environments
-                )
-            ]
-            self.logger.debug('Project Environments End: %i', len(projects))
-
-        if self.workflow_filter.project_facts:
-            self.logger.debug('Project Facts Start: %i', len(projects))
-            projects = [
-                project
-                for project in projects
-                if all(
-                    project.facts.get(k) == v
-                    for k, v in self.workflow_filter.project_facts.items()
-                )
-            ]
-            self.logger.debug('Project Facts End: %i', len(projects))
-
-        if self.workflow_filter.project_types:
-            self.logger.debug('Project Type Start: %i', len(projects))
-            projects = [
-                project
-                for project in projects
-                if project.project_type_slug
-                in self.workflow_filter.project_types
-            ]
-            self.logger.debug('Project Type End: %i', len(projects))
-
-        # Dynamic Filters Should happen _after_ easily applied ones
-
-        if self.workflow_filter.github_workflow_status_exclude:
-            self.logger.debug(
-                'Project Workflow Statuses Start: %i', len(projects)
-            )
-            projects = await self._filter_github_action_status(projects)
-            self.logger.debug(
-                'Project Workflow Statuses End: %i', len(projects)
-            )
-
-        self.logger.debug(
-            'Filtered %i projects', original_count - len(projects)
-        )
-        return projects
-
-    async def _filter_github_action_status(
-        self, projects: list[models.ImbiProject]
-    ) -> list[models.ImbiProject]:
-        self.logger.debug(
-            'Filtering on statuses: %r',
-            self.workflow_filter.exclude_github_workflow_status,
-        )
         semaphore = asyncio.Semaphore(self.args.max_concurrency)
 
-        async def get_repository(
+        async def filter_project(
             project: models.ImbiProject,
-        ) -> tuple[int, models.GitHubRepository]:
+        ) -> models.ImbiProject | None:
             async with semaphore:
-                return project.id, await self._get_github_repository(project)
-
-        # Get the GitHub repositories for all projects
-        tasks = [get_repository(project) for project in projects]
-        github_repos: dict[int, models.GitHubRepository] = dict(
-            await asyncio.gather(*tasks)
-        )
-
-        # We can only filter projects that have a GitHub repository
-        projects = [
-            project for project in projects if project.id in github_repos
-        ]
-
-        client = clients.GitHub.get_instance(config=self.configuration.github)
-
-        async def get_workflow_status(
-            repository: models.GitHubRepository,
-        ) -> tuple[int, str]:
-            async with semaphore:
-                return (
-                    repository.id,
-                    await client.get_repository_workflow_status(repository),
+                return await self.workflow_filter.filter_project(
+                    project, self.workflow.configuration.filter
                 )
 
-        # Get the current status for all repositories
-        tasks = [get_workflow_status(repo) for repo in github_repos.values()]
-        statuses: dict[int, str] = dict(await asyncio.gather(*tasks))
-
-        # Filter the status against the filtered statuses
         projects = [
             project
-            for project in projects
-            if statuses[github_repos[project.id].id]
-            not in self.workflow_filter.github_workflow_status_exclude
+            for project in await asyncio.gather(
+                *[filter_project(project) for project in projects]
+            )
+            if project is not None
         ]
+        self.logger.debug(
+            'Filtered %d projects out of %d total',
+            original_count - len(projects),
+            original_count,
+        )
         return projects
 
+    @async_lru.alru_cache(maxsize=1024)
     async def _get_github_repository(
         self, project: models.ImbiProject
     ) -> models.GitHubRepository | None:
         if not self.configuration.github:
             return None
-        client = clients.GitHub.get_instance(config=self.configuration.github)
-        return await self._get_project_common(
-            client,
-            project,
-            self.configuration.imbi.github_identifier,
-            self.configuration.imbi.github_link,
-        )
+        client = clients.GitHub.get_instance(config=self.configuration)
+        return await client.get_repository(project)
 
+    @async_lru.alru_cache(maxsize=1024)
     async def _get_gitlab_project(
         self, project: models.ImbiProject
     ) -> models.GitLabProject | None:
         if not self.configuration.gitlab:
             return None
-        client = clients.GitHub.get_instance(config=self.configuration.gitlab)
-        return await self._get_project_common(
-            client,
-            project,
-            self.configuration.imbi.gitlab_identifier,
-            self.configuration.imbi.gitlab_link,
-        )
-
-    @async_lru.alru_cache(maxsize=1024)
-    async def _get_project_common(
-        self,
-        client: clients.GitLab | clients.GitHub,
-        project: models.ImbiProject,
-        identifier: str,
-        link: str,
-    ) -> models.GitHubRepository | models.GitLabProject | None:
-        if project.identifiers.get(identifier):
-            return await client.get_repository_by_id(
-                project.identifiers[identifier]
-            )
-        elif project.links.get(link):
-            return await client.get_repository_by_url(project.links[link])
-        self.logger.debug('%s project not found', identifier)
-        return None
+        client = clients.GitHub.get_instance(config=self.configuration)
+        return await client.get_project(project)
 
     async def _process_github_repositories(self) -> bool: ...
 
