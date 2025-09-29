@@ -91,7 +91,10 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             for action in self.workflow.configuration.actions:
                 await self._execute_action(context, action)
                 if action.committable:
-                    await self.claude.commit(context, action)
+                    if self.configuration.claude_code.enabled:
+                        await self.claude.commit(context, action)
+                    else:
+                        await self._fallback_commit(context, action)
         except RuntimeError as exc:
             self.logger.error('Error executing action: %s', exc)
             working_directory.cleanup()
@@ -116,7 +119,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         """Create a pull request by creating a branch and pushing changes."""
         repository_dir = context.working_directory / 'repository'
 
-        branch_name = f'imbi-automations/{context.workflow.path.name}'
+        branch_name = f'imbi-automations/{context.workflow.slug}'
 
         self._log_verbose_info('Creating pull request branch: %s', branch_name)
 
@@ -327,6 +330,44 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
                 )
             case _:
                 raise RuntimeError(f'Unsupported command: {action.command}')
+
+    async def _fallback_commit(
+        self, context: models.WorkflowContext, action: models.WorkflowAction
+    ) -> None:
+        """Fallback commit implementation without Claude.
+
+        - Stages all pending changes
+        - Creates a commit with required format and trailer
+        """
+        repo_dir = context.working_directory / 'repository'
+
+        # Stage all changes including deletions
+        await git.add_files(working_directory=repo_dir, files=['-A'])
+
+        # Build commit message
+        slug = context.workflow.slug or ''
+        message = (
+            f'imbi-automations: {slug} {action.name}\n\n'
+            '🤖 Generated with [Imbi Automations](https://github.com/AWeber-Imbi/).'
+        )
+        trailer = f'Authored-By: {self.configuration.commit_author}'
+
+        try:
+            commit_sha = await git.commit_changes(
+                working_directory=repo_dir,
+                message=message,
+                author_trailer=trailer,
+            )
+        except RuntimeError as exc:
+            self.logger.error('Fallback commit failed: %s', exc)
+            raise
+        else:
+            if commit_sha:
+                self.logger.info(
+                    'Committed changes (fallback): %s', commit_sha
+                )
+            else:
+                self.logger.info('No changes to commit (fallback)')
 
     def _git_clone_url(
         self,
