@@ -1,11 +1,12 @@
 import enum
 import pathlib
 import typing
-from typing import Annotated, Literal
+from typing import Annotated, ClassVar, Literal
 
 import pydantic
 
 from . import github, gitlab, imbi
+from .validators import CommandRulesMixin, ExclusiveGroupsMixin, Variant
 
 
 class WorkflowActionTypes(enum.StrEnum):
@@ -63,7 +64,7 @@ class WorkflowDockerActionCommand(enum.StrEnum):
     push = 'push'
 
 
-class WorkflowDockerAction(WorkflowAction):
+class WorkflowDockerAction(CommandRulesMixin, WorkflowAction):
     type: Literal['docker'] = 'docker'
     command: WorkflowDockerActionCommand
     image: str
@@ -73,57 +74,26 @@ class WorkflowDockerAction(WorkflowAction):
     destination: pathlib.Path | None = None
     committable: bool = False
 
-    @pydantic.model_validator(mode='after')
-    def validate_command_fields(self) -> 'WorkflowDockerAction':
-        """Validate required and forbidden fields based on command type."""
-        command = self.command
-
-        # Define required fields for each command (image is always required)
-        required_fields = {
-            WorkflowDockerActionCommand.build: {'path'},
-            WorkflowDockerActionCommand.extract: {'source', 'destination'},
-            WorkflowDockerActionCommand.pull: set(),
-            WorkflowDockerActionCommand.push: set(),
-        }
-
-        # Define allowed fields for each command (all others are forbidden)
-        # Note: image and tag are always allowed
-        allowed_fields = {
-            WorkflowDockerActionCommand.build: {'image', 'tag', 'path'},
-            WorkflowDockerActionCommand.extract: {
-                'image',
-                'tag',
-                'source',
-                'destination',
-            },
-            WorkflowDockerActionCommand.pull: {'image', 'tag'},
-            WorkflowDockerActionCommand.push: {'image', 'tag'},
-        }
-
-        # Check required fields
-        required = required_fields[command]
-        for field in required:
-            if getattr(self, field) is None:
-                raise ValueError(
-                    f"Field '{field}' is required for command '{command}'"
-                )
-
-        # Check forbidden fields
-        allowed = allowed_fields[command]
-        field_values = {
-            'path': self.path,
-            'source': self.source,
-            'destination': self.destination,
-            # Note: image and tag are not checked as they're always allowed
-        }
-
-        for field, value in field_values.items():
-            if field not in allowed and value is not None:
-                raise ValueError(
-                    f"Field '{field}' is not allowed for command '{command}'"
-                )
-
-        return self
+    # CommandRulesMixin configuration
+    command_field: ClassVar[str] = 'command'
+    required_fields: ClassVar[dict[object, set[str]]] = {
+        WorkflowDockerActionCommand.build: {'path'},
+        WorkflowDockerActionCommand.extract: {'source', 'destination'},
+        WorkflowDockerActionCommand.pull: set(),
+        WorkflowDockerActionCommand.push: set(),
+    }
+    # image and tag are always allowed; include them accordingly
+    allowed_fields: ClassVar[dict[object, set[str]]] = {
+        WorkflowDockerActionCommand.build: {'image', 'tag', 'path'},
+        WorkflowDockerActionCommand.extract: {
+            'image',
+            'tag',
+            'source',
+            'destination',
+        },
+        WorkflowDockerActionCommand.pull: {'image', 'tag'},
+        WorkflowDockerActionCommand.push: {'image', 'tag'},
+    }
 
 
 class WorkflowFileActionCommand(enum.StrEnum):
@@ -135,7 +105,18 @@ class WorkflowFileActionCommand(enum.StrEnum):
     write = 'write'
 
 
-class WorkflowFileAction(WorkflowAction):
+def _file_delete_requires_path_or_pattern(model: 'WorkflowFileAction') -> None:
+    if (
+        model.command == WorkflowFileActionCommand.delete
+        and model.path is None
+        and model.pattern is None
+    ):
+        raise ValueError(
+            "Field 'path' or 'pattern' is required for command 'delete'"
+        )
+
+
+class WorkflowFileAction(CommandRulesMixin, WorkflowAction):
     type: Literal['file'] = 'file'
     command: WorkflowFileActionCommand
     path: pathlib.Path | None = None
@@ -145,69 +126,25 @@ class WorkflowFileAction(WorkflowAction):
     content: str | bytes | None = None
     encoding: str = 'utf-8'
 
-    @pydantic.model_validator(mode='after')
-    def validate_command_fields(self) -> 'WorkflowFileAction':
-        """Validate required and forbidden fields based on command type."""
-        command = self.command
-
-        # Define required fields for each command
-        required_fields = {
-            WorkflowFileActionCommand.append: {'path', 'content'},
-            WorkflowFileActionCommand.copy: {'source', 'destination'},
-            WorkflowFileActionCommand.delete: set(),
-            WorkflowFileActionCommand.move: {'source', 'destination'},
-            WorkflowFileActionCommand.rename: {'source', 'destination'},
-            WorkflowFileActionCommand.write: {'path', 'content'},
-        }
-
-        # Define allowed fields for each command (all others are forbidden)
-        allowed_fields = {
-            WorkflowFileActionCommand.append: {'path', 'content', 'encoding'},
-            WorkflowFileActionCommand.copy: {'source', 'destination'},
-            WorkflowFileActionCommand.delete: {'path', 'pattern'},
-            WorkflowFileActionCommand.move: {'source', 'destination'},
-            WorkflowFileActionCommand.rename: {'source', 'destination'},
-            WorkflowFileActionCommand.write: {'path', 'content', 'encoding'},
-        }
-
-        # Check required fields
-        required = required_fields[command]
-        for field in required:
-            if getattr(self, field) is None:
-                raise ValueError(
-                    f"Field '{field}' is required for command '{command}'"
-                )
-
-        # Special case for delete: requires path OR pattern
-        if (
-            command == WorkflowFileActionCommand.delete
-            and self.path is None
-            and self.pattern is None
-        ):
-            raise ValueError(
-                "Field 'path' or 'pattern' is required for command 'delete'"
-            )
-
-        # Check forbidden fields
-        allowed = allowed_fields[command]
-        field_values = {
-            'path': self.path,
-            'pattern': self.pattern,
-            'source': self.source,
-            'destination': self.destination,
-            'content': self.content,
-            'encoding': self.encoding
-            if self.encoding != 'utf-8'
-            else None,  # Default encoding is allowed
-        }
-
-        for field, value in field_values.items():
-            if field not in allowed and value is not None:
-                raise ValueError(
-                    f"Field '{field}' is not allowed for command '{command}'"
-                )
-
-        return self
+    # CommandRulesMixin configuration
+    command_field: ClassVar[str] = 'command'
+    required_fields: ClassVar[dict[object, set[str]]] = {
+        WorkflowFileActionCommand.append: {'path', 'content'},
+        WorkflowFileActionCommand.copy: {'source', 'destination'},
+        WorkflowFileActionCommand.delete: set(),
+        WorkflowFileActionCommand.move: {'source', 'destination'},
+        WorkflowFileActionCommand.rename: {'source', 'destination'},
+        WorkflowFileActionCommand.write: {'path', 'content'},
+    }
+    allowed_fields: ClassVar[dict[object, set[str]]] = {
+        WorkflowFileActionCommand.append: {'path', 'content', 'encoding'},
+        WorkflowFileActionCommand.copy: {'source', 'destination'},
+        WorkflowFileActionCommand.delete: {'path', 'pattern'},
+        WorkflowFileActionCommand.move: {'source', 'destination'},
+        WorkflowFileActionCommand.rename: {'source', 'destination'},
+        WorkflowFileActionCommand.write: {'path', 'content', 'encoding'},
+    }
+    validators: ClassVar[tuple] = (_file_delete_requires_path_or_pattern,)
 
 
 class WorkflowGitActionCommand(enum.StrEnum):
@@ -292,10 +229,11 @@ class WorkflowConditionRemoteClient(enum.StrEnum):
     gitlab = 'gitlab'
 
 
-class WorkflowCondition(pydantic.BaseModel):
+class WorkflowCondition(ExclusiveGroupsMixin, pydantic.BaseModel):
     file_exists: str | typing.Pattern | None = None
     file_not_exists: str | typing.Pattern | None = None
     file_contains: str | None = None
+    file_doesnt_contain: str | None = None
     file: pathlib.Path | None = None
 
     remote_client: WorkflowConditionRemoteClient = (
@@ -304,73 +242,44 @@ class WorkflowCondition(pydantic.BaseModel):
     remote_file_exists: str | None = None
     remote_file_not_exists: str | None = None
     remote_file_contains: str | None = None
+    remote_file_doesnt_contain: str | None = None
     remote_file: pathlib.Path | None = None
 
-    @pydantic.model_validator(mode='after')
-    def validate_condition_exclusivity(self) -> 'WorkflowCondition':
-        """Validate conditions are mutually exclusive with proper groupings."""
-        # Count how many condition types are set
-        local_conditions = [
-            self.file_exists,
-            self.file_not_exists,
-            (self.file_contains, self.file),  # These must be together
-        ]
+    # ExclusiveGroupsMixin configuration
+    variants_a: ClassVar[tuple[Variant, ...]] = (
+        Variant(name='file_exists', requires_all=('file_exists',)),
+        Variant(name='file_not_exists', requires_all=('file_not_exists',)),
+        Variant(
+            name='file_contains',
+            requires_all=('file_contains', 'file'),
+            paired=(('file_contains', 'file'),),
+        ),
+        Variant(
+            name='file_doesnt_contain',
+            requires_all=('file_doesnt_contain', 'file'),
+            paired=(('file_doesnt_contain', 'file'),),
+        ),
+    )
 
-        remote_conditions = [
-            self.remote_file_exists,
-            self.remote_file_not_exists,
-            (
-                self.remote_file_contains,
-                self.remote_file,
-            ),  # These must be together
-        ]
-
-        # Count active local conditions
-        active_local = 0
-        for condition in local_conditions:
-            if isinstance(condition, tuple):
-                # Both file_contains and file must be set together
-                if condition[0] and condition[1]:
-                    active_local += 1
-                elif condition[0] and not condition[1]:
-                    raise ValueError(
-                        'file_contains condition requires file field to be set'
-                    )
-                elif condition[1] and not condition[0]:
-                    raise ValueError(
-                        'file field requires file_contains to be set'
-                    )
-            elif condition:
-                active_local += 1
-
-        # Count active remote conditions
-        active_remote = 0
-        for condition in remote_conditions:
-            if isinstance(condition, tuple):
-                # Both remote_file_contains and remote_file must be together
-                if condition[0] and condition[1]:
-                    active_remote += 1
-                elif condition[0] and not condition[1]:
-                    raise ValueError(
-                        'remote_file_contains condition requires remote_file'
-                    )
-                elif condition[1] and not condition[0]:
-                    raise ValueError(
-                        'remote_file field requires remote_file_contains'
-                    )
-            elif condition:
-                active_remote += 1
-
-        # Ensure only one condition type is active
-        total_active = active_local + active_remote
-        if total_active == 0:
-            raise ValueError('At least one condition must be specified')
-        if total_active > 1:
-            raise ValueError(
-                'Conditions are mutually exclusive - only one type allowed'
-            )
-
-        return self
+    variants_b: ClassVar[tuple[Variant, ...]] = (
+        Variant(
+            name='remote_file_exists', requires_all=('remote_file_exists',)
+        ),
+        Variant(
+            name='remote_file_not_exists',
+            requires_all=('remote_file_not_exists',),
+        ),
+        Variant(
+            name='remote_file_contains',
+            requires_all=('remote_file_contains', 'remote_file'),
+            paired=(('remote_file_contains', 'remote_file'),),
+        ),
+        Variant(
+            name='remote_file_doesnt_contain',
+            requires_all=('remote_file_doesnt_contain', 'remote_file'),
+            paired=(('remote_file_doesnt_contain', 'remote_file'),),
+        ),
+    )
 
 
 class WorkflowFilter(pydantic.BaseModel):
