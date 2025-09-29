@@ -45,6 +45,10 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
         for condition in conditions:
             if condition.file_contains and condition.file:
                 results.append(self._check_file_contains(base_path, condition))
+            elif condition.file_doesnt_contain and condition.file:
+                results.append(
+                    self._check_file_doesnt_contain(base_path, condition)
+                )
             elif condition.file_exists:
                 results.append(
                     self._check_file_pattern_exists(
@@ -84,7 +88,17 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
             )
             content = await client.get_file_contents(context, file_path)
             if condition.remote_file_contains and condition.remote_file:
-                results.append(condition.remote_file_contains in content or '')
+                results.append(
+                    (content is not None)
+                    and (condition.remote_file_contains in content)
+                )
+            elif (
+                condition.remote_file_doesnt_contain and condition.remote_file
+            ):
+                results.append(
+                    (content is not None)
+                    and (condition.remote_file_doesnt_contain not in content)
+                )
             elif condition.remote_file_exists:
                 results.append(content is not None)
             elif condition.remote_file_not_exists:
@@ -96,7 +110,7 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
     def _check_file_contains(
         self, base_path: pathlib.Path, condition: models.WorkflowCondition
     ) -> bool:
-        """Check if a file exists in the repository"""
+        """Check if a file contains the specified string"""
         file_path = base_path / condition.file
         if not file_path.is_file():
             self.logger.debug(
@@ -113,6 +127,28 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
             )
             return False
         return condition.file_contains in file_content
+
+    def _check_file_doesnt_contain(
+        self, base_path: pathlib.Path, condition: models.WorkflowCondition
+    ) -> bool:
+        """Check that a file exists & does not contain the specified string"""
+        file_path = base_path / condition.file
+        if not file_path.is_file():
+            self.logger.debug(
+                'File %s does not exist for negative contains check',
+                condition.file,
+            )
+            return False
+        try:
+            file_content = file_path.read_text(encoding='utf-8')
+        except (OSError, UnicodeDecodeError) as exc:
+            self.logger.warning(
+                'Failed to read file %s for negative contains check: %s',
+                condition.file,
+                exc,
+            )
+            return False
+        return condition.file_doesnt_contain not in file_content
 
     @staticmethod
     def _check_file_pattern_exists(
@@ -169,5 +205,5 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
                     'Remote Action invoked for GitLab, '
                     'but GitLab is not configured'
                 )
-            return self.github
+            return self.gitlab
         raise RuntimeError('Unsupported remote client for condition')
