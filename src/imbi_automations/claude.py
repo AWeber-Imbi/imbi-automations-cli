@@ -97,7 +97,9 @@ class Claude(mixins.WorkflowLoggerMixin):
                 action.name,
             )
             if await self._execute_cycle(context, action, cycle):
-                LOGGER.debug('Claude Code cycle %d successful', cycle)
+                LOGGER.debug(
+                    'Claude Code %s cycle %d successful', action.name, cycle
+                )
                 break
 
         await self.client.disconnect()
@@ -183,13 +185,19 @@ class Claude(mixins.WorkflowLoggerMixin):
                 self.logger.debug('No validation prompt, skipping')
                 continue
             self._log_verbose_info(
-                'Executing Claude Code %s agent in cycle %d', agent, cycle
+                'Executing Claude Code %s agent %s in cycle %d',
+                agent,
+                action.name,
+                cycle,
             )
             execution = await self._execute_agent(context, action, agent)
             LOGGER.debug('Execute agent result: %r', execution)
             if execution.result == models.AgentRunResult.failure:
                 self.logger.error(
-                    'Claude Code %s agent failed in cycle %d', agent, cycle
+                    'Claude Code %s agent %s failed in cycle %d',
+                    agent,
+                    action.name,
+                    cycle,
                 )
                 return False
         return True
