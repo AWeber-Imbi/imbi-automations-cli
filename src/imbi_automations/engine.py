@@ -38,6 +38,14 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         self.workflow = workflow
         self._set_workflow_logger(workflow)
 
+        if (
+            not self.configuration.claude_code.enabled
+            and self._needs_claude_code
+        ):
+            raise RuntimeError(
+                'Workflow requires Claude Code, but it is not enabled'
+            )
+
     async def execute(
         self,
         project: models.ImbiProject,
@@ -340,6 +348,14 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
                 return gitlab_project.ssh_url_to_repo
             return gitlab_project.http_url_to_repo
         raise ValueError('No repository provided')
+
+    @property
+    def _needs_claude_code(self) -> bool:
+        """Will return True if any action requires Claude Code."""
+        return any(
+            action.type == models.WorkflowActionTypes.claude
+            for action in self.workflow.configuration.actions
+        )
 
     def _setup_workflow_run(
         self,

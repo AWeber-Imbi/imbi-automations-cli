@@ -215,13 +215,20 @@ def main() -> None:
     args.config[0].close()
 
     LOGGER.info('Imbi Automations v%s starting', version)
-    automation_controller = controller.Automation(
-        args=args, configuration=config, workflow=args.workflow
-    )
+    try:
+        automation_controller = controller.Automation(
+            args=args, configuration=config, workflow=args.workflow
+        )
+    except RuntimeError as err:
+        sys.stderr.write(f'ERROR: {err}\n')
+        sys.exit(1)
     try:
         success = asyncio.run(automation_controller.run())
     except KeyboardInterrupt:
         LOGGER.info('Interrupted, exiting')
         sys.exit(2)
+    except RuntimeError as err:
+        sys.stderr.write(f'Error running automation: {err}\n')
+        sys.exit(3)
     if not success:
-        sys.exit(1)
+        sys.exit(5)

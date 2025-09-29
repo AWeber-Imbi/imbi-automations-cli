@@ -41,6 +41,7 @@ class ImbiConfiguration(pydantic.BaseModel):
 class ClaudeCodeConfiguration(pydantic.BaseModel):
     executable: str = 'claude'  # Claude Code executable path
     base_prompt: pathlib.Path | None = None
+    enabled: bool = True
 
     def __init__(self, **kwargs: typing.Any) -> None:
         super().__init__(**kwargs)
