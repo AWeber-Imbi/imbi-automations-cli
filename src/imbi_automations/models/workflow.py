@@ -427,6 +427,13 @@ class WorkflowActionResult(pydantic.BaseModel):
 class Workflow(pydantic.BaseModel):
     path: pathlib.Path
     configuration: WorkflowConfiguration
+    slug: str | None = None
+
+    @pydantic.model_validator(mode='after')
+    def _set_slug(self) -> 'Workflow':
+        if not self.slug:
+            self.slug = self.path.name.lower().replace('_', '-')
+        return self
 
 
 class WorkflowContext(pydantic.BaseModel):
