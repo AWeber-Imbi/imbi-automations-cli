@@ -1,0 +1,364 @@
+# Architecture Guide
+
+This guide provides a comprehensive overview of the Imbi Automations CLI architecture, components, and implementation patterns.
+
+## System Overview
+
+Imbi Automations is built on a modern async Python architecture designed for scalability, maintainability, and extensibility. The system follows a modular design with clear separation of concerns between different layers.
+
+### Core Architecture Principles
+
+- **Async-First**: Full async/await implementation with concurrent processing
+- **Modular Design**: Clean separation between clients, models, and business logic
+- **Type Safety**: Comprehensive type hints throughout the codebase
+- **Configuration-Driven**: TOML-based workflows with Pydantic validation
+- **Extensible**: Plugin-ready architecture for new action types and providers
+
+## Component Architecture
+
+### Primary Components
+
+#### CLI Interface (`cli.py`)
+The entry point for the application, responsible for:
+- Command-line argument parsing and validation
+- Colored logging configuration with different levels
+- Workflow validation and loading
+- Error handling and user feedback
+
+#### Controller (`controller.py`)
+Main automation controller implementing the iterator pattern:
+- Project iteration and filtering
+- Workflow orchestration across multiple targets
+- Concurrent processing with proper resource management
+- Progress tracking and resumption capabilities
+
+#### Workflow Engine (`engine.py`)
+Core execution engine that handles:
+- Action execution with context management
+- Temporary directory handling for repository operations
+- Error recovery and action restart mechanisms
+- Template variable resolution with Jinja2
+- Comprehensive logging and status reporting
+
+### Client Layer
+
+The client layer provides abstraction for external service interactions:
+
+#### HTTP Client (`clients/http.py`)
+Base async HTTP client with:
+- Authentication handling for various providers
+- Automatic retry logic with exponential backoff
+- Request/response logging with credential sanitization
+- Error handling and timeout management
+
+#### Imbi Client (`clients/imbi.py`)
+Integration with Imbi project management system:
+- Project data retrieval and filtering
+- Environment and metadata synchronization
+- Fact validation and updates
+- Pagination handling for large datasets
+
+#### GitHub Client (`clients/github.py`)
+GitHub API integration featuring:
+- Repository and organization operations
+- Pattern-aware workflow file detection
+- Environment management
+- Pull request creation and management
+- Rate limiting and API quota management
+
+#### GitLab Client (`clients/gitlab.py`)
+GitLab API integration for:
+- Project and group operations
+- Repository cloning and management
+- Pipeline and CI/CD integration
+- Merge request handling
+
+### Data Models
+
+All models use Pydantic for validation and type safety:
+
+#### Configuration Models (`models/configuration.py`)
+- TOML-based configuration with secret handling
+- Provider-specific settings (GitHub, GitLab, Imbi)
+- Claude Code SDK integration settings
+- Validation rules and default values
+
+#### Workflow Models (`models/workflow.py`)
+Comprehensive workflow definition including:
+- **Actions**: Sequence of operations with type validation
+- **Conditions**: Repository state requirements (local and remote)
+- **Filters**: Project targeting and selection criteria
+- **Templates**: Jinja2 template configurations
+
+#### Provider Models
+- **GitHub Models** (`models/github.py`): Repository, organization, and API response models
+- **GitLab Models** (`models/gitlab.py`): Project, group, and API response models
+- **Imbi Models** (`models/imbi.py`): Project management system models
+
+### Supporting Components
+
+#### Git Operations (`git.py`)
+Comprehensive Git integration:
+- Repository cloning with authentication
+- Branch management and switching
+- Commit creation and history management
+- Tag and version handling
+- Conflict resolution strategies
+
+#### File Actions (`file_actions.py`)
+File manipulation operations:
+- Copy, move, and delete operations
+- Regex-based content replacement
+- Template file processing
+- Directory structure management
+- Backup and restore capabilities
+
+#### Shell Integration (`shell.py`)
+Command execution with:
+- Template variable substitution
+- Environment variable management
+- Output capture and logging
+- Error handling and exit code processing
+- Timeout and resource management
+
+#### Condition Checker (`condition_checker.py`)
+Workflow condition evaluation:
+- Local file system checks (post-clone)
+- Remote repository checks via API (pre-clone)
+- Regex pattern matching
+- Performance optimization with early filtering
+
+#### Docker Integration (`docker.py`)
+Container operations for:
+- Image extraction and analysis
+- File extraction from containers
+- Dockerfile parsing and manipulation
+- Registry operations
+
+## Workflow System
+
+### Workflow Structure
+
+Workflows are defined in TOML configuration files with three main sections:
+
+```toml
+# Project filtering
+[filter]
+project_ids = [123, 456]
+project_types = ["apis", "consumers"]
+requires_github_identifier = true
+
+# Execution conditions
+[[conditions]]
+remote_file_exists = "package.json"
+
+[[conditions]]
+file_contains = "python.*3\\.12"
+file = "pyproject.toml"
+
+# Action sequence
+[[actions]]
+name = "update-dependencies"
+type = "claude"
+# ... action configuration
+```
+
+### Action Types
+
+#### 1. Callable Actions
+Direct method calls on client instances:
+```toml
+[[actions]]
+type = "callable"
+[actions.value]
+client = "github"
+method = "create_pull_request"
+[actions.value.kwargs]
+title = "{{ workflow_name }}"
+body = "Automated update"
+```
+
+#### 2. Claude Code Integration
+AI-powered transformations:
+```toml
+[[actions]]
+type = "claude"
+[actions.value]
+prompt_file = "prompts/update-readme.md"
+context = "project_context"
+```
+
+#### 3. File Operations
+Direct file manipulation:
+```toml
+[[actions]]
+type = "file"
+[actions.value]
+operation = "regex_replace"
+file = "README.md"
+pattern = "Version: \\d+\\.\\d+\\.\\d+"
+replacement = "Version: {{ new_version }}"
+```
+
+#### 4. Shell Commands
+Arbitrary command execution:
+```toml
+[[actions]]
+type = "shell"
+[actions.value]
+command = "python -m pytest tests/"
+working_directory = "{{ repository_path }}"
+```
+
+### Condition System
+
+#### Remote Conditions (Pre-Clone)
+Evaluated using provider APIs before repository cloning:
+- **Performance Benefit**: Skip cloning for non-matching repositories
+- **Bandwidth Efficient**: Reduce network usage for large batch operations
+- **Early Filtering**: Fail fast before expensive operations
+
+```toml
+[[conditions]]
+remote_file_exists = ".github/workflows/ci.yml"
+
+[[conditions]]
+remote_file_contains = "python.*3\\.[0-9]+"
+remote_file = "pyproject.toml"
+```
+
+#### Local Conditions (Post-Clone)
+Evaluated after repository cloning for complex analysis:
+- **Full Access**: Complete repository content available
+- **Complex Patterns**: Multi-file analysis and cross-references
+- **File Content Analysis**: Deep inspection of file contents
+
+```toml
+[[conditions]]
+file_exists = "docker-compose.yml"
+
+[[conditions]]
+file_contains = "FROM python:3\\.[0-9]+"
+file = "Dockerfile"
+```
+
+### Template System
+
+Jinja2-based template engine with full project context:
+
+#### Available Variables
+- `{{ imbi_project }}`: Complete Imbi project data
+- `{{ github_repository }}`: GitHub repository information
+- `{{ workflow_name }}`: Current workflow identifier
+- `{{ repository_path }}`: Local repository path
+- `{{ timestamp }}`: Execution timestamp
+
+#### Template Files
+```jinja2
+# Pull Request Template
+## Summary
+Updating {{ imbi_project.name }} to use Python {{ target_version }}
+
+## Changes
+- Updated pyproject.toml Python version requirement
+- Modified GitHub Actions workflow
+- Updated Dockerfile base image
+
+Generated by: {{ workflow_name }}
+Date: {{ timestamp }}
+```
+
+## Error Handling and Recovery
+
+### Action Restart Mechanism
+Actions support automatic restart on failure:
+```toml
+[[actions]]
+name = "fragile-operation"
+on_failure = "cleanup-action"  # Restart from this action
+max_retries = 3
+```
+
+### Failure Indication
+- **Failure Files**: Create specific failure files to signal workflow abortion
+- **Detailed Logging**: Include actionable error information
+- **Recovery Strategies**: Configurable retry and rollback mechanisms
+
+### Resource Management
+- **Temporary Directory Cleanup**: Automatic cleanup on success or failure
+- **Connection Pooling**: Efficient HTTP connection reuse
+- **Memory Management**: LRU caching for expensive operations
+
+## Performance Optimizations
+
+### Concurrent Processing
+- **Batch Operations**: Process multiple projects concurrently
+- **Connection Pooling**: Reuse HTTP connections across requests
+- **Async Operations**: Non-blocking I/O throughout the system
+
+### Caching Strategy
+- **LRU Caching**: Cache expensive API calls and computations
+- **Repository State**: Cache repository metadata between operations
+- **Template Compilation**: Pre-compile Jinja2 templates
+
+### Early Filtering
+- **Remote Conditions**: Filter projects before cloning
+- **Project Filtering**: Apply filters before workflow execution
+- **Resumption**: Skip already processed projects
+
+## Testing Architecture
+
+### Test Infrastructure
+- **Base Class**: `AsyncTestCase` for async test support
+- **HTTP Mocking**: `httpx.MockTransport` with JSON fixtures
+- **Test Isolation**: Clean state between test runs
+- **Coverage Requirements**: Comprehensive test coverage with exclusions
+
+### Mock Data Strategy
+- **Path-Based Fixtures**: JSON files matching URL patterns
+- **Realistic Data**: Production-like test data
+- **Edge Cases**: Comprehensive error condition testing
+
+### Integration Testing
+- **End-to-End Workflows**: Complete workflow execution tests
+- **Provider Integration**: Real API integration tests (optional)
+- **Performance Testing**: Load and concurrency testing
+
+## Security Considerations
+
+### Credential Management
+- **Secret Strings**: Automatic credential masking in logs
+- **Configuration Validation**: Secure handling of API keys
+- **Environment Variables**: Support for environment-based configuration
+
+### API Security
+- **Authentication**: Proper token and key management
+- **Rate Limiting**: Respect provider API limits
+- **SSL/TLS**: Secure communication with all external services
+
+### Repository Security
+- **Temporary Directories**: Secure cleanup of cloned repositories
+- **File Permissions**: Proper permission handling
+- **Branch Protection**: Safe branch and tag operations
+
+## Extensibility
+
+### Adding New Action Types
+1. Create action handler in appropriate module
+2. Add action type to workflow model validation
+3. Implement action execution logic
+4. Add comprehensive tests
+
+### Adding New Providers
+1. Implement client interface in `clients/`
+2. Create provider-specific models
+3. Add configuration support
+4. Implement authentication and API integration
+
+### Custom Workflows
+1. Create workflow directory structure
+2. Define `config.toml` with actions and conditions
+3. Add template files if needed
+4. Test with target projects
+
+This architecture provides a solid foundation for scalable automation across software projects while maintaining flexibility for future enhancements and integrations.

@@ -34,10 +34,15 @@ classifiers = [
   "Typing :: Typed",
 ]
 dependencies = [
+  "anthropic",
+  "async_lru",
+  "claude-code-sdk",
   "colorlog",
   "httpx",
+  "jinja2",
   "pydantic",
   "rich",
+  "semver",
   "truststore",
   "yarl"
 ]
@@ -46,8 +51,12 @@ dependencies = [
 dev = [
   "build",
   "coverage[toml]",
+  "mkdocs",
+  "mkdocs-material",
+  "mkdocstrings[python]",
   "pre-commit",
   "pytest",
+  "pytest-cov",
   "ruff",
 ]
 
@@ -99,3 +108,19 @@ ignore = [
 ]
 flake8-quotes = { inline-quotes = "single" }
 isort.split-on-trailing-comma = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if __name__ == .__main__.:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+]

@@ -3,33 +3,10 @@ import typing
 
 import pydantic
 
-# Configuration Models
+from . import base
 
 
-class GitHubConfiguration(pydantic.BaseModel):
-    api_key: pydantic.SecretStr
-    hostname: str = pydantic.Field(default='github.com')
-
-
-class ImbiConfiguration(pydantic.BaseModel):
-    api_key: pydantic.SecretStr
-    hostname: str
-
-
-class ClaudeCodeConfiguration(pydantic.BaseModel):
-    executable: str = 'claude'  # Claude Code executable path
-
-
-class Configuration(pydantic.BaseModel):
-    github: GitHubConfiguration | None = None
-    imbi: ImbiConfiguration | None = None
-    claude_code: ClaudeCodeConfiguration | None = None
-
-
-# Imbi Project Related Models
-
-
-class ImbiProjectLink(pydantic.BaseModel):
+class ImbiProjectLink(base.BaseModel):
     id: int | None = None
     project_id: int
     link_type_id: int
@@ -38,7 +15,7 @@ class ImbiProjectLink(pydantic.BaseModel):
     url: str
 
 
-class ImbiProject(pydantic.BaseModel):
+class ImbiProject(base.BaseModel):
     id: int
     dependencies: list[int] | None
     description: str | None
@@ -57,7 +34,7 @@ class ImbiProject(pydantic.BaseModel):
     imbi_url: str
 
 
-class ImbiProjectType(pydantic.BaseModel):
+class ImbiProjectType(base.BaseModel):
     id: int
     created_by: str | None = None
     last_modified_by: str | None = None
@@ -70,20 +47,20 @@ class ImbiProjectType(pydantic.BaseModel):
     gitlab_project_prefix: str | None = None
 
 
-class ImbiProjectFactType(pydantic.BaseModel):
+class ImbiProjectFactType(base.BaseModel):
     id: int
     created_by: str | None = None
     last_modified_by: str | None = None
     name: str
-    project_type_ids: list[int]
+    project_type_ids: list[int] = pydantic.Field(default_factory=list)
     fact_type: str  # enum, free-form, range
     description: str | None = None
     data_type: str  # boolean, integer, number, string
-    ui_options: list[str] = []
+    ui_options: list[str] = pydantic.Field(default_factory=list)
     weight: float = 0.0
 
 
-class ImbiProjectFactTypeEnum(pydantic.BaseModel):
+class ImbiProjectFactTypeEnum(base.BaseModel):
     id: int
     fact_type_id: int
     created_by: str | None = None
@@ -93,12 +70,12 @@ class ImbiProjectFactTypeEnum(pydantic.BaseModel):
     score: int
 
 
-class ImbiProjectFact(pydantic.BaseModel):
+class ImbiProjectFact(base.BaseModel):
     fact_type_id: int
     name: str
     recorded_at: datetime.datetime | None = None
     recorded_by: str | None = None
     value: bool | int | float | str | None = None
-    ui_options: list[str] = []
+    ui_options: list[str] = pydantic.Field(default_factory=list)
     score: float | None = 0.0
     weight: float = 0.0

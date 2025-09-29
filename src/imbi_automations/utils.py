@@ -1,13 +1,110 @@
+import json
 import logging
 import pathlib
 import re
 import tomllib
+import typing
 
 import pydantic
 
 from imbi_automations import models
 
 LOGGER = logging.getLogger(__name__)
+
+
+def copy(source: pathlib.Path, destination: pathlib.Path) -> None:
+    """Copy a file from source to destination."""
+    LOGGER.debug('Copying %s to %s', source, destination)
+    destination.write_bytes(source.read_bytes())
+
+
+def compare_semver_with_build_numbers(
+    current_version: str, target_version: str
+) -> bool:
+    """Compare versions including build numbers.
+
+    Handles semantic versions with optional build numbers in the format:
+    "major.minor.patch" or "major.minor.patch-build"
+
+    Args:
+        current_version: Current version (e.g., "3.9.18-0")
+        target_version: Target version (e.g., "3.9.18-4")
+
+    Returns:
+        True if current_version is older than target_version
+
+    Examples:
+        compare_semver_with_build_numbers("3.9.18-0", "3.9.18-4") → True
+        compare_semver_with_build_numbers("3.9.17-4", "3.9.18-0") → True
+        compare_semver_with_build_numbers("3.9.18-4", "3.9.18-0") → False
+
+    """
+    import semver
+
+    # Split versions into semantic version and build number
+    if '-' in current_version:
+        current_sem, current_build_str = current_version.rsplit('-', 1)
+        try:
+            current_build = int(current_build_str)
+        except ValueError:
+            current_build = 0
+    else:
+        current_sem = current_version
+        current_build = 0
+
+    if '-' in target_version:
+        target_sem, target_build_str = target_version.rsplit('-', 1)
+        try:
+            target_build = int(target_build_str)
+        except ValueError:
+            target_build = 0
+    else:
+        target_sem = target_version
+        target_build = 0
+
+    # Compare semantic versions first
+    current_version_obj = semver.Version.parse(current_sem)
+    target_version_obj = semver.Version.parse(target_sem)
+    sem_comparison = current_version_obj.compare(target_version_obj)
+
+    if sem_comparison < 0:
+        # Current semantic version is older
+        return True
+    elif sem_comparison > 0:
+        # Current semantic version is newer
+        return False
+    else:
+        # Semantic versions are equal, compare build numbers
+        return current_build < target_build
+
+
+def append_file(file: str, value: str) -> str:
+    """Append a value to a file.
+
+    Args:
+        file: Path to the file to append to
+        value: Content to append to the file
+
+    Returns:
+        Status string: 'success' or 'failed'
+
+    """
+    try:
+        file_path = pathlib.Path(file)
+
+        # Create parent directory if it doesn't exist
+        file_path.parent.mkdir(parents=True, exist_ok=True)
+
+        # Append the value to the file
+        with open(file_path, 'a', encoding='utf-8') as f:
+            f.write(value)
+
+        LOGGER.debug('Successfully appended to file: %s', file)
+        return 'success'
+
+    except (OSError, UnicodeDecodeError) as exc:
+        LOGGER.error('Failed to append to file %s: %s', file, exc)
+        return 'failed'
 
 
 def sanitize(url: str | pydantic.AnyUrl) -> str:
@@ -24,41 +121,95 @@ def sanitize(url: str | pydantic.AnyUrl) -> str:
     return pattern.sub(r'\1******\3', str(url))
 
 
-def ensure_directory_exists(directory_path: pathlib.Path) -> None:
-    """Ensure a directory exists, creating it and parent directories if needed.
+def load_toml(toml_file: typing.TextIO) -> dict:
+    """Load TOML data from a file-like object
 
     Args:
-        directory_path: Path to the directory to create
-
-    Raises:
-        OSError: If directory creation fails
-
-    """
-    if not directory_path.exists():
-        try:
-            directory_path.mkdir(parents=True, exist_ok=True)
-            LOGGER.debug('Created directory: %s', directory_path)
-        except OSError as exc:
-            LOGGER.error(
-                'Failed to create directory %s: %s', directory_path, exc
-            )
-            raise
-
-
-def load_configuration(config_file: pathlib.Path) -> models.Configuration:
-    """Load configuration from config file
-
-    Args:
-        config_file: Path to the main configuration file
-
-    Returns:
-        Configuration object with merged data
+        toml_file: The file-like object to load as TOML
 
     Raises:
         tomllib.TOMLDecodeError: If TOML parsing fails
-        pydantic.ValidationError: If configuration validation fails
 
     """
-    with config_file.open('rb') as f:
-        config_data = tomllib.load(f)
-    return models.Configuration.model_validate(config_data)
+    return tomllib.loads(toml_file.read())
+
+
+def extract_image_from_dockerfile(
+    context: models.WorkflowContext, path: pathlib.Path
+) -> str | None:
+    """Extract the Docker image name from a Dockerfile in the workflow context.
+
+    Args:
+        context: Workflow context containing working directory
+        path: Path to the Dockerfile relative to working directory
+
+    Returns:
+        Docker image name from FROM instruction, or error string if not found
+
+    """
+    LOGGER.debug('Extracting Docker image from %s', path)
+    dockerfile = context.working_directory / path
+    if not dockerfile.exists():
+        LOGGER.error('Dockerfile does not exist at %s', path)
+        return 'ERROR: file_not_found'
+
+    try:
+        content = dockerfile.read_text(encoding='utf-8')
+    except (OSError, UnicodeDecodeError) as exc:
+        LOGGER.error('Failed to read Dockerfile %s: %s', path, exc)
+        return f'ERROR: {exc}'
+
+    for line_num, line in enumerate(content.splitlines(), 1):
+        line = line.strip()
+        if line.upper().startswith('FROM '):
+            image_spec = line[5:].strip()
+            if ' AS ' in image_spec.upper():
+                image_spec = image_spec.split(' AS ')[0].strip()
+            if '#' in image_spec:  # Remove any trailing comments
+                image_spec = image_spec.split('#')[0].strip()
+            if image_spec:
+                LOGGER.debug(
+                    'Found Docker image "%s" at line %d in %s',
+                    image_spec,
+                    line_num,
+                    path,
+                )
+                return image_spec
+
+    LOGGER.warning('No FROM instruction found in Dockerfile %s', path)
+    return 'ERROR: FROM not found'
+
+
+def extract_json(response: str) -> dict[str, typing.Any]:
+    """Extract JSON from Claude Code response text."""
+    # Try parsing as-is first
+    try:
+        return json.loads(response)
+    except json.JSONDecodeError:
+        pass
+
+    # Find JSON in code blocks
+    patterns = [
+        r'```json\s*\n(.*?)\n```',  # JSON code block
+        r'```\s*\n(.*?)\n```',  # Generic code block
+        r'(\{[^{}]*(?:\{[^{}]*\}[^{}]*)*\})',  # Raw JSON object
+    ]
+
+    for pattern in patterns:
+        matches = re.findall(pattern, response, re.DOTALL)
+        for match in matches:
+            try:
+                return json.loads(match)
+            except json.JSONDecodeError:
+                continue
+
+    # Last resort: find last JSON-like structure
+    try:
+        start = response.rfind('{"')
+        end = response.rfind('"}') + 1
+        if 0 <= start < end:
+            return json.loads(response[start:end])
+    except json.JSONDecodeError:
+        pass
+
+    raise ValueError(f'No valid JSON found in response: {response[:200]}...')

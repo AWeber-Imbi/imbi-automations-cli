@@ -1,0 +1,8 @@
+site_name: Imbi Automations
+repo_url: https://github.com/AWeber-Imbi/imbi-automations
+copyright: Copyright 2025 - AWeber
+nav:
+  - index.md
+  - architecture.md
+theme:
+  name: material

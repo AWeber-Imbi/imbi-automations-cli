@@ -1,0 +1,83 @@
+# Invalid docker action workflow - tests validation failures
+# This TOML file contains invalid field combinations for docker actions
+# to test that validation properly catches and rejects them
+
+name = "Invalid Docker Actions Test Workflow"
+description = "Tests docker action validation failures"
+
+# Docker build missing required path
+[[actions]]
+name = "docker-build-missing-path"
+type = "docker"
+command = "build"
+image = "myapp"
+# Missing required 'path' field - should fail validation
+
+# Docker extract missing required source
+[[actions]]
+name = "docker-extract-missing-source"
+type = "docker"
+command = "extract"
+image = "ubuntu"
+destination = "/tmp/output"
+# Missing required 'source' field - should fail validation
+
+# Docker extract missing required destination
+[[actions]]
+name = "docker-extract-missing-destination"
+type = "docker"
+command = "extract"
+image = "ubuntu"
+source = "/etc/passwd"
+# Missing required 'destination' field - should fail validation
+
+# Docker pull with forbidden path field
+[[actions]]
+name = "docker-pull-with-path"
+type = "docker"
+command = "pull"
+image = "nginx"
+path = "/should/not/be/here"  # Path not allowed for pull - should fail
+
+# Docker push with forbidden source field
+[[actions]]
+name = "docker-push-with-source"
+type = "docker"
+command = "push"
+image = "myregistry.com/myapp"
+source = "/should/not/be/here"  # Source not allowed for push - should fail
+
+# Docker build with forbidden source field
+[[actions]]
+name = "docker-build-with-source"
+type = "docker"
+command = "build"
+image = "myapp"
+path = "."
+source = "/forbidden/source"  # Source not allowed for build - should fail
+
+# Docker build with forbidden destination field
+[[actions]]
+name = "docker-build-with-destination"
+type = "docker"
+command = "build"
+image = "myapp"
+path = "."
+destination = "/forbidden/destination"  # Destination not allowed for build
+
+# Docker pull with both source and destination (both forbidden)
+[[actions]]
+name = "docker-pull-with-source-and-destination"
+type = "docker"
+command = "pull"
+image = "redis"
+source = "/forbidden/source"  # Source not allowed for pull
+destination = "/forbidden/destination"  # Destination not allowed for pull
+
+# Docker push with forbidden destination field
+[[actions]]
+name = "docker-push-with-destination"
+type = "docker"
+command = "push"
+image = "myregistry.com/myapp"
+destination = "/forbidden/destination"  # Destination not allowed for push

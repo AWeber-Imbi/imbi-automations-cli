@@ -1,5 +1,4 @@
 import http
-import inspect
 import json
 import logging
 import os
@@ -7,12 +6,11 @@ import pathlib
 import sys
 import typing
 import unittest
-from unittest import mock
 
 import httpx
 import yarl
 
-from imbi_automations import http as ia_http
+from imbi_automations.clients import http as ia_http
 
 LOGGER = logging.getLogger(__name__)
 
@@ -24,14 +22,13 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
 
     def setUp(self) -> None:
         super().setUp()
-        ia_http.Client._instances.clear()
+        ia_http.HTTPClient._instances.clear()
         self.http_client_transport = httpx.MockTransport(
             self._handle_mock_request
         )
         self.http_mock_transport_alt_file: pathlib.Path | None = None
         self.http_client_side_effect: httpx.Response | None = None
-        self.instance: ia_http.Client | None = None
-
+        self.instance: ia_http.HTTPClient | None = None
 
     async def asyncTearDown(self) -> None:
         # Ensure no residual mock behaviour leaks into the next test.
@@ -45,7 +42,7 @@ class AsyncTestCase(unittest.IsolatedAsyncioTestCase):
                 return self.http_client_side_effect
             raise self.http_client_side_effect
         url = request.url
-        if isinstance(self.instance, ia_http.BaseURLClient):
+        if isinstance(self.instance, ia_http.HTTPClient):
             url = yarl.URL(self.instance.base_url)
         new_request = httpx.Request(
             method=request.method,
