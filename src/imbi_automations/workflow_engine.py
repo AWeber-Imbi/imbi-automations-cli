@@ -42,9 +42,9 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         )
         self._set_workflow_logger(workflow)
 
-        if (
-            not self.configuration.claude_code.enabled
-            and self._needs_claude_code
+        if not self.configuration.claude_code.enabled and (
+            self._needs_claude_code
+            or workflow.configuration.github.create_pull_request
         ):
             raise RuntimeError(
                 'Workflow requires Claude Code, but it is not enabled'
@@ -104,7 +104,10 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             working_directory.cleanup()
             return False
 
-        if self.workflow.configuration.create_pull_request:
+        if (
+            self.workflow.configuration.create_pull_request
+            and self.configuration.claude_code.enabled
+        ):
             await self._create_pull_request(context)
         else:
             await git.push_changes(
@@ -352,7 +355,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         repo_dir = context.working_directory / 'repository'
 
         # Stage all changes including deletions
-        await git.add_files(working_directory=repo_dir, files=['-A'])
+        await git.add_files(working_directory=repo_dir, files=['--all'])
 
         # Build commit message
         slug = context.workflow.slug or ''
@@ -360,13 +363,12 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             f'imbi-automations: {slug} {action.name}\n\n'
             '🤖 Generated with [Imbi Automations](https://github.com/AWeber-Imbi/).'
         )
-        trailer = f'Authored-By: {self.configuration.commit_author}'
 
         try:
             commit_sha = await git.commit_changes(
                 working_directory=repo_dir,
                 message=message,
-                author_trailer=trailer,
+                commit_author=self.configuration.commit_author,
             )
         except RuntimeError as exc:
             self.logger.error('Fallback commit failed: %s', exc)
@@ -418,9 +420,12 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         working_directory = pathlib.Path(working_directory)
 
         # Create the symlink of the workflow to the working directory
-        (working_directory / 'workflow').symlink_to(
-            self.workflow.path.resolve()
-        )
+        workflow_path = working_directory / 'workflow'
+        workflow_path.symlink_to(self.workflow.path.resolve())
+        if not workflow_path.is_symlink():
+            raise RuntimeError(
+                f'Unable to create symlink for workflow: {workflow_path}'
+            )
 
         # Ensure the extracted directory exists
         (working_directory / 'extracted').mkdir(exist_ok=True)

@@ -195,18 +195,14 @@ async def remove_files(
 async def commit_changes(
     working_directory: pathlib.Path,
     message: str,
-    author_name: str | None = None,
-    author_email: str | None = None,
-    author_trailer: str | None = None,
+    commit_author: str | None = None,
 ) -> str:
     """Commit staged changes to git repository.
 
     Args:
         working_directory: Git repository working directory
         message: Commit message
-        author_name: Optional commit author name
-        author_email: Optional commit author email
-        author_trailer: Optional authored-by trailer to append
+        commit_author: Commit author name and email (default: None)
 
     Returns:
         Commit SHA hash
@@ -219,17 +215,13 @@ async def commit_changes(
     if not message.startswith('imbi-automations:'):
         message = f'imbi-automations: {message}'
 
-    # Append author trailer if provided
-    if author_trailer:
-        message = f'{message}\n\n{author_trailer}'
-
-    LOGGER.debug('Committing changes with message: %s', message)
-
     command = ['git', 'commit', '-m', message]
 
     # Add author information if provided
-    if author_name and author_email:
-        command.extend(['--author', f'{author_name} <{author_email}>'])
+    if commit_author:
+        command.extend(['--author', commit_author])
+
+    command += ['--all']
 
     returncode, stdout, stderr = await _run_git_command(
         command, cwd=working_directory, timeout_seconds=60
