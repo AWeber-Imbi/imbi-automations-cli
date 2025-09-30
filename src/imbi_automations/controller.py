@@ -201,12 +201,6 @@ class Automation(mixins.WorkflowLoggerMixin):
     ) -> bool:
         self.logger.debug('Found %d total active projects', len(projects))
         filtered = await self._filter_projects(projects)
-        async with asyncio.Semaphore(self.args.max_concurrency):
-            tasks = [
-                self._process_workflow_from_imbi_project(project)
-                for project in filtered
-            ]
-            _results = asyncio.gather(*tasks)
 
         semaphore = asyncio.Semaphore(self.args.max_concurrency)
 
