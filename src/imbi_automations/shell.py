@@ -36,7 +36,7 @@ class Shell(mixins.WorkflowLoggerMixin):
         # Render command if it contains templating
         command_str = self._render_command(action.command, context)
 
-        self._log_verbose_info('Executing shell command: %s', command_str)
+        self.logger.debug('Executing shell command: %s', command_str)
 
         # Parse command string into arguments using shell-like parsing
         try:
@@ -71,7 +71,7 @@ class Shell(mixins.WorkflowLoggerMixin):
             stdout_str = stdout.decode('utf-8') if stdout else ''
             stderr_str = stderr.decode('utf-8') if stderr else ''
 
-            self._log_verbose_info(
+            self.logger.debug(
                 'Shell command completed with exit code %d', process.returncode
             )
 

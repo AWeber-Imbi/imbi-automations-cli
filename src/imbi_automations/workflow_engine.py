@@ -94,7 +94,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         try:
             for action in self.workflow.configuration.actions:
                 await self._execute_action(context, action)
-                if action.committable:
+                if action.committable and self.configuration.ai_commits:
                     if self.configuration.claude_code.enabled:
                         await self.claude.commit(context, action)
                     else:
@@ -105,7 +105,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             return False
 
         if (
-            self.workflow.configuration.create_pull_request
+            self.workflow.configuration.github.create_pull_request
             and self.configuration.claude_code.enabled
         ):
             await self._create_pull_request(context)
@@ -131,14 +131,20 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         # Delete remote branch if replace_branch is enabled
         if context.workflow.configuration.github.replace_branch:
             self._log_verbose_info(
-                'Deleting remote branch %s if exists (replace_branch=True)',
+                'Deleting remote branch %s if exists for %s '
+                '(replace_branch=True)',
                 branch_name,
+                context.imbi_project.slug,
             )
             await git.delete_remote_branch_if_exists(
                 working_directory=repository_dir, branch_name=branch_name
             )
 
-        self._log_verbose_info('Creating pull request branch: %s', branch_name)
+        self._log_verbose_info(
+            'Creating pull request branch: %s for %s',
+            branch_name,
+            context.imbi_project.slug,
+        )
 
         # Create and checkout new branch
         await git.create_branch(
@@ -156,7 +162,9 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         )
 
         self._log_verbose_info(
-            'Successfully pushed branch %s for pull request', branch_name
+            'Successfully pushed branch %s for pull request for %s',
+            branch_name,
+            context.imbi_project.slug,
         )
 
         summary = await git.get_commits_since(
@@ -179,7 +187,11 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             body=body,
             head_branch=branch_name,
         )
-        self._log_verbose_info('Created pull request: %s', pr_url)
+        self._log_verbose_info(
+            'Created pull request for %s: %s',
+            context.imbi_project.slug,
+            pr_url,
+        )
 
     async def _execute_action(
         self,

@@ -347,7 +347,6 @@ class WorkflowConfiguration(pydantic.BaseModel):
 
     condition_type: WorkflowConditionType = WorkflowConditionType.all
     conditions: list[WorkflowCondition] = pydantic.Field(default_factory=list)
-    create_pull_request: bool = True
     actions: list[WorkflowActions] = pydantic.Field(default_factory=list)
 
 

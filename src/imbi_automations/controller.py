@@ -243,8 +243,6 @@ class Automation(mixins.WorkflowLoggerMixin):
             )
             return False
         self._log_verbose_info(
-            'Completed processing Imbi project %s (%i)',
-            project.name,
-            project.id,
+            'Completed processing %s (%i)', project.name, project.id
         )
         return True
