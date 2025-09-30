@@ -34,7 +34,7 @@ classifiers = [
   "Typing :: Typed",
 ]
 dependencies = [
-  "anthropic",
+  "anthropic[bedrock]",
   "async_lru",
   "claude-code-sdk",
   "colorlog",

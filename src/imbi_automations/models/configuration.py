@@ -9,6 +9,7 @@ class AnthropicConfiguration(pydantic.BaseModel):
     api_key: pydantic.SecretStr | None = pydantic.Field(
         default=os.environ.get('ANTHROPIC_API_KEY')
     )
+    bedrock: bool = False
     model: str = pydantic.Field(default='claude-3-5-haiku-latest')
 
 

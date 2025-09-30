@@ -51,7 +51,10 @@ class Claude(mixins.WorkflowLoggerMixin):
         verbose: bool = False,
     ) -> None:
         super().__init__(verbose)
-        self.anthropic = anthropic.AsyncAnthropic()
+        if config.anthropic.bedrock:
+            self.anthropic = anthropic.AsyncAnthropicBedrock()
+        else:
+            self.anthropic = anthropic.AsyncAnthropic()
         self.anthropic_model = config.anthropic.model
         self.commit_author = commit_author
         self.config = config.claude_code
@@ -85,7 +88,6 @@ class Claude(mixins.WorkflowLoggerMixin):
     ) -> None:
         """Execute the Claude Code action."""
         self._set_workflow_logger(context.workflow)
-        self._log_verbose_info('Executing Claude Code action: %s', action.name)
         self.session_id = None
         await self.client.connect()
 
