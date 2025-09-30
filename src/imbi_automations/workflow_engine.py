@@ -128,6 +128,16 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
 
         branch_name = f'imbi-automations/{context.workflow.slug}'
 
+        # Delete remote branch if replace_branch is enabled
+        if context.workflow.configuration.github.replace_branch:
+            self._log_verbose_info(
+                'Deleting remote branch %s if exists (replace_branch=True)',
+                branch_name,
+            )
+            await git.delete_remote_branch_if_exists(
+                working_directory=repository_dir, branch_name=branch_name
+            )
+
         self._log_verbose_info('Creating pull request branch: %s', branch_name)
 
         # Create and checkout new branch
