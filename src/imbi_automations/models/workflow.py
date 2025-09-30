@@ -312,7 +312,7 @@ class WorkflowGit(pydantic.BaseModel):
 
 class WorkflowGitHub(pydantic.BaseModel):
     create_pull_request: bool = True
-    replace_branch: str | None = None
+    replace_branch: bool = False
 
     @pydantic.model_validator(mode='after')
     def validate_replace_branch(self) -> 'WorkflowGitHub':
@@ -325,7 +325,7 @@ class WorkflowGitHub(pydantic.BaseModel):
 
 class WorkflowGitLab(pydantic.BaseModel):
     create_merge_request: bool = True
-    replace_branch: str | None = None
+    replace_branch: bool = False
 
     @pydantic.model_validator(mode='after')
     def validate_replace_branch(self) -> 'WorkflowGitLab':

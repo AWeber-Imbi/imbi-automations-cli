@@ -55,6 +55,7 @@ class ClaudeCodeConfiguration(pydantic.BaseModel):
 
 
 class Configuration(pydantic.BaseModel):
+    ai_commits: bool = False
     anthropic: AnthropicConfiguration = pydantic.Field(
         default_factory=AnthropicConfiguration
     )
