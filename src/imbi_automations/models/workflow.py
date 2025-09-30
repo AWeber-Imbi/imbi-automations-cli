@@ -344,6 +344,7 @@ class WorkflowConfiguration(pydantic.BaseModel):
     github: WorkflowGitHub = pydantic.Field(default_factory=WorkflowGitHub)
     gitlab: WorkflowGitLab = pydantic.Field(default_factory=WorkflowGitLab)
     filter: WorkflowFilter | None = None
+    use_devcontainers: bool = False
 
     condition_type: WorkflowConditionType = WorkflowConditionType.all
     conditions: list[WorkflowCondition] = pydantic.Field(default_factory=list)
