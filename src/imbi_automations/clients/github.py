@@ -107,8 +107,9 @@ class GitHub(http.BaseURLHTTPClient):
             httpx.HTTPError: If API request fails
 
         """
+        base_path = self._repository_base_path(org=org, repo_name=repo_name)
         response = await self.get(
-            f'/repos/{org}/{repo_name}/actions/runs',
+            f'{base_path}/actions/runs',
             params={'per_page': 1},  # Get only the most recent run
         )
         response.raise_for_status()
@@ -154,8 +155,10 @@ class GitHub(http.BaseURLHTTPClient):
             httpx.HTTPError: If API request fails
 
         """
+        base_path = self._repository_base_path(org=org, repo_name=repo)
+
         try:
-            response = await self.get(f'/repos/{org}/{repo}/environments')
+            response = await self.get(f'{base_path}/environments')
             response.raise_for_status()
 
             data = response.json()
@@ -206,9 +209,11 @@ class GitHub(http.BaseURLHTTPClient):
             httpx.HTTPError: If API request fails
 
         """
+        base_path = self._repository_base_path(org=org, repo_name=repo)
+
         try:
             response = await self.put(
-                f'/repos/{org}/{repo}/environments/{environment_name}'
+                f'{base_path}/environments/{environment_name}'
             )
             response.raise_for_status()
 
@@ -251,9 +256,11 @@ class GitHub(http.BaseURLHTTPClient):
             httpx.HTTPError: If API request fails
 
         """
+        base_path = self._repository_base_path(org=org, repo_name=repo)
+
         try:
             response = await self.delete(
-                f'/repos/{org}/{repo}/environments/{environment_name}'
+                f'{base_path}/environments/{environment_name}'
             )
             response.raise_for_status()
 
@@ -312,6 +319,7 @@ class GitHub(http.BaseURLHTTPClient):
         if not context.github_repository:
             raise ValueError('No GitHub repository in workflow context')
 
+        base_path = self._repository_base_path(context=context)
         org = context.github_repository.owner.login
         repo = context.github_repository.name
 
@@ -330,7 +338,7 @@ class GitHub(http.BaseURLHTTPClient):
             'base': base_branch,
         }
 
-        response = await self.post(f'/repos/{org}/{repo}/pulls', json=payload)
+        response = await self.post(f'{base_path}/pulls', json=payload)
         response.raise_for_status()
 
         pr_data = response.json()
@@ -345,6 +353,174 @@ class GitHub(http.BaseURLHTTPClient):
         )
 
         return pr_url
+
+    async def _get_most_recent_workflow_run_id(
+        self, org: str, repo_name: str, branch: str = 'main'
+    ) -> int | None:
+        """Get the most recent workflow run ID for a repository.
+
+        Args:
+            org: Organization name
+            repo_name: Repository name
+            branch: Optional branch name to filter workflow runs
+
+        Returns:
+            Workflow run ID or None if no runs found
+
+        Raises:
+            httpx.HTTPError: If API request fails
+
+        """
+        base_path = self._repository_base_path(org=org, repo_name=repo_name)
+        response = await self.get(
+            f'{base_path}/actions/runs',
+            params={'per_page': 1, 'branch': branch},
+        )
+        response.raise_for_status()
+
+        data = response.json()
+        workflow_runs = data.get('workflow_runs', [])
+
+        if not workflow_runs:
+            LOGGER.debug('No workflow runs found for %s/%s', org, repo_name)
+            return None
+
+        return workflow_runs[0]['id']
+
+    def _repository_base_path(
+        self,
+        context: 'models.WorkflowContext | None' = None,
+        org: str | None = None,
+        repo_name: str | None = None,
+        repository: models.GitHubRepository | None = None,
+    ) -> str:
+        """Build base repository path for GitHub API requests.
+
+        Args:
+            context: Workflow context containing GitHub repository
+            org: Organization name (alternative to context/repository)
+            repo_name: Repository name (alternative to context/repository)
+            repository: GitHub repository object (alternative to context)
+
+        Returns:
+            Base path string in format /repos/{org}/{repo}
+
+        Raises:
+            ValueError: If insufficient parameters provided
+
+        """
+        if context and context.github_repository:
+            owner = context.github_repository.owner.login
+            name = context.github_repository.name
+            return f'/repos/{owner}/{name}'
+        if repository:
+            return f'/repos/{repository.owner.login}/{repository.name}'
+        if org and repo_name:
+            return f'/repos/{org}/{repo_name}'
+        raise ValueError(
+            'Must provide context, repository, or org+repo_name parameters'
+        )
+
+    async def _get_workflow_run_jobs(
+        self, org: str, repo_name: str, run_id: int
+    ) -> list[dict]:
+        """Get all jobs for a workflow run.
+
+        Args:
+            org: Organization name
+            repo_name: Repository name
+            run_id: Workflow run ID
+
+        Returns:
+            List of job dictionaries
+
+        Raises:
+            httpx.HTTPError: If API request fails
+
+        """
+        base_path = self._repository_base_path(org=org, repo_name=repo_name)
+        response = await self.get(f'{base_path}/actions/runs/{run_id}/jobs')
+        response.raise_for_status()
+
+        data = response.json()
+        return data.get('jobs', [])
+
+    async def _get_job_logs(
+        self, org: str, repo_name: str, job_id: int, job_name: str
+    ) -> str:
+        """Get logs for a specific job.
+
+        Args:
+            org: Organization name
+            repo_name: Repository name
+            job_id: Job ID
+            job_name: Job name (for logging)
+
+        Returns:
+            Log contents as string, empty string if logs unavailable
+
+        """
+        base_path = self._repository_base_path(org=org, repo_name=repo_name)
+        response = await self.get(
+            f'{base_path}/actions/jobs/{job_id}/logs', follow_redirects=True
+        )
+        response.raise_for_status()
+
+        LOGGER.debug(
+            'Retrieved %d bytes of logs for job "%s" (ID: %d)',
+            len(response.text),
+            job_name,
+            job_id,
+        )
+
+        return response.text
+
+    async def get_most_recent_job_logs(
+        self, repository: models.GitHubRepository, branch: str | None = None
+    ) -> dict[str, str]:
+        """Get logs for all jobs in the most recent workflow run.
+
+        Args:
+            repository: GitHub repository to fetch logs from
+            branch: Optional branch name to filter workflow runs
+
+        Returns:
+            Dictionary mapping job names to their log contents.
+            Jobs with unavailable logs will have empty string values.
+
+        Raises:
+            httpx.HTTPError: If API request fails
+
+        """
+        org, repo_name = repository.full_name.split('/', 1)
+
+        run_id = await self._get_most_recent_workflow_run_id(
+            org, repo_name, branch
+        )
+        if not run_id:
+            return {}
+
+        LOGGER.debug(
+            'Fetching logs for workflow run %d in %s/%s',
+            run_id,
+            org,
+            repo_name,
+        )
+
+        jobs = await self._get_workflow_run_jobs(org, repo_name, run_id)
+        if not jobs:
+            LOGGER.debug('No jobs found for workflow run %d', run_id)
+            return {}
+
+        job_logs = {}
+        for job in jobs:
+            job_id = job['id']
+            job_name = job['name']
+
+            logs = await self._get_job_logs(org, repo_name, job_id, job_name)
+            job_logs[job_name] = logs
+
+        return job_logs
 
     async def get_file_contents(
         self, context: 'models.WorkflowContext', file_path: str
@@ -366,6 +542,7 @@ class GitHub(http.BaseURLHTTPClient):
         if not context.github_repository:
             raise ValueError('No GitHub repository in workflow context')
 
+        base_path = self._repository_base_path(context=context)
         org = context.github_repository.owner.login
         repo = context.github_repository.name
 
@@ -374,9 +551,7 @@ class GitHub(http.BaseURLHTTPClient):
         )
 
         try:
-            response = await self.get(
-                f'/repos/{org}/{repo}/contents/{file_path}'
-            )
+            response = await self.get(f'{base_path}/contents/{file_path}')
             response.raise_for_status()
 
             file_data = response.json()
