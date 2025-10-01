@@ -4,11 +4,17 @@ import contextvars
 import logging
 import logging.handlers
 import pathlib
+import threading
 
 # Context variable to track current project being executed
 current_project_id: contextvars.ContextVar = contextvars.ContextVar(
     'current_project_id', default=None
 )
+
+# Global state for managing root logger level across concurrent captures
+_capture_lock = threading.Lock()
+_active_captures = 0
+_original_root_level: int | None = None
 
 
 class ProjectLogFilter(logging.Filter):
@@ -38,7 +44,9 @@ class ProjectLogFilter(logging.Filter):
             True if record should be logged, False otherwise
 
         """
-        return current_project_id.get() == self.project_id
+        ctx_value = current_project_id.get()
+        result = ctx_value == self.project_id
+        return result
 
 
 class ProjectLogCapture:
@@ -70,18 +78,32 @@ class ProjectLogCapture:
         """Start capturing logs for this project.
 
         Sets the context variable to this project's ID and attaches
-        the memory handler to the root logger.
+        the memory handler to the root logger. Thread-safely manages
+        root logger level across concurrent captures.
 
         Returns:
             Token for resetting context variable later
 
         """
+        global _active_captures, _original_root_level
+
         # Set context variable so all logs in this async context
         # are tagged with this project ID
         token = current_project_id.set(self.project_id)
 
+        # Thread-safely manage root logger level
+        with _capture_lock:
+            root_logger = logging.getLogger()
+
+            # First capture saves original level and sets to DEBUG
+            if _active_captures == 0:
+                _original_root_level = root_logger.level
+                root_logger.setLevel(logging.DEBUG)
+
+            _active_captures += 1
+
         # Attach handler to root logger to capture all logs
-        logging.getLogger().addHandler(self.handler)
+        root_logger.addHandler(self.handler)
 
         return token
 
@@ -105,10 +127,28 @@ class ProjectLogCapture:
     def cleanup(self, token: contextvars.Token) -> None:
         """Remove handler and reset context.
 
+        Thread-safely manages restoring root logger level when the
+        last active capture completes.
+
         Args:
             token: Token from start() to reset context variable
 
         """
-        logging.getLogger().removeHandler(self.handler)
+        global _active_captures, _original_root_level
+
+        root_logger = logging.getLogger()
+
+        # Remove handler and close it
+        root_logger.removeHandler(self.handler)
         self.handler.close()
+
+        # Thread-safely manage root logger level restoration
+        with _capture_lock:
+            _active_captures -= 1
+
+            # Last capture restores original level
+            if _active_captures == 0 and _original_root_level is not None:
+                root_logger.setLevel(_original_root_level)
+
+        # Reset context variable
         current_project_id.reset(token)
