@@ -1,5 +1,7 @@
+import datetime
 import logging
 import pathlib
+import shutil
 import tempfile
 
 from imbi_automations import (
@@ -13,6 +15,7 @@ from imbi_automations import (
     models,
     prompts,
     shell,
+    template_action,
     workflow_filter,
 )
 
@@ -36,6 +39,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         )
         self.github = clients.GitHub.get_instance(config=configuration.github)
         self.configuration = configuration
+        self.last_error_path: pathlib.Path | None = None
         self.workflow = workflow
         self.workflow_filter = workflow_filter.Filter(
             configuration, workflow, verbose
@@ -113,6 +117,8 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             self.logger.error(
                 'Error executing action "%s": %s', action.name, exc
             )
+            if self.configuration.preserve_on_error:
+                self._preserve_error_state(context, working_directory)
             working_directory.cleanup()
             return False
 
@@ -357,7 +363,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         action: models.WorkflowTemplateAction,
     ) -> None:
         """Execute the template action."""
-        raise NotImplementedError('Template actions not yet supported')
+        await template_action.execute(context, action)
 
     async def _execute_action_utility(
         self,
@@ -421,6 +427,58 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
                 )
             else:
                 self.logger.info('No changes to commit (fallback)')
+
+    def get_last_error_path(self) -> pathlib.Path | None:
+        """Return path where error state was last preserved.
+
+        Returns:
+            Path to error directory, or None if no error preserved
+
+        """
+        return self.last_error_path
+
+    def _preserve_error_state(
+        self,
+        context: models.WorkflowContext,
+        working_directory: tempfile.TemporaryDirectory,
+    ) -> None:
+        """Preserve working directory state on error for debugging.
+
+        Args:
+            context: Workflow execution context
+            working_directory: Temporary directory to preserve
+
+        """
+        timestamp = datetime.datetime.now(tz=datetime.UTC).strftime(
+            '%Y%m%d-%H%M%S'
+        )
+        workflow_slug = context.workflow.slug or 'unknown'
+        project_slug = context.imbi_project.slug
+
+        # Create error directory: errors/<workflow>/<project>-<timestamp>
+        error_path = (
+            self.configuration.error_dir
+            / workflow_slug
+            / f'{project_slug}-{timestamp}'
+        )
+
+        try:
+            error_path.mkdir(parents=True, exist_ok=True)
+            shutil.copytree(
+                working_directory.name,
+                error_path,
+                dirs_exist_ok=True,
+                symlinks=True,
+            )
+            self.last_error_path = error_path
+            self.logger.info(
+                'Preserved error state to %s for debugging', error_path
+            )
+        except OSError as exc:
+            self.last_error_path = None
+            self.logger.error(
+                'Failed to preserve error state to %s: %s', error_path, exc
+            )
 
     def _git_clone_url(
         self,

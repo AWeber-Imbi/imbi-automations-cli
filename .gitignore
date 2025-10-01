@@ -6,6 +6,7 @@
 /build
 /dist
 /env
+/errors
 /.venv
 /VERSION
 **/__pycache__/*

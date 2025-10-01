@@ -61,6 +61,8 @@ class Configuration(pydantic.BaseModel):
     )
     claude_code: ClaudeCodeConfiguration | None = None
     commit_author: str = 'Imbi Automations <noreply@aweber.com>'
+    error_dir: pathlib.Path = pathlib.Path('./errors')
     github: GitHubConfiguration | None = None
     gitlab: GitLabConfiguration | None = None
     imbi: ImbiConfiguration | None = None
+    preserve_on_error: bool = False

@@ -10,6 +10,7 @@ from imbi_automations import (
     clients,
     mixins,
     models,
+    per_project_logging,
     workflow_engine,
     workflow_filter,
 )
@@ -228,20 +229,47 @@ class Automation(mixins.WorkflowLoggerMixin):
     async def _process_workflow_from_imbi_project(
         self, project: models.ImbiProject
     ) -> bool:
-        github_repository = await self._get_github_repository(project)
-        gitlab_project = await self._get_gitlab_project(project)
-        self._log_verbose_info('Processing %s (%i)', project.name, project.id)
-        if not await self.workflow_engine.execute(
-            project, github_repository, gitlab_project
-        ):
-            if self.args.exit_on_error:
-                raise RuntimeError(
-                    f'Workflow execution failed for {project.name} '
-                    f'({project.id}) - check logs above for details'
-                )
-            # Error details already logged by workflow_engine
-            return False
-        self._log_verbose_info(
-            'Completed processing %s (%i)', project.name, project.id
-        )
-        return True
+        # Set up per-project log capture if error preservation is enabled
+        log_capture = None
+        token = None
+        if self.configuration.preserve_on_error:
+            log_capture = per_project_logging.ProjectLogCapture(project.id)
+            token = log_capture.start()
+
+        try:
+            github_repository = await self._get_github_repository(project)
+            gitlab_project = await self._get_gitlab_project(project)
+            self._log_verbose_info(
+                'Processing %s (%i)', project.name, project.id
+            )
+
+            success = await self.workflow_engine.execute(
+                project, github_repository, gitlab_project
+            )
+
+            if not success:
+                # Write debug logs to error directory
+                if log_capture:
+                    error_path = self.workflow_engine.get_last_error_path()
+                    if error_path:
+                        log_capture.write_to_file(error_path / 'debug.log')
+                        self.logger.info(
+                            'Wrote debug logs to %s', error_path / 'debug.log'
+                        )
+
+                if self.args.exit_on_error:
+                    raise RuntimeError(
+                        f'Workflow execution failed for {project.name} '
+                        f'({project.id}) - check logs above for details'
+                    )
+                # Error details already logged by workflow_engine
+                return False
+
+            self._log_verbose_info(
+                'Completed processing %s (%i)', project.name, project.id
+            )
+            return True
+        finally:
+            # Always cleanup log capture to prevent memory leaks
+            if log_capture and token:
+                log_capture.cleanup(token)

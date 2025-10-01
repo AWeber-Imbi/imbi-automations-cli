@@ -193,6 +193,18 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         '(default: continue with other projects)',
     )
     parser.add_argument(
+        '--preserve-on-error',
+        action='store_true',
+        help='Preserve working directory on error for debugging '
+        '(saved to error-dir/<workflow>/<project>-<timestamp>)',
+    )
+    parser.add_argument(
+        '--error-dir',
+        type=pathlib.Path,
+        default=pathlib.Path('./errors'),
+        help='Directory to save error states when --preserve-on-error is used',
+    )
+    parser.add_argument(
         '-v',
         '--verbose',
         action='store_true',
@@ -213,6 +225,12 @@ def main() -> None:
 
     config = load_configuration(args.config[0])
     args.config[0].close()
+
+    # Override config with CLI args for error preservation
+    if args.preserve_on_error:
+        config.preserve_on_error = True
+    if args.error_dir:
+        config.error_dir = args.error_dir
 
     LOGGER.info('Imbi Automations v%s starting', version)
     try:

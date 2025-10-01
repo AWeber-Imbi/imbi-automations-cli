@@ -1,0 +1,114 @@
+"""Per-project log capture for debugging concurrent workflow executions."""
+
+import contextvars
+import logging
+import logging.handlers
+import pathlib
+
+# Context variable to track current project being executed
+current_project_id: contextvars.ContextVar = contextvars.ContextVar(
+    'current_project_id', default=None
+)
+
+
+class ProjectLogFilter(logging.Filter):
+    """Filter that only allows logs from a specific project context.
+
+    Uses contextvars to check if the log record was generated within
+    the async context of the target project.
+    """
+
+    def __init__(self, project_id: int) -> None:
+        """Initialize filter for specific project ID.
+
+        Args:
+            project_id: Project ID to filter for
+
+        """
+        super().__init__()
+        self.project_id = project_id
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        """Check if record belongs to this project's context.
+
+        Args:
+            record: Log record to evaluate
+
+        Returns:
+            True if record should be logged, False otherwise
+
+        """
+        return current_project_id.get() == self.project_id
+
+
+class ProjectLogCapture:
+    """Captures all DEBUG logs for a single project execution.
+
+    Uses MemoryHandler to buffer logs in memory during execution,
+    then writes to file only on error. Works with concurrent execution
+    by using contextvars to isolate logs per async task.
+    """
+
+    def __init__(self, project_id: int, buffer_size: int = 10000) -> None:
+        """Initialize log capture for specific project.
+
+        Args:
+            project_id: Project ID to capture logs for
+            buffer_size: Maximum number of log records to buffer
+
+        """
+        self.project_id = project_id
+        self.handler = logging.handlers.MemoryHandler(
+            capacity=buffer_size,
+            flushLevel=logging.CRITICAL,  # Never auto-flush
+            target=None,  # We'll manually write to file
+        )
+        self.handler.setLevel(logging.DEBUG)  # Always capture DEBUG
+        self.handler.addFilter(ProjectLogFilter(project_id))
+
+    def start(self) -> contextvars.Token:
+        """Start capturing logs for this project.
+
+        Sets the context variable to this project's ID and attaches
+        the memory handler to the root logger.
+
+        Returns:
+            Token for resetting context variable later
+
+        """
+        # Set context variable so all logs in this async context
+        # are tagged with this project ID
+        token = current_project_id.set(self.project_id)
+
+        # Attach handler to root logger to capture all logs
+        logging.getLogger().addHandler(self.handler)
+
+        return token
+
+    def write_to_file(self, log_path: pathlib.Path) -> None:
+        """Write buffered logs to file.
+
+        Args:
+            log_path: Path where log file should be written
+
+        """
+        formatter = logging.Formatter(
+            '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+        )
+
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+
+        with log_path.open('w', encoding='utf-8') as f:
+            for record in self.handler.buffer:
+                f.write(formatter.format(record) + '\n')
+
+    def cleanup(self, token: contextvars.Token) -> None:
+        """Remove handler and reset context.
+
+        Args:
+            token: Token from start() to reset context variable
+
+        """
+        logging.getLogger().removeHandler(self.handler)
+        self.handler.close()
+        current_project_id.reset(token)
