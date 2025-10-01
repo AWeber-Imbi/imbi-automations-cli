@@ -80,9 +80,24 @@ class FileActions(mixins.WorkflowLoggerMixin):
         context: models.WorkflowContext,
         action: models.WorkflowFileAction,
     ) -> None:
-        """Execute copy file action."""
-        source_path = self._resolve_path(context, action.source)
+        """Execute copy file action with glob pattern support."""
+        source_str = str(action.source)
         dest_path = self._resolve_path(context, action.destination)
+
+        # Check if source contains glob patterns
+        if any(char in source_str for char in ['*', '?', '[']):
+            await self._execute_copy_glob(context, action.source, dest_path)
+        else:
+            await self._execute_copy_single(context, action.source, dest_path)
+
+    async def _execute_copy_single(
+        self,
+        context: models.WorkflowContext,
+        source: pathlib.Path,
+        dest_path: pathlib.Path,
+    ) -> None:
+        """Copy a single file or directory."""
+        source_path = self._resolve_path(context, source)
 
         self._log_verbose_info('Copying %s to %s', source_path, dest_path)
 
@@ -103,6 +118,48 @@ class FileActions(mixins.WorkflowLoggerMixin):
 
         self._log_verbose_info(
             'Successfully copied %s to %s', source_path, dest_path
+        )
+
+    async def _execute_copy_glob(
+        self,
+        context: models.WorkflowContext,
+        source: pathlib.Path,
+        dest_path: pathlib.Path,
+    ) -> None:
+        """Copy multiple files matching a glob pattern."""
+        # Resolve source relative to working directory if not absolute
+        if source.is_absolute():
+            base_path = source.parent
+            pattern = source.name
+        else:
+            base_path = context.working_directory
+            pattern = str(source)
+
+        self._log_verbose_info('Copying files matching pattern: %s', pattern)
+
+        # Find matching files
+        if pattern.startswith('**/'):
+            matches = list(base_path.rglob(pattern[3:]))
+        else:
+            matches = list(base_path.glob(pattern))
+
+        if not matches:
+            raise RuntimeError(f'No files match the source pattern: {source}')
+
+        # Ensure destination directory exists
+        dest_path.mkdir(parents=True, exist_ok=True)
+
+        # Copy each matching file
+        copied_count = 0
+        for match in matches:
+            if match.is_file():
+                dest_file = dest_path / match.name
+                shutil.copy2(match, dest_file)
+                self.logger.debug('Copied %s to %s', match, dest_file)
+                copied_count += 1
+
+        self._log_verbose_info(
+            'Successfully copied %d files to %s', copied_count, dest_path
         )
 
     async def _execute_delete(

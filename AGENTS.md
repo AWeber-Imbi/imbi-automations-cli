@@ -87,7 +87,7 @@ pre-commit run --all-files
 - **Git Operations** (`git.py`): Repository cloning and Git operations
 - **Docker Integration** (`docker.py`): Docker container operations and extractions
 - **Environment Sync** (`environment_sync.py`): GitHub environment synchronization logic
-- **File Actions** (`file_actions.py`): File manipulation operations (copy, move, regex replacement)
+- **File Actions** (`file_actions.py`): File manipulation operations (copy with glob support, move, regex replacement)
 - **Shell Integration** (`shell.py`): Shell command execution with templating support
 - **Condition Checker** (`condition_checker.py`): Workflow condition evaluation system
 - **Utilities** (`utils.py`): Configuration loading, directory management, URL sanitization
@@ -122,7 +122,7 @@ The system supports multiple transformation types through the workflow action sy
 2. **Claude Code Integration**: Complex multi-file analysis and transformation using Claude Code SDK
 3. **Docker Operations**: Container-based file extraction and manipulation
 4. **Git Operations**: Version control operations (revert, extract, branch management)
-5. **File Operations**: Direct file manipulation (copy, move, regex replacement)
+5. **File Operations**: Direct file manipulation (copy with glob patterns, move, regex replacement)
 6. **Shell Commands**: Arbitrary command execution with templated variables
 7. **Utility Actions**: Helper operations for common workflow tasks
 8. **Template System**: Jinja2-based file generation with full project context
@@ -402,7 +402,7 @@ The system includes 18 pre-built workflows organized by category:
 - **Workflow Engine**: Full workflow execution with action-based processing
 - **Multi-Provider Support**: GitHub and GitLab client implementations
 - **Batch Processing**: Concurrent processing with resumption from specific projects
-- **File Operations**: Copy, move, regex replacement, and template generation
+- **File Operations**: Copy with glob patterns, move, regex replacement, and template generation
 - **AI Integration**: Claude Code SDK integration with prompt management
 - **Git Operations**: Repository cloning, branch management, and version control
 - **Configuration System**: TOML-based configuration with comprehensive validation
