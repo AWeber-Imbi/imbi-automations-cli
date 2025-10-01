@@ -171,8 +171,8 @@ Workflows support conditional execution based on repository state. There are two
 
 #### Local Conditions (Post-Clone)
 Evaluated after cloning the repository:
-- **`file_exists`**: Check if a file exists at the specified path
-- **`file_not_exists`**: Check if a file does not exist at the specified path
+- **`file_exists`**: Check if a file exists (supports exact paths, glob patterns like `**/*.tf`, or regex)
+- **`file_not_exists`**: Check if a file does not exist (supports exact paths, glob patterns, or regex)
 - **`file_contains`**: Check if a file contains specified text or matches a regex pattern
 
 #### Remote Conditions (Pre-Clone)
@@ -189,6 +189,12 @@ Both `file_contains` and `remote_file_contains` support string literals and regu
 # Local conditions (require git clone)
 [[conditions]]
 file_exists = "package.json"
+
+[[conditions]]
+file_exists = "**/*.tf"  # Glob pattern - any .tf file recursively
+
+[[conditions]]
+file_not_exists = "*.pyc"  # Glob pattern - no .pyc files
 
 [[conditions]]
 file_contains = "compose.yml"

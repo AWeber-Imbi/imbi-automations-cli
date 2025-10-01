@@ -171,17 +171,34 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
     def _check_file_pattern_exists(
         base_path: pathlib.Path, file: str | typing.Pattern
     ) -> bool:
-        """Check if a file exists using either exact path or regex pattern.
+        """Check if a file exists using exact path, glob pattern, or regex.
 
         Args:
             base_path: Repository base path
-            file: File path string or compiled regex pattern
+            file: File path string, glob pattern, or compiled regex pattern
 
         Returns:
-            True if file exists (string) or pattern matches any file (regex)
+            True if file exists (string), glob matches (pattern), or
+            regex matches any file (Pattern)
 
         """
         if isinstance(file, str):
+            # Check if it's a glob pattern (contains *, ?, [, or **)
+            if any(char in file for char in ['*', '?', '[']):
+                # Use rglob for patterns starting with **
+                if file.startswith('**/'):
+                    matches = base_path.rglob(file[3:])
+                else:
+                    matches = base_path.glob(file)
+
+                # Return True if any files match the pattern
+                try:
+                    next(matches)
+                    return True
+                except StopIteration:
+                    return False
+
+            # Regular file path check
             return (base_path / file).exists()
 
         try:
