@@ -79,7 +79,8 @@ class ProjectLogCapture:
 
         Sets the context variable to this project's ID and attaches
         the memory handler to the root logger. Thread-safely manages
-        root logger level across concurrent captures.
+        root logger level across concurrent captures. Ensures console
+        handlers maintain their original level to avoid DEBUG spam.
 
         Returns:
             Token for resetting context variable later
@@ -99,6 +100,20 @@ class ProjectLogCapture:
             if _active_captures == 0:
                 _original_root_level = root_logger.level
                 root_logger.setLevel(logging.DEBUG)
+
+                # Ensure console/stream handlers don't show DEBUG logs
+                # while still allowing our MemoryHandler to capture them
+                for handler in root_logger.handlers:
+                    # Only adjust StreamHandler (console), not MemoryHandlers
+                    if (
+                        isinstance(handler, logging.StreamHandler)
+                        and not isinstance(
+                            handler, logging.handlers.MemoryHandler
+                        )
+                        and handler.level < logging.INFO
+                    ):
+                        # Ensure console stays at INFO minimum
+                        handler.setLevel(logging.INFO)
 
             _active_captures += 1
 
