@@ -127,6 +127,26 @@ The system supports multiple transformation types through the workflow action sy
 7. **Utility Actions**: Helper operations for common workflow tasks
 8. **Template System**: Jinja2-based file generation with full project context
 
+#### Template Action Usage
+
+Template actions render Jinja2 templates with full workflow context:
+
+```toml
+[[actions]]
+name = "render-config"
+type = "template"
+source_path = "templates"           # Directory (recursively renders all files)
+# OR
+source_path = "config.yaml.j2"      # Single file
+destination_path = "repository/config/"  # Relative to working directory
+```
+
+**Important Notes:**
+- `source_path` is relative to workflow directory
+- `destination_path` is relative to working directory (temp directory root)
+- For directories, use `"ci"` not `"ci/*"` (directory rendering is automatic)
+- Template context includes: `workflow`, `github_repository`, `gitlab_project`, `imbi_project`, `working_directory`, `starting_commit`
+
 ### Workflow Structure
 
 Workflows are organized in a directory structure with TOML configuration files:
