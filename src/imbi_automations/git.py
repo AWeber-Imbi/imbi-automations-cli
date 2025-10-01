@@ -116,6 +116,10 @@ async def clone_repository(
     )
 
     if returncode != 0:
+        # Check if this is an empty repository
+        if 'unknown revision' in stderr or 'ambiguous argument' in stderr:
+            LOGGER.debug('Cloned empty repository (no commits)')
+            return ''
         raise RuntimeError(
             f'Git rev-parse HEAD failed (exit code {returncode}): '
             f'{stderr or stdout}'
