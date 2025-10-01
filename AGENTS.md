@@ -177,8 +177,8 @@ Evaluated after cloning the repository:
 
 #### Remote Conditions (Pre-Clone)
 Evaluated before cloning using GitHub API, providing performance benefits:
-- **`remote_file_exists`**: Check if a file exists in the remote repository
-- **`remote_file_not_exists`**: Check if a file does not exist in the remote repository
+- **`remote_file_exists`**: Check if a file exists (supports exact paths or glob patterns like `**/*.tf`)
+- **`remote_file_not_exists`**: Check if a file does not exist (supports exact paths or glob patterns)
 - **`remote_file_contains`**: Check if a remote file contains specified text or regex pattern
 
 #### File Contains Conditions (Local and Remote)
@@ -203,6 +203,9 @@ file = "bootstrap"
 # Remote conditions (checked before cloning - more efficient)
 [[conditions]]
 remote_file_exists = "README.md"
+
+[[conditions]]
+remote_file_exists = "**/*.tf"  # Glob pattern - any .tf file recursively
 
 [[conditions]]
 remote_file_not_exists = "legacy-config.json"
@@ -250,10 +253,12 @@ remote_file_exists = ".github/workflows"  # Has GitHub Actions
 - ⚡ **Faster**: GitHub API calls are faster than git clone
 - 💾 **Bandwidth efficient**: Skip clone entirely for non-matching repos
 - 🔄 **Early filtering**: Fail fast before expensive operations
+- 🌐 **Glob support**: `remote_file_exists` and `remote_file_not_exists` support glob patterns via Git Trees API
 
 **Best Practices:**
 - Use remote conditions for initial filtering (file existence, basic content checks)
 - Use local conditions for complex file analysis requiring full repository access
+- Remote glob patterns (`**/*.tf`) use Git Trees API (100k file limit)
 - String search is performed first (fast), with regex fallback only when string search fails
 - Invalid regex patterns gracefully fall back to string search behavior
 

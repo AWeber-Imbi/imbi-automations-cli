@@ -3,6 +3,8 @@ import pathlib
 import re
 import typing
 
+import httpx
+
 from imbi_automations import clients, mixins, models
 
 LOGGER = logging.getLogger(__name__)
@@ -94,6 +96,21 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
                     or condition.remote_file_exists
                     or condition.remote_file_not_exists
                 )
+
+                # Check if this is a glob pattern for file existence checks
+                if (
+                    condition.remote_file_exists
+                    or condition.remote_file_not_exists
+                ) and self._is_glob_pattern(file_path):
+                    result = await self._check_remote_file_glob(
+                        context, client, file_path
+                    )
+                    if condition.remote_file_not_exists:
+                        result = not result
+                    results.append(result)
+                    continue
+
+                # Regular file content check
                 content = await client.get_file_contents(context, file_path)
 
                 if condition.remote_file_contains and condition.remote_file:
@@ -211,6 +228,70 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
             if pattern.search(str(relative_path)):
                 return True
         return False
+
+    @staticmethod
+    def _is_glob_pattern(file_path: str) -> bool:
+        """Check if a file path contains glob pattern characters."""
+        return any(char in file_path for char in ['*', '?', '['])
+
+    async def _check_remote_file_glob(
+        self,
+        context: models.WorkflowContext,
+        client: clients.GitHub | clients.GitLab,
+        pattern: str,
+    ) -> bool:
+        """Check if any files match a glob pattern in remote repository.
+
+        Args:
+            context: Workflow context
+            client: GitHub or GitLab client
+            pattern: Glob pattern to match
+
+        Returns:
+            True if any files match the pattern
+
+        """
+        # Only GitHub supports tree API for now
+        if not isinstance(client, clients.GitHub):
+            self.logger.warning(
+                'Glob patterns for remote_file_exists only supported '
+                'for GitHub repositories, falling back to literal check'
+            )
+            content = await client.get_file_contents(context, pattern)
+            return content is not None
+
+        try:
+            # Get repository tree
+            file_paths = await client.get_repository_tree(context)
+
+            # Match against glob pattern
+            if pattern.startswith('**/'):
+                # Recursive glob
+                import fnmatch
+
+                pattern_suffix = pattern[3:]
+                for file_path in file_paths:
+                    if fnmatch.fnmatch(file_path, f'*/{pattern_suffix}'):
+                        return True
+                    if fnmatch.fnmatch(file_path, pattern_suffix):
+                        return True
+            else:
+                # Regular glob
+                import fnmatch
+
+                for file_path in file_paths:
+                    if fnmatch.fnmatch(file_path, pattern):
+                        return True
+
+            return False
+
+        except (httpx.HTTPError, RuntimeError, ValueError) as exc:
+            self.logger.warning(
+                'Failed to check glob pattern %s remotely: %s', pattern, exc
+            )
+            # Fall back to literal check
+            content = await client.get_file_contents(context, pattern)
+            return content is not None
 
     async def _check_remote_client(
         self, condition: models.WorkflowCondition

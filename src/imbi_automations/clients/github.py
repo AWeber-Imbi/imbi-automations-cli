@@ -620,3 +620,66 @@ class GitHub(http.BaseURLHTTPClient):
                     exc,
                 )
                 raise
+
+    async def get_repository_tree(
+        self, context: 'models.WorkflowContext', ref: str | None = None
+    ) -> list[str]:
+        """Get repository file tree recursively from GitHub.
+
+        Uses Git Trees API to fetch all files in repository efficiently.
+        Limited to 100,000 entries / 7MB response size.
+
+        Args:
+            context: Workflow context containing GitHub repository info
+            ref: Git ref (branch/tag/commit). Defaults to default branch
+
+        Returns:
+            List of file paths in the repository
+
+        Raises:
+            ValueError: If no GitHub repository in context
+            httpx.HTTPError: If API request fails
+
+        """
+        if not context.github_repository:
+            raise ValueError('No GitHub repository in workflow context')
+
+        base_path = self._repository_base_path(context=context)
+        org = context.github_repository.owner.login
+        repo = context.github_repository.name
+        tree_sha = ref if ref else context.github_repository.default_branch
+
+        LOGGER.debug(
+            'Getting repository tree for %s/%s at %s', org, repo, tree_sha
+        )
+
+        try:
+            response = await self.get(
+                f'{base_path}/git/trees/{tree_sha}?recursive=true'
+            )
+            response.raise_for_status()
+
+            tree_data = response.json()
+            tree_entries = tree_data.get('tree', [])
+
+            # Extract file paths (exclude directories)
+            file_paths = [
+                entry['path']
+                for entry in tree_entries
+                if entry.get('type') == 'blob'
+            ]
+
+            LOGGER.debug(
+                'Retrieved %d files from %s/%s tree',
+                len(file_paths),
+                org,
+                repo,
+            )
+
+            return file_paths
+
+        except httpx.HTTPError as exc:
+            LOGGER.error(
+                'Failed to get repository tree for %s/%s: %s', org, repo, exc
+            )
+            raise
