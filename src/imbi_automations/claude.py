@@ -91,6 +91,7 @@ class Claude(mixins.WorkflowLoggerMixin):
         self.session_id = None
         await self.client.connect()
 
+        success = False
         for cycle in range(1, action.max_cycles + 1):
             self._log_verbose_info(
                 'Claude Code cycle %d/%d for action %s',
@@ -102,9 +103,16 @@ class Claude(mixins.WorkflowLoggerMixin):
                 LOGGER.debug(
                     'Claude Code %s cycle %d successful', action.name, cycle
                 )
+                success = True
                 break
 
         await self.client.disconnect()
+
+        if not success:
+            raise RuntimeError(
+                f'Claude Code action {action.name} failed after '
+                f'{action.max_cycles} cycles'
+            )
 
     async def query(self, prompt: str) -> str:
         """Use the Anthropic API to run one-off tasks"""

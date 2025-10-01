@@ -74,6 +74,10 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             self.workflow.configuration.condition_type,
             self.workflow.configuration.conditions,
         ):
+            self.logger.info(
+                'Remote workflow conditions not met for %s',
+                context.imbi_project.name,
+            )
             return False
 
         if self.workflow.configuration.git.clone:
@@ -89,18 +93,26 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             self.workflow.configuration.condition_type,
             self.workflow.configuration.conditions,
         ):
+            self.logger.info(
+                'Workflow conditions not met for %s', context.imbi_project.name
+            )
             return False
 
         try:
             for action in self.workflow.configuration.actions:
                 await self._execute_action(context, action)
-                if action.committable and self.configuration.ai_commits:
-                    if self.configuration.claude_code.enabled:
+                if action.committable:
+                    if (
+                        self.configuration.ai_commits
+                        and self.configuration.claude_code.enabled
+                    ):
                         await self.claude.commit(context, action)
                     else:
                         await self._fallback_commit(context, action)
         except RuntimeError as exc:
-            self.logger.error('Error executing action: %s', exc)
+            self.logger.error(
+                'Error executing action "%s": %s', action.name, exc
+            )
             working_directory.cleanup()
             return False
 

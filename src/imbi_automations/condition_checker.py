@@ -76,29 +76,50 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
         results = []
         for condition in conditions:
             self.logger.debug('%r', condition.model_dump())
-            client = await self._check_remote_client(condition)
-            file_path = (
-                condition.remote_file
-                or condition.remote_file_exists
+
+            # Skip local-only conditions (file_exists, file_not_exists)
+            if condition.file_exists or condition.file_not_exists:
+                continue
+
+            # Handle remote conditions
+            if (
+                condition.remote_file_exists
                 or condition.remote_file_not_exists
-            )
-            content = await client.get_file_contents(context, file_path)
-            if condition.remote_file_contains and condition.remote_file:
-                results.append(
-                    (content is not None)
-                    and (condition.remote_file_contains in content)
-                )
-            elif (
-                condition.remote_file_doesnt_contain and condition.remote_file
+                or condition.remote_file_contains
+                or condition.remote_file_doesnt_contain
             ):
-                results.append(
-                    (content is not None)
-                    and (condition.remote_file_doesnt_contain not in content)
+                client = await self._check_remote_client(condition)
+                file_path = (
+                    condition.remote_file
+                    or condition.remote_file_exists
+                    or condition.remote_file_not_exists
                 )
-            elif condition.remote_file_exists:
-                results.append(content is not None)
-            elif condition.remote_file_not_exists:
-                results.append(content is None)
+                content = await client.get_file_contents(context, file_path)
+
+                if condition.remote_file_contains and condition.remote_file:
+                    results.append(
+                        (content is not None)
+                        and (condition.remote_file_contains in content)
+                    )
+                elif (
+                    condition.remote_file_doesnt_contain
+                    and condition.remote_file
+                ):
+                    results.append(
+                        (content is not None)
+                        and (
+                            condition.remote_file_doesnt_contain not in content
+                        )
+                    )
+                elif condition.remote_file_exists:
+                    results.append(content is not None)
+                elif condition.remote_file_not_exists:
+                    results.append(content is None)
+
+        # If no remote conditions checked, defer to local check
+        if not results:
+            return True
+
         if condition_type == models.WorkflowConditionType.any:
             return any(results)
         return all(results)

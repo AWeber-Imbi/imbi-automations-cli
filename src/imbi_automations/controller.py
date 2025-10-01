@@ -236,11 +236,10 @@ class Automation(mixins.WorkflowLoggerMixin):
         ):
             if self.args.exit_on_error:
                 raise RuntimeError(
-                    f'Workflow failed for {project.name} ({project.id})'
+                    f'Workflow execution failed for {project.name} '
+                    f'({project.id}) - check logs above for details'
                 )
-            self.logger.error(
-                'Workflow failed for %s (%i)', project.name, project.id
-            )
+            # Error details already logged by workflow_engine
             return False
         self._log_verbose_info(
             'Completed processing %s (%i)', project.name, project.id
