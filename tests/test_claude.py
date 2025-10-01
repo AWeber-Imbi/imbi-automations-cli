@@ -1065,11 +1065,18 @@ class ClaudeTestCase(base.AsyncTestCase):
             self.working_directory / 'workflow' / 'test-validation.md'
         ).write_text('Validator prompt')
 
-        # Mock all cycles failing
-        with mock.patch.object(
-            claude_instance, '_execute_cycle', return_value=False
-        ) as mock_cycle:
+        # Mock all cycles failing - should raise RuntimeError
+        with (
+            mock.patch.object(
+                claude_instance, '_execute_cycle', return_value=False
+            ) as mock_cycle,
+            self.assertRaises(RuntimeError) as context_manager,
+        ):
             await claude_instance.execute(self.context, action)
+
+        # Verify error message
+        self.assertIn('test-action', str(context_manager.exception))
+        self.assertIn('failed after 2 cycles', str(context_manager.exception))
 
         # Verify all cycles were attempted
         self.assertEqual(mock_cycle.call_count, 2)
