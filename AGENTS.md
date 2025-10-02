@@ -127,6 +127,43 @@ The system supports multiple transformation types through the workflow action sy
 7. **Utility Actions**: Helper operations for common workflow tasks
 8. **Template System**: Jinja2-based file generation with full project context
 
+#### File Action Usage
+
+File actions manipulate files with glob pattern support:
+
+```toml
+# Copy single file from workflow to repository
+[[actions]]
+name = "copy-gitignore"
+type = "file"
+command = "copy"
+source = "workflow/.gitignore"              # From workflow directory
+destination = "repository/.gitignore"       # To cloned repository
+
+# Copy multiple files with glob pattern
+[[actions]]
+name = "copy-terraform-workflows"
+type = "file"
+command = "copy"
+source = "workflow/terraform-*.yml"         # Glob pattern
+destination = "repository/.github/workflows/"  # Directory
+
+# Move file within repository
+[[actions]]
+name = "move-config"
+type = "file"
+command = "move"
+source = "repository/old-config.yml"
+destination = "repository/config/new-config.yml"
+```
+
+**Important Notes:**
+- `source` and `destination` are relative to working directory
+- Use `workflow/` prefix for files in your workflow directory
+- Use `repository/` prefix for files in the cloned git repository
+- Glob patterns supported: `*`, `?`, `[...]`, `**/` for recursive
+- For glob patterns, destination must be a directory
+
 #### Template Action Usage
 
 Template actions render Jinja2 templates with full workflow context:
@@ -135,10 +172,10 @@ Template actions render Jinja2 templates with full workflow context:
 [[actions]]
 name = "render-config"
 type = "template"
-source_path = "templates"           # Directory (recursively renders all files)
+source_path = "templates"                   # Directory (recursively renders all files)
 # OR
-source_path = "config.yaml.j2"      # Single file
-destination_path = "repository/config/"  # Relative to working directory
+source_path = "config.yaml.j2"              # Single file
+destination_path = "repository/config/"     # Relative to working directory
 ```
 
 **Important Notes:**
