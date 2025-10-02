@@ -49,7 +49,8 @@ The body should contain:
 - The exact text: 🤖 Generated with [Imbi Automations](https://github.com/AWeber-Imbi/).
 
 Use git trailers for attribution:
-Authored-By: {commit_author}
+
+Authored-By: { commit_author }
 Co-Authored-By: Claude <noreply@anthropic.com>
 
 Execute this exact command structure:
@@ -57,7 +58,7 @@ git commit -m "imbi-automations: {workflow_name}: {action_name}" \
   -m "{your detailed description here}
 
 🤖 Generated with [Imbi Automations](https://github.com/AWeber-Imbi/)." \
-  --trailer "Authored-By: {commit_author}" \
+  --trailer "Authored-By: { commit_author }" \
   --trailer "Co-Authored-By: Claude <noreply@anthropic.com>"
 
 CRITICAL: Replace ONLY the placeholders in curly braces. The subject must be "imbi-automations: {workflow_name}: {action_name}" with NO modifications.
