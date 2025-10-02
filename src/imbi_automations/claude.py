@@ -57,7 +57,7 @@ class Claude(mixins.WorkflowLoggerMixin):
             self.anthropic = anthropic.AsyncAnthropic()
         self.anthropic_model = config.anthropic.model
         self.commit_author = commit_author
-        self.config = config.claude_code
+        self.config = config
         self.logger: logging.Logger = LOGGER
         self.working_directory = working_directory
         self.client = self._create_client()
@@ -254,16 +254,19 @@ class Claude(mixins.WorkflowLoggerMixin):
             Path to generated settings.json file
 
         """
-        claude_dir = self.working_directory.parent / '.claude'
+        claude_dir = self.working_directory / '.claude'
         agents_dir = claude_dir / 'agents'
         agents_dir.mkdir(parents=True, exist_ok=True)
         prompt_path = pathlib.Path(__file__).parent / 'prompts'
 
         # Copy over agent prompts
         for action in AgentType:
-            source = prompt_path / f'{action}.md'
+            source = prompt_path / f'{action}.md.j2'
             destination = agents_dir / f'{action}.md'
-            utils.copy(source, destination)
+            with destination.open('w', encoding='utf-8') as handle:
+                handle.write(
+                    prompts.render(source=source, **self.config.model_dump())
+                )
 
         # Create custom settings.json - disable all global settings
         settings = claude_dir / 'settings.json'

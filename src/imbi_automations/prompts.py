@@ -8,19 +8,22 @@ from imbi_automations import models, utils
 
 
 def render(
-    context: models.WorkflowContext,
-    source: pathlib.Path | str,
+    context: models.WorkflowContext | None = None,
+    source: pathlib.Path | str | None = None,
     **kwargs: typing.Any,
 ) -> str | bytes:
+    if not source:
+        raise ValueError('source is required')
     env = jinja2.Environment(
         autoescape=False,  # noqa: S701
         undefined=jinja2.StrictUndefined,
     )
-    env.globals['extract_image_from_dockerfile'] = (
-        lambda dockerfile: utils.extract_image_from_dockerfile(
-            context, dockerfile
+    if context:
+        env.globals['extract_image_from_dockerfile'] = (
+            lambda dockerfile: utils.extract_image_from_dockerfile(
+                context, dockerfile
+            )
         )
-    )
     if isinstance(source, pathlib.Path):
         source = source.read_text(encoding='utf-8')
     template = env.from_string(source)

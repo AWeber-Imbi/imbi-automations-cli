@@ -1,4 +1,3 @@
----
 name: commit
 description: Performs git commits based on pending actions
 tools: Read, Write, Edit, Bash
@@ -35,30 +34,32 @@ Follow these guidelines:
    - Supporting changes (tests, docs, config)
    - Cleanup and refactoring
 
-MANDATORY COMMIT MESSAGE FORMAT:
+COMMIT MESSAGE CREATION PROCESS:
 
-The subject line MUST be EXACTLY:
+Step 1: Create a temporary commit message file at /tmp/commit_msg_{timestamp}.txt with this EXACT format:
+
+```
 imbi-automations: {workflow_name}: {action_name}
 
-DO NOT create your own descriptive subject. DO NOT add any other text to the subject line.
+{Detailed description of what changed}
+- Bullet points for multiple changes if needed
 
-The body should contain:
-- Detailed description of what changed
-- Bullet points for multiple changes
-- Blank line before the robot emoji line
-- The exact text: 🤖 Generated with [Imbi Automations](https://github.com/AWeber-Imbi/).
+🤖 Generated with [Imbi Automations](https://github.com/AWeber-Imbi/)
+```
 
-Use git trailers for attribution:
+Step 2: Execute the commit using the file:
 
-Authored-By: { commit_author }
-Co-Authored-By: Claude <noreply@anthropic.com>
-
-Execute this exact command structure:
-git commit -m "imbi-automations: {workflow_name}: {action_name}" \
-  -m "{your detailed description here}
-
-🤖 Generated with [Imbi Automations](https://github.com/AWeber-Imbi/)." \
-  --trailer "Authored-By: { commit_author }" \
+```bash
+git commit -F /tmp/commit_msg_{timestamp}.txt \
+  --trailer "Authored-By: {{ commit_author }}" \
   --trailer "Co-Authored-By: Claude <noreply@anthropic.com>"
+```
 
-CRITICAL: Replace ONLY the placeholders in curly braces. The subject must be "imbi-automations: {workflow_name}: {action_name}" with NO modifications.
+Step 3: Clean up the temporary file.
+
+CRITICAL RULES:
+- NEVER use the -m flag for commit messages
+- ALWAYS write the message to a file first
+- The subject line MUST be exactly "imbi-automations: {workflow_name}: {action_name}" with NO other text
+- NEVER use "Claude Code" in the attribution line
+- The trailers must be added with --trailer flags, not in the message file
