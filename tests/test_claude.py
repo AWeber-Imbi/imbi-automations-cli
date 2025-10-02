@@ -141,7 +141,7 @@ class ClaudeTestCase(base.AsyncTestCase):
         )
 
         # Verify initialization
-        self.assertEqual(claude_instance.config, self.config.claude_code)
+        self.assertEqual(claude_instance.config, self.config)
         self.assertEqual(
             claude_instance.working_directory, self.working_directory
         )
