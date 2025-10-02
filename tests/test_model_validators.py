@@ -28,7 +28,8 @@ class ModelValidatorsTestCase(unittest.TestCase):
             image='x',
             path=pathlib.Path('Dockerfile'),
         )
-        self.assertEqual(action.path, pathlib.Path('Dockerfile'))
+        # path is now a ResourceUrl, check string representation
+        self.assertEqual(str(action.path), 'file://dockerfile/')
 
     def test_docker_pull_forbids_path(self) -> None:
         with self.assertRaises(ValueError):

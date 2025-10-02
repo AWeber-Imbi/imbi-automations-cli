@@ -16,6 +16,7 @@ from imbi_automations import (
     prompts,
     shell,
     template_action,
+    utils,
     workflow_filter,
 )
 
@@ -314,14 +315,15 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
     ) -> None:
         match action.command:
             case models.WorkflowGitActionCommand.extract:
+                destination_file = utils.resolve_path(
+                    context, action.destination
+                )
                 if (
                     not await git.extract_file_from_commit(
                         working_directory=context.working_directory
                         / 'repository',
                         source_file=action.source,
-                        destination_file=context.working_directory
-                        / 'extracted'
-                        / action.destination,
+                        destination_file=destination_file,
                         commit_keyword=action.commit_keyword,
                         search_strategy=action.search_strategy
                         or 'before_last_match',
@@ -331,6 +333,17 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
                     raise RuntimeError(
                         f'Git extraction failed for {action.source}'
                     )
+            case models.WorkflowGitActionCommand.clone:
+                destination_path = utils.resolve_path(
+                    context, action.destination
+                )
+                await git.clone_to_directory(
+                    working_directory=context.working_directory,
+                    clone_url=action.url,
+                    destination=destination_path,
+                    branch=action.branch,
+                    depth=action.depth,
+                )
             case _:
                 raise RuntimeError(f'Unsupported command: {action.command}')
 

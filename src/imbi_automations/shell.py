@@ -3,7 +3,7 @@ import logging
 import shlex
 import subprocess
 
-from imbi_automations import mixins, models, prompts
+from imbi_automations import mixins, models, prompts, utils
 
 LOGGER = logging.getLogger(__name__)
 
@@ -47,14 +47,10 @@ class Shell(mixins.WorkflowLoggerMixin):
         if not command_args:
             raise ValueError('Empty command after template rendering')
 
-        # Set working directory to repository if it exists
+        # Set working directory using resolve_path
         cwd = None
         if context.working_directory:
-            repository_dir = context.working_directory / 'repository'
-            if repository_dir.exists():
-                cwd = repository_dir
-            else:
-                cwd = context.working_directory
+            cwd = utils.resolve_path(context, action.working_directory)
 
         try:
             # Execute command asynchronously

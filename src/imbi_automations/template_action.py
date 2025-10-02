@@ -23,11 +23,9 @@ async def execute(
         RuntimeError: If template rendering fails
 
     """
-    # Source path is relative to workflow directory
-    source_path = context.workflow.path / action.source_path
-
-    # Destination path is relative to working directory
-    destination_path = context.working_directory / action.destination_path
+    # Resolve source and destination paths
+    source_path = utils.resolve_path(context, action.source_path)
+    destination_path = utils.resolve_path(context, action.destination_path)
 
     if not source_path.exists():
         raise RuntimeError(

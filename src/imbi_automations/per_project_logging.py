@@ -103,6 +103,8 @@ class ProjectLogCapture:
 
                 # Ensure console/stream handlers don't show DEBUG logs
                 # while still allowing our MemoryHandler to capture them
+                # Only adjust handlers at NOTSET (unset/default), not ones
+                # explicitly set to DEBUG by --debug flag
                 for handler in root_logger.handlers:
                     # Only adjust StreamHandler (console), not MemoryHandlers
                     if (
@@ -110,7 +112,7 @@ class ProjectLogCapture:
                         and not isinstance(
                             handler, logging.handlers.MemoryHandler
                         )
-                        and handler.level < logging.INFO
+                        and handler.level == logging.NOTSET
                     ):
                         # Ensure console stays at INFO minimum
                         handler.setLevel(logging.INFO)

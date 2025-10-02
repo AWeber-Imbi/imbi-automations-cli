@@ -68,9 +68,18 @@ class Docker(mixins.WorkflowLoggerMixin):
         )
         image = f'{image}:{action.tag}' if ':' not in image else image
         source_path = str(action.source)
-        dest_path = (
-            context.working_directory / 'extracted' / action.destination
+        # Extract destination URL path - yarl parses file://name as host,
+        # not path
+        dest_url = str(action.destination)
+        import yarl
+
+        dest_uri = yarl.URL(dest_url)
+        dest_filename = (
+            str(dest_uri.host + dest_uri.path.lstrip('/'))
+            if dest_uri.host
+            else dest_uri.path.lstrip('/')
         )
+        dest_path = context.working_directory / 'extracted' / dest_filename
         self._log_verbose_info(
             'Extracting %s from container %s to %s',
             source_path,

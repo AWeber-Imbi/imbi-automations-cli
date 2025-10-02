@@ -35,6 +35,7 @@ from .imbi import (
     ImbiProjectType,
 )
 from .workflow import (
+    ResourceUrl,
     Workflow,
     WorkflowAction,
     WorkflowActions,
@@ -98,6 +99,7 @@ __all__ = [
     'ImbiProjectFactTypeEnum',
     'ImbiProjectType',
     'ImbiProjectLink',
+    'ResourceUrl',
     'Workflow',
     'WorkflowAction',
     'WorkflowActions',

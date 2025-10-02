@@ -5,7 +5,7 @@ import pathlib
 import re
 import shutil
 
-from imbi_automations import mixins, models
+from imbi_automations import mixins, models, utils
 
 LOGGER = logging.getLogger(__name__)
 
@@ -59,7 +59,7 @@ class FileActions(mixins.WorkflowLoggerMixin):
         action: models.WorkflowFileAction,
     ) -> None:
         """Execute append file action."""
-        file_path = self._resolve_path(context, action.path)
+        file_path = utils.resolve_path(context, action.path)
 
         self._log_verbose_info('Appending to file: %s', file_path)
 
@@ -82,7 +82,7 @@ class FileActions(mixins.WorkflowLoggerMixin):
     ) -> None:
         """Execute copy file action with glob pattern support."""
         source_str = str(action.source)
-        dest_path = self._resolve_path(context, action.destination)
+        dest_path = utils.resolve_path(context, action.destination)
 
         # Check if source contains glob patterns
         if any(char in source_str for char in ['*', '?', '[']):
@@ -97,7 +97,7 @@ class FileActions(mixins.WorkflowLoggerMixin):
         dest_path: pathlib.Path,
     ) -> None:
         """Copy a single file or directory."""
-        source_path = self._resolve_path(context, source)
+        source_path = utils.resolve_path(context, source)
 
         self._log_verbose_info('Copying %s to %s', source_path, dest_path)
 
@@ -179,7 +179,7 @@ class FileActions(mixins.WorkflowLoggerMixin):
         action: models.WorkflowFileAction,
     ) -> None:
         """Delete a specific file or directory by path."""
-        file_path = self._resolve_path(context, action.path)
+        file_path = utils.resolve_path(context, action.path)
         self._log_verbose_info('Deleting file/directory: %s', file_path)
 
         if file_path.exists():
@@ -230,8 +230,8 @@ class FileActions(mixins.WorkflowLoggerMixin):
         action: models.WorkflowFileAction,
     ) -> None:
         """Execute move file action."""
-        source_path = self._resolve_path(context, action.source)
-        dest_path = self._resolve_path(context, action.destination)
+        source_path = utils.resolve_path(context, action.source)
+        dest_path = utils.resolve_path(context, action.destination)
 
         self._log_verbose_info('Moving %s to %s', source_path, dest_path)
 
@@ -253,8 +253,8 @@ class FileActions(mixins.WorkflowLoggerMixin):
         action: models.WorkflowFileAction,
     ) -> None:
         """Execute rename file action."""
-        source_path = self._resolve_path(context, action.source)
-        dest_path = self._resolve_path(context, action.destination)
+        source_path = utils.resolve_path(context, action.source)
+        dest_path = utils.resolve_path(context, action.destination)
 
         self._log_verbose_info('Renaming %s to %s', source_path, dest_path)
 
@@ -276,7 +276,7 @@ class FileActions(mixins.WorkflowLoggerMixin):
         action: models.WorkflowFileAction,
     ) -> None:
         """Execute write file action."""
-        file_path = self._resolve_path(context, action.path)
+        file_path = utils.resolve_path(context, action.path)
 
         self._log_verbose_info('Writing to file: %s', file_path)
 
@@ -292,12 +292,3 @@ class FileActions(mixins.WorkflowLoggerMixin):
                 f.write(action.content)
 
         self._log_verbose_info('Successfully wrote to %s', file_path)
-
-    @staticmethod
-    def _resolve_path(
-        context: models.WorkflowContext, path: pathlib.Path
-    ) -> pathlib.Path:
-        """Resolve a path relative to the working directory."""
-        if path.is_absolute():
-            return path
-        return context.working_directory / path

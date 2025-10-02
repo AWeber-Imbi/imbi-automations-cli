@@ -1,11 +1,10 @@
 import logging
 import pathlib
 import re
-import typing
 
 import httpx
 
-from imbi_automations import clients, mixins, models
+from imbi_automations import clients, mixins, models, utils
 
 LOGGER = logging.getLogger(__name__)
 
@@ -39,24 +38,29 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
         self._set_workflow_logger(context.workflow)
 
         results = []
-        base_path = context.working_directory / 'repository'
         for condition in conditions:
             if condition.file_contains and condition.file:
-                results.append(self._check_file_contains(base_path, condition))
+                file_path = utils.resolve_path(context, condition.file)
+                results.append(self._check_file_contains(file_path, condition))
             elif condition.file_doesnt_contain and condition.file:
+                file_path = utils.resolve_path(context, condition.file)
                 results.append(
-                    self._check_file_doesnt_contain(base_path, condition)
+                    self._check_file_doesnt_contain(file_path, condition)
                 )
             elif condition.file_exists:
+                file_path = utils.resolve_path(context, condition.file_exists)
                 results.append(
                     self._check_file_pattern_exists(
-                        base_path, condition.file_exists
+                        file_path, condition.file_exists
                     )
                 )
             elif condition.file_not_exists:
+                file_path = utils.resolve_path(
+                    context, condition.file_not_exists
+                )
                 results.append(
                     not self._check_file_pattern_exists(
-                        base_path, condition.file_not_exists
+                        file_path, condition.file_not_exists
                     )
                 )
         if condition_type == models.WorkflowConditionType.any:
@@ -142,10 +146,9 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
         return all(results)
 
     def _check_file_contains(
-        self, base_path: pathlib.Path, condition: models.WorkflowCondition
+        self, file_path: pathlib.Path, condition: models.WorkflowCondition
     ) -> bool:
         """Check if a file contains the specified string"""
-        file_path = base_path / condition.file
         if not file_path.is_file():
             self.logger.debug(
                 'File %s does not exist for contains check', condition.file
@@ -163,10 +166,9 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
         return condition.file_contains in file_content
 
     def _check_file_doesnt_contain(
-        self, base_path: pathlib.Path, condition: models.WorkflowCondition
+        self, file_path: pathlib.Path, condition: models.WorkflowCondition
     ) -> bool:
         """Check that a file exists & does not contain the specified string"""
-        file_path = base_path / condition.file
         if not file_path.is_file():
             self.logger.debug(
                 'File %s does not exist for negative contains check',
@@ -186,27 +188,53 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
 
     @staticmethod
     def _check_file_pattern_exists(
-        base_path: pathlib.Path, file: str | typing.Pattern
+        file_path: pathlib.Path, resource_url: models.ResourceUrl
     ) -> bool:
         """Check if a file exists using exact path, glob pattern, or regex.
 
         Args:
-            base_path: Repository base path
-            file: File path string, glob pattern, or compiled regex pattern
+            file_path: Resolved file path from utils.resolve_path
+            resource_url: Original ResourceUrl for pattern extraction
 
         Returns:
             True if file exists (string), glob matches (pattern), or
             regex matches any file (Pattern)
 
         """
-        if isinstance(file, str):
+        # Extract the path component from the ResourceUrl
+        file_str = str(resource_url).split('://', 1)[-1]
+
+        if isinstance(file_str, str):
             # Check if it's a glob pattern (contains *, ?, [, or **)
-            if any(char in file for char in ['*', '?', '[']):
-                # Use rglob for patterns starting with **
-                if file.startswith('**/'):
-                    matches = base_path.rglob(file[3:])
+            if any(char in file_str for char in ['*', '?', '[']):
+                # For glob patterns, we need to separate the base directory
+                # from the pattern. file_path includes the pattern
+                # components, so we need to find the base directory by
+                # removing pattern parts
+
+                # Split the pattern to find the first component with glob chars
+                parts = file_str.split('/')
+                pattern_idx = 0
+                for i, part in enumerate(parts):
+                    if any(char in part for char in ['*', '?', '[']):
+                        pattern_idx = i
+                        break
+
+                # Get base directory by going up from file_path
+                # The number of times to go up depends on how many parts
+                # are in the pattern
+                base_path = file_path
+                for _ in range(len(parts) - pattern_idx):
+                    base_path = base_path.parent
+
+                # Now apply the glob pattern
+                if file_str.startswith('**/'):
+                    # Recursive glob
+                    pattern = file_str[3:]  # Remove **/ prefix
+                    matches = base_path.rglob(pattern)
                 else:
-                    matches = base_path.glob(file)
+                    # Regular glob
+                    matches = base_path.glob(file_str)
 
                 # Return True if any files match the pattern
                 try:
@@ -216,15 +244,16 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
                     return False
 
             # Regular file path check
-            return (base_path / file).exists()
+            return file_path.exists()
 
         try:
-            pattern = re.compile(file)
+            pattern = re.compile(file_str)
         except re.error as exc:
-            raise RuntimeError(f'Invalid regex pattern "{file}"') from exc
+            raise RuntimeError(f'Invalid regex pattern "{file_str}"') from exc
 
-        for file_path in base_path.rglob('*'):
-            relative_path = file_path.relative_to(base_path)
+        base_path = file_path.parent
+        for path in base_path.rglob('*'):
+            relative_path = path.relative_to(base_path)
             if pattern.search(str(relative_path)):
                 return True
         return False

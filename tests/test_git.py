@@ -1433,9 +1433,7 @@ class WorkflowEngineGitTestCase(base.AsyncTestCase):
         mock_extract.assert_called_once_with(
             working_directory=self.working_directory / 'repository',
             source_file=pathlib.Path('test.txt'),
-            destination_file=self.working_directory
-            / 'extracted'
-            / pathlib.Path('extracted/test.txt'),
+            destination_file=self.working_directory / 'extracted/test.txt',
             commit_keyword='TEST',
             search_strategy=models.WorkflowGitActionCommitMatchStrategy.before_first_match,
         )
@@ -1461,9 +1459,7 @@ class WorkflowEngineGitTestCase(base.AsyncTestCase):
         mock_extract.assert_called_once_with(
             working_directory=self.working_directory / 'repository',
             source_file=pathlib.Path('config.py'),
-            destination_file=self.working_directory
-            / 'extracted'
-            / pathlib.Path('extracted/config.py'),
+            destination_file=self.working_directory / 'extracted/config.py',
             commit_keyword='BREAKING',
             search_strategy='before_last_match',
         )

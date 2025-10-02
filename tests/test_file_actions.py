@@ -5,7 +5,7 @@ import re
 import tempfile
 import unittest
 
-from imbi_automations import file_actions, models
+from imbi_automations import file_actions, models, utils
 from tests import base
 
 
@@ -385,23 +385,37 @@ class FileActionsTestCase(base.AsyncTestCase):
 
     def test_resolve_path_relative(self) -> None:
         """Test path resolution for relative paths."""
-        relative_path = pathlib.Path('relative/file.txt')
-        resolved = self.file_executor._resolve_path(
-            self.context, relative_path
+        # Import ResourceUrl from models
+        import pydantic
+
+        from imbi_automations.models import ResourceUrl
+
+        relative_path = 'relative/file.txt'
+        resource_url = pydantic.TypeAdapter(ResourceUrl).validate_python(
+            relative_path
         )
+        resolved = utils.resolve_path(self.context, resource_url)
 
         expected = self.working_directory / 'relative/file.txt'
         self.assertEqual(resolved, expected)
 
     def test_resolve_path_absolute(self) -> None:
-        """Test path resolution for absolute paths."""
-        absolute_path = pathlib.Path('/absolute/path/file.txt')
-        resolved = self.file_executor._resolve_path(
-            self.context, absolute_path
-        )
+        """Test path resolution for absolute file:// URLs."""
+        # Import ResourceUrl from models
+        import pydantic
 
-        # Absolute paths should be returned as-is
-        self.assertEqual(resolved, absolute_path)
+        from imbi_automations.models import ResourceUrl
+
+        absolute_path = 'file:///absolute/path/file.txt'
+        resource_url = pydantic.TypeAdapter(ResourceUrl).validate_python(
+            absolute_path
+        )
+        resolved = utils.resolve_path(self.context, resource_url)
+
+        # file:// URLs should resolve relative to working directory
+        # (not as absolute paths)
+        expected = self.working_directory / 'absolute/path/file.txt'
+        self.assertEqual(resolved, expected)
 
 
 if __name__ == '__main__':

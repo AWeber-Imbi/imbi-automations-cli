@@ -130,6 +130,78 @@ async def clone_repository(
     return head_commit
 
 
+async def clone_to_directory(
+    working_directory: pathlib.Path,
+    clone_url: str,
+    destination: pathlib.Path,
+    branch: str | None = None,
+    depth: int | None = None,
+) -> str:
+    """Clone a repository to a specific destination directory.
+
+    Args:
+        working_directory: Base working directory
+        clone_url: Repository clone URL (HTTPS or SSH)
+        destination: Destination subdirectory relative to working_directory
+        branch: Specific branch to clone (optional)
+        depth: Clone depth (None for full clone, int for shallow clone)
+
+    Returns:
+        HEAD commit hash of the cloned repository
+
+    Raises:
+        RuntimeError: If git clone fails
+
+    """
+    dest_dir = working_directory / destination
+
+    LOGGER.debug('Cloning repository %s to %s', clone_url, dest_dir)
+
+    command = ['git', 'clone']
+    if branch:
+        command.extend(['--branch', branch])
+    if depth is not None:
+        command.extend(['--depth', str(depth)])
+    command.extend([clone_url, str(dest_dir)])
+
+    try:
+        returncode, stdout, stderr = await _run_git_command(
+            command,
+            cwd=working_directory,
+            timeout_seconds=600,  # 10 minute timeout
+        )
+    except TimeoutError as exc:
+        raise RuntimeError(
+            f'Failed to clone repository {clone_url}: {exc}'
+        ) from exc
+
+    if returncode != 0:
+        raise RuntimeError(
+            f'Git clone failed (exit code {returncode}): {stderr or stdout}'
+        )
+    LOGGER.debug('Successfully cloned repository to %s', dest_dir)
+
+    # Get the HEAD commit hash of the cloned repository
+    command = ['git', 'rev-parse', 'HEAD']
+    returncode, stdout, stderr = await _run_git_command(
+        command, cwd=dest_dir, timeout_seconds=30
+    )
+
+    if returncode != 0:
+        # Check if this is an empty repository
+        if 'unknown revision' in stderr or 'ambiguous argument' in stderr:
+            LOGGER.debug('Cloned empty repository (no commits)')
+            return ''
+        raise RuntimeError(
+            f'Git rev-parse HEAD failed (exit code {returncode}): '
+            f'{stderr or stdout}'
+        )
+
+    head_commit = stdout.strip()
+    LOGGER.debug('Cloned repository HEAD commit: %s', head_commit[:8])
+    return head_commit
+
+
 async def add_files(working_directory: pathlib.Path, files: list[str]) -> None:
     """Add files to git staging area.
 

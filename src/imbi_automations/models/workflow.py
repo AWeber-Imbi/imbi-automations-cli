@@ -1,12 +1,29 @@
 import enum
 import pathlib
 import typing
-from typing import Annotated, ClassVar, Literal
 
 import pydantic
+import pydantic_core
+from pydantic import AnyUrl
 
-from . import github, gitlab, imbi
-from .validators import CommandRulesMixin, ExclusiveGroupsMixin, Variant
+from . import github, gitlab, imbi, validators
+
+
+def _ensure_file_scheme(v: str | pathlib.Path | pydantic.AnyUrl) -> str:
+    if isinstance(v, pathlib.Path):
+        return f'file://{v}'
+    if isinstance(v, str) and '://' not in v:
+        return f'file://{v}'
+    return v
+
+
+ResourceUrl: type[AnyUrl] = typing.Annotated[
+    pydantic.AnyUrl,
+    pydantic.BeforeValidator(_ensure_file_scheme),
+    pydantic_core.core_schema.url_schema(
+        allowed_schemes=['extracted', 'repository', 'workflow', 'file']
+    ),
+]
 
 
 class WorkflowFilter(pydantic.BaseModel):
@@ -56,7 +73,7 @@ class WorkflowAction(pydantic.BaseModel):
 
 
 class WorkflowCallableAction(WorkflowAction):
-    type: Literal['callable'] = 'callable'
+    type: typing.Literal['callable'] = 'callable'
     import_name: str = pydantic.Field(alias='import')
     callable: typing.Callable
     args: list[typing.Any] = pydantic.Field(default_factory=list)
@@ -64,7 +81,7 @@ class WorkflowCallableAction(WorkflowAction):
 
 
 class WorkflowClaudeAction(WorkflowAction):
-    type: Literal['claude'] = 'claude'
+    type: typing.Literal['claude'] = 'claude'
     prompt: str | None
     validation_prompt: str | None = None
     max_cycles: int = 3
@@ -77,26 +94,26 @@ class WorkflowDockerActionCommand(enum.StrEnum):
     push = 'push'
 
 
-class WorkflowDockerAction(CommandRulesMixin, WorkflowAction):
-    type: Literal['docker'] = 'docker'
+class WorkflowDockerAction(validators.CommandRulesMixin, WorkflowAction):
+    type: typing.Literal['docker'] = 'docker'
     command: WorkflowDockerActionCommand
     image: str
     tag: str = 'latest'
-    path: pathlib.Path | None = None
+    path: ResourceUrl | None = None
     source: pathlib.Path | None = None
-    destination: pathlib.Path | None = None
+    destination: ResourceUrl | None = None
     committable: bool = False
 
     # CommandRulesMixin configuration
-    command_field: ClassVar[str] = 'command'
-    required_fields: ClassVar[dict[object, set[str]]] = {
+    command_field: typing.ClassVar[str] = 'command'
+    required_fields: typing.ClassVar[dict[object, set[str]]] = {
         WorkflowDockerActionCommand.build: {'path'},
         WorkflowDockerActionCommand.extract: {'source', 'destination'},
         WorkflowDockerActionCommand.pull: set(),
         WorkflowDockerActionCommand.push: set(),
     }
     # image and tag are always allowed; include them accordingly
-    allowed_fields: ClassVar[dict[object, set[str]]] = {
+    allowed_fields: typing.ClassVar[dict[object, set[str]]] = {
         WorkflowDockerActionCommand.build: {'image', 'tag', 'path'},
         WorkflowDockerActionCommand.extract: {
             'image',
@@ -129,19 +146,19 @@ def _file_delete_requires_path_or_pattern(model: 'WorkflowFileAction') -> None:
         )
 
 
-class WorkflowFileAction(CommandRulesMixin, WorkflowAction):
-    type: Literal['file'] = 'file'
+class WorkflowFileAction(validators.CommandRulesMixin, WorkflowAction):
+    type: typing.Literal['file'] = 'file'
     command: WorkflowFileActionCommand
-    path: pathlib.Path | None = None
+    path: ResourceUrl | None = None
     pattern: typing.Pattern | None = None
-    source: pathlib.Path | None = None
-    destination: pathlib.Path | None = None
+    source: ResourceUrl | None = None
+    destination: ResourceUrl | None = None
     content: str | bytes | None = None
     encoding: str = 'utf-8'
 
     # CommandRulesMixin configuration
-    command_field: ClassVar[str] = 'command'
-    required_fields: ClassVar[dict[object, set[str]]] = {
+    command_field: typing.ClassVar[str] = 'command'
+    required_fields: typing.ClassVar[dict[object, set[str]]] = {
         WorkflowFileActionCommand.append: {'path', 'content'},
         WorkflowFileActionCommand.copy: {'source', 'destination'},
         WorkflowFileActionCommand.delete: set(),
@@ -149,7 +166,7 @@ class WorkflowFileAction(CommandRulesMixin, WorkflowAction):
         WorkflowFileActionCommand.rename: {'source', 'destination'},
         WorkflowFileActionCommand.write: {'path', 'content'},
     }
-    allowed_fields: ClassVar[dict[object, set[str]]] = {
+    allowed_fields: typing.ClassVar[dict[object, set[str]]] = {
         WorkflowFileActionCommand.append: {'path', 'content', 'encoding'},
         WorkflowFileActionCommand.copy: {'source', 'destination'},
         WorkflowFileActionCommand.delete: {'path', 'pattern'},
@@ -157,11 +174,14 @@ class WorkflowFileAction(CommandRulesMixin, WorkflowAction):
         WorkflowFileActionCommand.rename: {'source', 'destination'},
         WorkflowFileActionCommand.write: {'path', 'content', 'encoding'},
     }
-    validators: ClassVar[tuple] = (_file_delete_requires_path_or_pattern,)
+    validators: typing.ClassVar[tuple] = (
+        _file_delete_requires_path_or_pattern,
+    )
 
 
 class WorkflowGitActionCommand(enum.StrEnum):
     extract = 'extract'
+    clone = 'clone'
 
 
 class WorkflowGitActionCommitMatchStrategy(enum.StrEnum):
@@ -170,19 +190,31 @@ class WorkflowGitActionCommitMatchStrategy(enum.StrEnum):
 
 
 class WorkflowGitAction(WorkflowAction):
-    type: Literal['git'] = 'git'
+    type: typing.Literal['git'] = 'git'
     command: WorkflowGitActionCommand
-    source: pathlib.Path
-    destination: pathlib.Path
+    source: pathlib.Path | None = None
+    destination: ResourceUrl | None = None
+    url: str | None = None
+    branch: str | None = None
+    depth: int | None = None
     commit_keyword: str | None = None
     search_strategy: WorkflowGitActionCommitMatchStrategy | None = None
     ignore_errors: bool = False
+    committable: bool = False
 
     @pydantic.model_validator(mode='after')
-    def set_committable_for_extract(self) -> 'WorkflowGitAction':
-        """Set committable to False for extract commands."""
+    def validate_git_action_fields(self) -> 'WorkflowGitAction':
+        """Validate required fields based on command type."""
         if self.command == WorkflowGitActionCommand.extract:
             self.committable = False
+            if not self.source or not self.destination:
+                raise ValueError(
+                    'extract command requires source and destination'
+                )
+        elif self.command == WorkflowGitActionCommand.clone:
+            self.committable = False
+            if not self.url or not self.destination:
+                raise ValueError('clone command requires url and destination')
         return self
 
 
@@ -191,20 +223,21 @@ class WorkflowGitHubCommand(enum.StrEnum):
 
 
 class WorkflowGitHubAction(WorkflowAction):
-    type: Literal['github'] = 'github'
+    type: typing.Literal['github'] = 'github'
     command: WorkflowGitHubCommand
 
 
 class WorkflowShellAction(WorkflowAction):
-    type: Literal['shell'] = 'shell'
+    type: typing.Literal['shell'] = 'shell'
     command: str
     ignore_errors: bool = False
+    working_directory: ResourceUrl = ResourceUrl('repository://')
 
 
 class WorkflowTemplateAction(WorkflowAction):
-    type: Literal['template'] = 'template'
-    source_path: pathlib.Path
-    destination_path: pathlib.Path
+    type: typing.Literal['template'] = 'template'
+    source_path: ResourceUrl
+    destination_path: ResourceUrl
 
 
 class WorkflowUtilityCommands(enum.StrEnum):
@@ -215,14 +248,14 @@ class WorkflowUtilityCommands(enum.StrEnum):
 
 
 class WorkflowUtilityAction(WorkflowAction):
-    type: Literal['utility'] = 'utility'
+    type: typing.Literal['utility'] = 'utility'
     command: WorkflowUtilityCommands
-    path: pathlib.Path | None = None
+    path: ResourceUrl | None = None
     args: list[typing.Any] = pydantic.Field(default_factory=list)
     kwargs: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
 
 
-WorkflowActions = Annotated[
+WorkflowActions = typing.Annotated[
     (
         WorkflowCallableAction
         | WorkflowClaudeAction
@@ -243,12 +276,12 @@ class WorkflowConditionRemoteClient(enum.StrEnum):
     gitlab = 'gitlab'
 
 
-class WorkflowCondition(ExclusiveGroupsMixin, pydantic.BaseModel):
-    file_exists: str | typing.Pattern | None = None
-    file_not_exists: str | typing.Pattern | None = None
+class WorkflowCondition(validators.ExclusiveGroupsMixin, pydantic.BaseModel):
+    file_exists: ResourceUrl | None = None
+    file_not_exists: ResourceUrl | None = None
     file_contains: str | None = None
     file_doesnt_contain: str | None = None
-    file: pathlib.Path | None = None
+    file: ResourceUrl | None = None
 
     remote_client: WorkflowConditionRemoteClient = (
         WorkflowConditionRemoteClient.github
@@ -260,35 +293,37 @@ class WorkflowCondition(ExclusiveGroupsMixin, pydantic.BaseModel):
     remote_file: pathlib.Path | None = None
 
     # ExclusiveGroupsMixin configuration
-    variants_a: ClassVar[tuple[Variant, ...]] = (
-        Variant(name='file_exists', requires_all=('file_exists',)),
-        Variant(name='file_not_exists', requires_all=('file_not_exists',)),
-        Variant(
+    variants_a: typing.ClassVar[tuple[validators.Variant, ...]] = (
+        validators.Variant(name='file_exists', requires_all=('file_exists',)),
+        validators.Variant(
+            name='file_not_exists', requires_all=('file_not_exists',)
+        ),
+        validators.Variant(
             name='file_contains',
             requires_all=('file_contains', 'file'),
             paired=(('file_contains', 'file'),),
         ),
-        Variant(
+        validators.Variant(
             name='file_doesnt_contain',
             requires_all=('file_doesnt_contain', 'file'),
             paired=(('file_doesnt_contain', 'file'),),
         ),
     )
 
-    variants_b: ClassVar[tuple[Variant, ...]] = (
-        Variant(
+    variants_b: typing.ClassVar[tuple[validators.Variant, ...]] = (
+        validators.Variant(
             name='remote_file_exists', requires_all=('remote_file_exists',)
         ),
-        Variant(
+        validators.Variant(
             name='remote_file_not_exists',
             requires_all=('remote_file_not_exists',),
         ),
-        Variant(
+        validators.Variant(
             name='remote_file_contains',
             requires_all=('remote_file_contains', 'remote_file'),
             paired=(('remote_file_contains', 'remote_file'),),
         ),
-        Variant(
+        validators.Variant(
             name='remote_file_doesnt_contain',
             requires_all=('remote_file_doesnt_contain', 'remote_file'),
             paired=(('remote_file_doesnt_contain', 'remote_file'),),

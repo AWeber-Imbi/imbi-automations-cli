@@ -278,12 +278,12 @@ class ShellTestCase(base.AsyncTestCase):
 
         await self.shell_executor.execute(self.context, action)
 
-        # Should use working_directory instead of repository_dir
+        # Should use repository_dir (resolved from repository://)
         mock_subprocess.assert_called_once_with(
             'pwd',
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
-            cwd=self.working_directory,
+            cwd=self.repository_dir,
         )
 
     @mock.patch('asyncio.create_subprocess_exec')

@@ -6,6 +6,7 @@ import tomllib
 import typing
 
 import pydantic
+import yarl
 
 from imbi_automations import models
 
@@ -105,6 +106,45 @@ def append_file(file: str, value: str) -> str:
     except (OSError, UnicodeDecodeError) as exc:
         LOGGER.error('Failed to append to file %s: %s', file, exc)
         return 'failed'
+
+
+def resolve_path(
+    context: models.WorkflowContext, path: models.ResourceUrl | None
+) -> pathlib.Path:
+    """Resolve a path relative to the workflow context working directory."""
+    if path is None:
+        raise ValueError('Path cannot be None')
+    path_str = str(path)
+    if not isinstance(path_str, str):
+        raise TypeError(
+            f'str(path) returned {type(path_str)}, expected str. '
+            f'path type: {type(path)}, path value: {path!r}'
+        )
+    uri = yarl.URL(path_str)
+
+    # Handle yarl.URL parsing: scheme://path parses as host, not path
+    # When we have a host (e.g., repository://file.txt), yarl treats
+    # "file.txt" as the host, not the path. We need to reconstruct the
+    # path component from both host and path.
+    if uri.host:
+        # Use pathlib to ensure proper path separator when combining
+        path_component = str(pathlib.Path(uri.host) / uri.path.lstrip('/'))
+    else:
+        path_component = uri.path.lstrip('/')
+
+    match uri.scheme:
+        case 'extracted':
+            return context.working_directory / str(uri.scheme) / path_component
+        case 'repository':
+            return context.working_directory / str(uri.scheme) / path_component
+        case 'workflow':
+            return context.working_directory / str(uri.scheme) / path_component
+        case 'file':
+            return context.working_directory / path_component
+        case '':
+            return context.working_directory / path_component
+        case _:
+            raise RuntimeError(f'Invalid path scheme: {uri.scheme}')
 
 
 def sanitize(url: str | pydantic.AnyUrl) -> str:

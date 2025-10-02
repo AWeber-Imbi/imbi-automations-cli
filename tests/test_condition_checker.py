@@ -1,7 +1,6 @@
 """Comprehensive tests for the condition_checker module."""
 
 import pathlib
-import re
 import tempfile
 import unittest
 from unittest import mock
@@ -91,7 +90,9 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
 
     def test_check_file_exists_success(self) -> None:
         """Test file_exists condition with existing file."""
-        condition = models.WorkflowCondition(file_exists='package.json')
+        condition = models.WorkflowCondition(
+            file_exists='repository://package.json'
+        )
 
         result = self.checker.check(
             self.context, models.WorkflowConditionType.all, [condition]
@@ -101,7 +102,9 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
 
     def test_check_file_exists_failure(self) -> None:
         """Test file_exists condition with non-existent file."""
-        condition = models.WorkflowCondition(file_exists='nonexistent.txt')
+        condition = models.WorkflowCondition(
+            file_exists='repository://nonexistent.txt'
+        )
 
         result = self.checker.check(
             self.context, models.WorkflowConditionType.all, [condition]
@@ -111,7 +114,9 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
 
     def test_check_file_not_exists_success(self) -> None:
         """Test file_not_exists condition with non-existent file."""
-        condition = models.WorkflowCondition(file_not_exists='nonexistent.txt')
+        condition = models.WorkflowCondition(
+            file_not_exists='repository://nonexistent.txt'
+        )
 
         result = self.checker.check(
             self.context, models.WorkflowConditionType.all, [condition]
@@ -121,7 +126,9 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
 
     def test_check_file_not_exists_failure(self) -> None:
         """Test file_not_exists condition with existing file."""
-        condition = models.WorkflowCondition(file_not_exists='package.json')
+        condition = models.WorkflowCondition(
+            file_not_exists='repository://package.json'
+        )
 
         result = self.checker.check(
             self.context, models.WorkflowConditionType.all, [condition]
@@ -132,7 +139,7 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
     def test_check_file_contains_success(self) -> None:
         """Test file_contains condition with matching content."""
         condition = models.WorkflowCondition(
-            file_contains='test-project', file=pathlib.Path('package.json')
+            file_contains='test-project', file='repository://package.json'
         )
 
         result = self.checker.check(
@@ -145,7 +152,7 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
         """Test file_contains condition with non-matching content."""
         condition = models.WorkflowCondition(
             file_contains='nonexistent-content',
-            file=pathlib.Path('package.json'),
+            file='repository://package.json',
         )
 
         result = self.checker.check(
@@ -157,7 +164,7 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
     def test_check_file_contains_missing_file(self) -> None:
         """Test file_contains condition with missing file."""
         condition = models.WorkflowCondition(
-            file_contains='test', file=pathlib.Path('missing.txt')
+            file_contains='test', file='repository://missing.txt'
         )
 
         result = self.checker.check(
@@ -167,9 +174,11 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
         self.assertFalse(result)
 
     def test_check_regex_pattern_exists_success(self) -> None:
-        """Test file_exists with regex pattern that matches."""
-        pattern = re.compile(r'.*\.py$')
-        condition = models.WorkflowCondition(file_exists=pattern)
+        """Test file_exists with glob pattern that matches."""
+        # Use glob pattern instead of compiled regex
+        condition = models.WorkflowCondition(
+            file_exists='repository://**/*.py'
+        )
 
         result = self.checker.check(
             self.context, models.WorkflowConditionType.all, [condition]
@@ -180,9 +189,11 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
         )  # Should find src/main.py or tests/test_main.py
 
     def test_check_regex_pattern_exists_failure(self) -> None:
-        """Test file_exists with regex pattern that doesn't match."""
-        pattern = re.compile(r'.*\.go$')
-        condition = models.WorkflowCondition(file_exists=pattern)
+        """Test file_exists with glob pattern that doesn't match."""
+        # Use glob pattern instead of compiled regex
+        condition = models.WorkflowCondition(
+            file_exists='repository://**/*.go'
+        )
 
         result = self.checker.check(
             self.context, models.WorkflowConditionType.all, [condition]
@@ -191,9 +202,11 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
         self.assertFalse(result)  # No .go files
 
     def test_check_regex_pattern_not_exists_success(self) -> None:
-        """Test file_not_exists with regex pattern that doesn't match."""
-        pattern = re.compile(r'.*\.go$')
-        condition = models.WorkflowCondition(file_not_exists=pattern)
+        """Test file_not_exists with glob pattern that doesn't match."""
+        # Use glob pattern instead of compiled regex
+        condition = models.WorkflowCondition(
+            file_not_exists='repository://**/*.go'
+        )
 
         result = self.checker.check(
             self.context, models.WorkflowConditionType.all, [condition]
@@ -202,9 +215,11 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
         self.assertTrue(result)  # No .go files, so condition passes
 
     def test_check_regex_pattern_not_exists_failure(self) -> None:
-        """Test file_not_exists with regex pattern that matches."""
-        pattern = re.compile(r'.*\.py$')
-        condition = models.WorkflowCondition(file_not_exists=pattern)
+        """Test file_not_exists with glob pattern that matches."""
+        # Use glob pattern instead of compiled regex
+        condition = models.WorkflowCondition(
+            file_not_exists='repository://**/*.py'
+        )
 
         result = self.checker.check(
             self.context, models.WorkflowConditionType.all, [condition]
@@ -215,8 +230,12 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
     def test_check_condition_type_any_success(self) -> None:
         """Test condition_type 'any' with mixed conditions."""
         conditions = [
-            models.WorkflowCondition(file_exists='nonexistent.txt'),  # False
-            models.WorkflowCondition(file_exists='package.json'),  # True
+            models.WorkflowCondition(
+                file_exists='repository://nonexistent.txt'
+            ),  # False
+            models.WorkflowCondition(
+                file_exists='repository://package.json'
+            ),  # True
         ]
 
         result = self.checker.check(
@@ -228,8 +247,12 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
     def test_check_condition_type_any_failure(self) -> None:
         """Test condition_type 'any' with all failing conditions."""
         conditions = [
-            models.WorkflowCondition(file_exists='nonexistent1.txt'),  # False
-            models.WorkflowCondition(file_exists='nonexistent2.txt'),  # False
+            models.WorkflowCondition(
+                file_exists='repository://nonexistent1.txt'
+            ),  # False
+            models.WorkflowCondition(
+                file_exists='repository://nonexistent2.txt'
+            ),  # False
         ]
 
         result = self.checker.check(
@@ -241,8 +264,12 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
     def test_check_condition_type_all_success(self) -> None:
         """Test condition_type 'all' with all passing conditions."""
         conditions = [
-            models.WorkflowCondition(file_exists='package.json'),  # True
-            models.WorkflowCondition(file_exists='requirements.txt'),  # True
+            models.WorkflowCondition(
+                file_exists='repository://package.json'
+            ),  # True
+            models.WorkflowCondition(
+                file_exists='repository://requirements.txt'
+            ),  # True
         ]
 
         result = self.checker.check(
@@ -254,8 +281,12 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
     def test_check_condition_type_all_failure(self) -> None:
         """Test condition_type 'all' with mixed conditions."""
         conditions = [
-            models.WorkflowCondition(file_exists='package.json'),  # True
-            models.WorkflowCondition(file_exists='nonexistent.txt'),  # False
+            models.WorkflowCondition(
+                file_exists='repository://package.json'
+            ),  # True
+            models.WorkflowCondition(
+                file_exists='repository://nonexistent.txt'
+            ),  # False
         ]
 
         result = self.checker.check(
@@ -266,53 +297,49 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
 
     def test_check_file_pattern_exists_string_success(self) -> None:
         """Test _check_file_pattern_exists with string path."""
+        resource_url = models.ResourceUrl('repository://package.json')
+        file_path = self.repository_dir / 'package.json'
         result = condition_checker.ConditionChecker._check_file_pattern_exists(
-            self.repository_dir, 'package.json'
+            file_path, resource_url
         )
         self.assertTrue(result)
 
     def test_check_file_pattern_exists_string_failure(self) -> None:
         """Test _check_file_pattern_exists with non-existent string path."""
+        resource_url = models.ResourceUrl('repository://nonexistent.txt')
+        file_path = self.repository_dir / 'nonexistent.txt'
         result = condition_checker.ConditionChecker._check_file_pattern_exists(
-            self.repository_dir, 'nonexistent.txt'
+            file_path, resource_url
         )
         self.assertFalse(result)
 
     def test_check_file_pattern_exists_regex_success(self) -> None:
-        """Test _check_file_pattern_exists with matching regex pattern."""
-        pattern = re.compile(r'.*\.json$')
+        """Test _check_file_pattern_exists with glob pattern."""
+        resource_url = models.ResourceUrl('repository://**/*.json')
+        file_path = self.repository_dir / '**' / '*.json'
         result = condition_checker.ConditionChecker._check_file_pattern_exists(
-            self.repository_dir, pattern
+            file_path, resource_url
         )
         self.assertTrue(result)  # Should find package.json
 
     def test_check_file_pattern_exists_regex_failure(self) -> None:
-        """Test _check_file_pattern_exists with non-matching regex pattern."""
-        pattern = re.compile(r'.*\.go$')
+        """Test _check_file_pattern_exists with non-matching glob pattern."""
+        resource_url = models.ResourceUrl('repository://**/*.go')
+        file_path = self.repository_dir / '**' / '*.go'
         result = condition_checker.ConditionChecker._check_file_pattern_exists(
-            self.repository_dir, pattern
+            file_path, resource_url
         )
         self.assertFalse(result)  # No .go files
 
     def test_check_file_pattern_exists_invalid_regex(self) -> None:
-        """Test _check_file_pattern_exists with invalid regex pattern."""
-        # Test that invalid regex patterns can be created and cause errors
-        with self.assertRaises(re.error):
-            re.compile(r'[')  # Invalid regex - unmatched bracket
-
-        # The current implementation handles string patterns as exact paths,
-        # so test with an invalid regex pattern object
-        try:
-            # '[' is treated as a file path, not regex
-            result = (
-                condition_checker.ConditionChecker._check_file_pattern_exists(
-                    self.repository_dir, r'['
-                )
-            )
-            self.assertFalse(result)  # File named '[' doesn't exist
-        except RuntimeError:
-            # If it does raise an exception, that's also acceptable behavior
-            pass
+        """Test _check_file_pattern_exists with file that doesn't exist."""
+        # Test with a filename that doesn't exist (no special handling needed)
+        resource_url = models.ResourceUrl('repository://nonexistent')
+        file_path = self.repository_dir / 'nonexistent'
+        result = condition_checker.ConditionChecker._check_file_pattern_exists(
+            file_path, resource_url
+        )
+        self.assertFalse(result)  # File doesn't exist
 
     @mock.patch('imbi_automations.clients.GitHub.get_instance')
     async def test_check_remote_no_conditions(
@@ -488,36 +515,33 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
     def test_check_file_contains_helper_success(self) -> None:
         """Test _check_file_contains helper method."""
         condition = models.WorkflowCondition(
-            file_contains='test-project', file=pathlib.Path('package.json')
+            file_contains='test-project', file='repository://package.json'
         )
+        file_path = self.repository_dir / 'package.json'
 
-        result = self.checker._check_file_contains(
-            self.repository_dir, condition
-        )
+        result = self.checker._check_file_contains(file_path, condition)
 
         self.assertTrue(result)
 
     def test_check_file_contains_helper_failure(self) -> None:
         """Test _check_file_contains helper with non-matching content."""
         condition = models.WorkflowCondition(
-            file_contains='nonexistent', file=pathlib.Path('package.json')
+            file_contains='nonexistent', file='repository://package.json'
         )
+        file_path = self.repository_dir / 'package.json'
 
-        result = self.checker._check_file_contains(
-            self.repository_dir, condition
-        )
+        result = self.checker._check_file_contains(file_path, condition)
 
         self.assertFalse(result)
 
     def test_check_file_contains_helper_missing_file(self) -> None:
         """Test _check_file_contains helper method with missing file."""
         condition = models.WorkflowCondition(
-            file_contains='test', file=pathlib.Path('missing.txt')
+            file_contains='test', file='repository://missing.txt'
         )
+        file_path = self.repository_dir / 'missing.txt'
 
-        result = self.checker._check_file_contains(
-            self.repository_dir, condition
-        )
+        result = self.checker._check_file_contains(file_path, condition)
 
         self.assertFalse(result)
 
@@ -527,12 +551,11 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
         (self.repository_dir / 'directory_not_file').mkdir()
 
         condition = models.WorkflowCondition(
-            file_contains='test', file=pathlib.Path('directory_not_file')
+            file_contains='test', file='repository://directory_not_file'
         )
+        file_path = self.repository_dir / 'directory_not_file'
 
-        result = self.checker._check_file_contains(
-            self.repository_dir, condition
-        )
+        result = self.checker._check_file_contains(file_path, condition)
 
         self.assertFalse(result)
 
