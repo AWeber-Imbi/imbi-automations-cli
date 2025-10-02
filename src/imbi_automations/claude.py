@@ -2,6 +2,7 @@ import enum
 import json
 import logging
 import pathlib
+from email import utils as email_utils
 
 import anthropic
 import claude_code_sdk
@@ -263,9 +264,15 @@ class Claude(mixins.WorkflowLoggerMixin):
         for action in AgentType:
             source = prompt_path / f'{action}.md.j2'
             destination = agents_dir / f'{action}.md'
+            commit_author = email_utils.parseaddr(self.commit_author)
             with destination.open('w', encoding='utf-8') as handle:
                 handle.write(
-                    prompts.render(source=source, **self.config.model_dump())
+                    prompts.render(
+                        source=source,
+                        commit_author=self.commit_author,
+                        commit_author_name=commit_author[0],
+                        commit_author_address=commit_author[1],
+                    )
                 )
 
         # Create custom settings.json - disable all global settings
