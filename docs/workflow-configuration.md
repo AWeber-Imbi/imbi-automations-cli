@@ -84,7 +84,7 @@ description = "Updates Python dependencies to latest compatible versions while m
 
 Base prompt file for Claude Code actions. This prompt is prepended to all Claude actions in the workflow unless they specify their own prompt.
 
-**Type:** `ResourceUrl` (path to prompt template file)
+**Type:** [`ResourceUrl`](actions/index.md#resourceurl-path-system) (path to prompt template file)
 
 **Default:** None
 

@@ -22,7 +22,7 @@ Path to template file or directory. Can be:
 - Single `.j2` template file
 - Directory containing `.j2` files (recursively rendered)
 
-**Type:** `ResourceUrl` (string path)
+**Type:** [`ResourceUrl`](index.md#resourceurl-path-system) (string path)
 
 **Conventions:**
 - Template files should use `.j2` extension
@@ -34,7 +34,7 @@ Path to template file or directory. Can be:
 
 Output location for rendered templates.
 
-**Type:** `ResourceUrl` (string path)
+**Type:** [`ResourceUrl`](index.md#resourceurl-path-system) (string path)
 
 **Behavior:**
 

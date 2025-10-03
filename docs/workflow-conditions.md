@@ -172,7 +172,7 @@ Local conditions are checked after cloning the repository. They have **full file
 
 Check if a file or directory exists locally.
 
-**Type:** `ResourceUrl` (path relative to repository)
+**Type:** [`ResourceUrl`](actions/index.md#resourceurl-path-system) (path relative to repository)
 
 **Supports:** Glob patterns
 

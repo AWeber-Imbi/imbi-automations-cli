@@ -19,7 +19,7 @@ Workflow actions are the core building blocks of automation in Imbi Automations.
 
 ## ResourceUrl Path System
 
-All file and resource paths in actions use the `ResourceUrl` type, which supports multiple schemes for flexible file addressing:
+All file and resource paths in actions use the [`ResourceUrl`](index.md#resourceurl-path-system) type, which supports multiple schemes for flexible file addressing:
 
 ### Path Schemes
 

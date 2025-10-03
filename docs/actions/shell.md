@@ -34,7 +34,7 @@ The shell command to execute. Supports full Jinja2 template syntax for variable 
 
 Directory to execute the command in.
 
-**Type:** `ResourceUrl` (string path)
+**Type:** [`ResourceUrl`](index.md#resourceurl-path-system) (string path)
 
 **Default:** `repository:///` (the cloned repository directory)
 

@@ -34,7 +34,7 @@ The utility operation to perform.
 
 File path for operations that require file input.
 
-**Type:** `ResourceUrl` (string path)
+**Type:** [`ResourceUrl`](index.md#resourceurl-path-system) (string path)
 
 **Default:** None
 
