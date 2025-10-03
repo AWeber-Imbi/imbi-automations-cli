@@ -75,11 +75,11 @@ Repository = "https://github.com/AWeber-Imbi/imbi-automations"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/imbi_automations"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"src/imbi_automations/actions/prompts" = "imbi_automations/actions/prompts"
-"src/imbi_automations/claude-code" = "imbi_automations/claude-code"
-"src/imbi_automations/prompts" = "imbi_automations/prompts"
+include = [
+  "src/imbi_automations/actions/prompts/*.j2",
+  "src/imbi_automations/prompts/*.j2",
+  "src/imbi_automations/claude-code/**/*",
+]
 
 [tool.hatch.envs.default.scripts]
 github-pages = ["mkdocs gh-deploy --force"]
