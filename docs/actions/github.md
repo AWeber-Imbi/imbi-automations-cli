@@ -8,13 +8,15 @@ GitHub actions provide GitHub-specific operations like environment synchronizati
 [[actions]]
 name = "action-name"
 type = "github"
-operation = "sync_environments"
-# Operation-specific fields
+command = "sync_environments"
+# Command-specific fields
 ```
 
-## Operations
+## Commands
 
 ### sync_environments
+
+**Status:** ❌ Not yet implemented (raises NotImplementedError)
 
 Synchronize GitHub repository environments with Imbi project environments.
 
@@ -23,16 +25,18 @@ Synchronize GitHub repository environments with Imbi project environments.
 [[actions]]
 name = "sync-github-envs"
 type = "github"
-operation = "sync_environments"
+command = "sync_environments"
 ```
 
-**Behavior:**
-- Reads environments from Imbi project
-- Creates/updates GitHub repository environments
-- Synchronizes environment variables and secrets
-- Maintains environment protection rules
+**Planned Behavior:**
+- Read environments from Imbi project
+- Create/update GitHub repository environments
+- Synchronize environment variables and secrets
+- Maintain environment protection rules
 
 ## Common Use Cases
+
+**Note:** These examples show the intended usage once `sync_environments` is implemented.
 
 ### Environment Synchronization
 
@@ -43,7 +47,7 @@ remote_file_exists = ".github/workflows/deploy.yml"
 [[actions]]
 name = "ensure-environments"
 type = "github"
-operation = "sync_environments"
+command = "sync_environments"
 ```
 
 ### Post-Deployment Updates
@@ -57,12 +61,21 @@ command = "deploy.sh"
 [[actions]]
 name = "update-environments"
 type = "github"
-operation = "sync_environments"
+command = "sync_environments"
 ```
 
-## Implementation Notes
+## Implementation Status
 
-- Requires GitHub API access
-- Uses authenticated GitHub client
-- Respects GitHub API rate limits
-- Idempotent operations (safe to re-run)
+Currently, the GitHub action type is defined but not implemented:
+- `sync_environments`: Raises `NotImplementedError`
+
+The action type exists in the codebase but will error when executed. This is likely a placeholder for future functionality.
+
+## Planned Implementation Notes
+
+When implemented, the action would:
+- Require GitHub API access with appropriate permissions
+- Use authenticated GitHub client from workflow context
+- Respect GitHub API rate limits
+- Provide idempotent operations (safe to re-run)
+- Integrate with Imbi project environment configuration
