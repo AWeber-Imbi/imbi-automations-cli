@@ -2,6 +2,58 @@
 
 Workflows define automated processes to execute across projects. Each workflow is a directory containing a `config.toml` file that specifies actions, conditions, filters, and behavior.
 
+## Three Levels of Project Selection
+
+Imbi Automations provides three complementary mechanisms to control which projects and actions execute:
+
+### 1. **Project Filters** - Pre-filter before processing
+Target specific project subsets using Imbi metadata:
+- Project IDs, types, facts
+- GitHub identifier requirements
+- GitHub workflow status
+
+**When evaluated:** Before any workflow processing begins
+**Effect:** Projects that don't match are never processed
+**Use for:** Broad targeting (e.g., "only Python APIs")
+
+### 2. **Workflow Conditions** - Skip entire workflow
+Check repository state to determine if workflow should run:
+- Remote conditions (checked via API before cloning)
+- Local conditions (checked after cloning repository)
+
+**When evaluated:** Once per project, before any actions execute
+**Effect:** If conditions fail, entire workflow is skipped for that project
+**Use for:** Workflow applicability (e.g., "only if Dockerfile exists")
+
+### 3. **Action Conditions** - Skip individual actions
+Check repository state before each action:
+- Same condition types as workflow conditions
+- Evaluated independently for each action
+
+**When evaluated:** Before each action executes
+**Effect:** If conditions fail, only that specific action is skipped
+**Use for:** Conditional behavior (e.g., "update setup.py only if it exists")
+
+### Evaluation Flow
+
+```
+1. Filter projects        → Reduces: 1000 projects → 50 matching projects
+   [filter] section
+
+2. Check workflow         → Skips: 50 projects → 30 applicable projects
+   conditions
+   [[conditions]]
+
+3. Clone repository       → Working with: 30 repositories
+
+4. For each action:       → Executes: Only when action conditions pass
+   Check action
+   conditions
+   [[actions.conditions]]
+```
+
+**Key Insight:** Use filters for broad targeting, workflow conditions for applicability checks, and action conditions for per-action variation within applicable projects.
+
 ## Workflow Structure
 
 ```
