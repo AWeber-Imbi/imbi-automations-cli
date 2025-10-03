@@ -1,21 +1,25 @@
 """File action operations for workflow execution."""
 
-import logging
 import pathlib
 import re
 import shutil
 
 from imbi_automations import mixins, models, utils
 
-LOGGER = logging.getLogger(__name__)
-
 
 class FileActions(mixins.WorkflowLoggerMixin):
     """File action executor for workflow actions."""
 
-    def __init__(self, verbose: bool = False) -> None:
+    def __init__(
+        self,
+        configuration: models.Configuration,
+        context: models.WorkflowContext,
+        verbose: bool,
+    ) -> None:
         super().__init__(verbose)
-        self.logger = LOGGER
+        self._set_workflow_logger(context.workflow)
+        self.configuration = configuration
+        self.context = context
 
     async def execute(
         self,

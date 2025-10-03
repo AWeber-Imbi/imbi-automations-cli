@@ -5,18 +5,14 @@ import shutil
 import tempfile
 
 from imbi_automations import (
-    claude,
+    actions,
     clients,
+    committer,
     condition_checker,
-    docker,
-    file_actions,
     git,
     mixins,
     models,
     prompts,
-    shell,
-    template_action,
-    utils,
     workflow_filter,
 )
 
@@ -34,12 +30,13 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         verbose: bool = False,
     ) -> None:
         super().__init__(verbose)
-        self.claude: claude.Claude | None = None
+        self.actions = actions.Actions(configuration, verbose)
+        self.committer = committer.Committer(configuration, verbose)
         self.condition_checker = condition_checker.ConditionChecker(
             configuration, verbose
         )
-        self.github = clients.GitHub.get_instance(config=configuration.github)
         self.configuration = configuration
+        self.github = clients.GitHub.get_instance(config=configuration.github)
         self.last_error_path: pathlib.Path | None = None
         self.workflow = workflow
         self.workflow_filter = workflow_filter.Filter(
@@ -66,8 +63,6 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         context = self._setup_workflow_run(
             project, working_directory.name, github_repository, gitlab_project
         )
-
-        self.claude = claude.Claude(self.configuration, context, self.verbose)
 
         if not await self.condition_checker.check_remote(
             context,
@@ -98,25 +93,20 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             )
             return False
 
-        try:
-            for action in self.workflow.configuration.actions:
+        for action in self.workflow.configuration.actions:
+            try:
                 await self._execute_action(context, action)
-                if action.committable:
-                    if (
-                        self.configuration.ai_commits
-                        and self.configuration.claude_code.enabled
-                    ):
-                        await self.claude.commit(context, action)
-                    else:
-                        await self._fallback_commit(context, action)
-        except RuntimeError as exc:
-            self.logger.error(
-                'Error executing action "%s": %s', action.name, exc
-            )
-            if self.configuration.preserve_on_error:
-                self._preserve_error_state(context, working_directory)
-            working_directory.cleanup()
-            return False
+            except RuntimeError as exc:
+                self.logger.error(
+                    'Error executing action "%s": %s', action.name, exc
+                )
+                if self.configuration.preserve_on_error:
+                    self._preserve_error_state(context, working_directory)
+                working_directory.cleanup()
+                return False
+
+            if action.committable:
+                await self.committer.commit(context, action)
 
         if (
             self.workflow.configuration.github.create_pull_request
@@ -247,194 +237,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
                 'Skipping action %s due to failed condition check', action.name
             )
             return
-
-        match action.type:
-            case models.WorkflowActionTypes.callable:
-                await self._execute_action_callable(context, action)
-            case models.WorkflowActionTypes.claude:
-                await self._execute_action_claude(context, action)
-            case models.WorkflowActionTypes.docker:
-                await self._execute_action_docker(context, action)
-            case models.WorkflowActionTypes.file:
-                await self._execute_action_file(context, action)
-            case models.WorkflowActionTypes.git:
-                await self._execute_action_git(context, action)
-            case models.WorkflowActionTypes.github:
-                await self._execute_action_github(context, action)
-            case models.WorkflowActionTypes.shell:
-                await self._execute_action_shell(context, action)
-            case models.WorkflowActionTypes.template:
-                await self._execute_action_template(context, action)
-            case models.WorkflowActionTypes.utility:
-                await self._execute_action_utility(context, action)
-            case _:
-                raise RuntimeError(f'Unsupported action type: {action.type}')
-
-    async def _execute_action_callable(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowCallableAction,
-    ) -> None:
-        """Execute the callable action."""
-        raise NotImplementedError('Callable actions not yet supported')
-
-    async def _execute_action_claude(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowClaudeAction,
-    ) -> None:
-        """Execute the Claude Code action."""
-        await self.claude.execute(action)
-
-    async def _execute_action_docker(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowDockerAction,
-    ) -> None:
-        """Execute the docker action."""
-        docker_executor = docker.Docker(verbose=self.verbose)
-        await docker_executor.execute(context, action)
-
-    async def _execute_action_file(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowFileAction,
-    ) -> None:
-        """Execute the file action."""
-        file_executor = file_actions.FileActions(verbose=self.verbose)
-        await file_executor.execute(context, action)
-
-    @staticmethod
-    async def _execute_action_git(
-        context: models.WorkflowContext, action: models.WorkflowGitAction
-    ) -> None:
-        match action.command:
-            case models.WorkflowGitActionCommand.extract:
-                destination_file = utils.resolve_path(
-                    context, action.destination
-                )
-                if (
-                    not await git.extract_file_from_commit(
-                        working_directory=context.working_directory
-                        / 'repository',
-                        source_file=action.source,
-                        destination_file=destination_file,
-                        commit_keyword=action.commit_keyword,
-                        search_strategy=action.search_strategy
-                        or 'before_last_match',
-                    )
-                    and not action.ignore_errors
-                ):
-                    raise RuntimeError(
-                        f'Git extraction failed for {action.source}'
-                    )
-            case models.WorkflowGitActionCommand.clone:
-                destination_path = utils.resolve_path(
-                    context, action.destination
-                )
-                await git.clone_to_directory(
-                    working_directory=context.working_directory,
-                    clone_url=action.url,
-                    destination=destination_path,
-                    branch=action.branch,
-                    depth=action.depth,
-                )
-            case _:
-                raise RuntimeError(f'Unsupported command: {action.command}')
-
-    async def _execute_action_github(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowGitHubAction,
-    ) -> None:
-        """Execute the github action."""
-        match action.command:
-            case models.WorkflowGitHubCommand.sync_environments:
-                raise NotImplementedError(
-                    'GitHub sync environments not yet supported'
-                )
-            case _:
-                raise RuntimeError(f'Unsupported command: {action.command}')
-
-    async def _execute_action_shell(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowShellAction,
-    ) -> None:
-        """Execute the shell action."""
-        shell_executor = shell.Shell(verbose=self.verbose)
-        await shell_executor.execute(context, action)
-
-    async def _execute_action_template(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowTemplateAction,
-    ) -> None:
-        """Execute the template action."""
-        await template_action.execute(context, action)
-
-    async def _execute_action_utility(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowUtilityAction,
-    ) -> None:
-        """Execute the utility action."""
-        match action.command:
-            case models.WorkflowUtilityCommands.docker_tag:
-                raise NotImplementedError(
-                    'Utility docker_tag not yet supported'
-                )
-            case models.WorkflowUtilityCommands.dockerfile_from:
-                raise NotImplementedError(
-                    'Utility dockerfile_from not yet supported'
-                )
-            case models.WorkflowUtilityCommands.compare_semver:
-                raise NotImplementedError(
-                    'Utility compare_semver not yet supported'
-                )
-            case models.WorkflowUtilityCommands.parse_python_constraints:
-                raise NotImplementedError(
-                    'Utility parse_python_constraints not yet supported'
-                )
-            case _:
-                raise RuntimeError(f'Unsupported command: {action.command}')
-
-    async def _fallback_commit(
-        self, context: models.WorkflowContext, action: models.WorkflowAction
-    ) -> None:
-        """Fallback commit implementation without Claude.
-
-        - Stages all pending changes
-        - Creates a commit with required format and trailer
-        """
-        repo_dir = context.working_directory / 'repository'
-
-        # Stage all changes including deletions
-        await git.add_files(working_directory=repo_dir, files=['--all'])
-
-        # Build commit message
-        slug = context.workflow.slug or ''
-        message = (
-            f'imbi-automations: {slug} {action.name}\n\n'
-            '🤖 Generated with [Imbi Automations](https://github.com/AWeber-Imbi/).'
-        )
-
-        try:
-            commit_sha = await git.commit_changes(
-                working_directory=repo_dir,
-                message=message,
-                commit_author=self.configuration.commit_author,
-            )
-        except RuntimeError as exc:
-            self.logger.error('Fallback commit failed: %s', exc)
-            raise
-        else:
-            if commit_sha:
-                self.logger.info(
-                    'Committed changes (fallback): %s', commit_sha
-                )
-            else:
-                self.logger.info('No changes to commit (fallback)')
+        await self.actions.execute(context, action)
 
     def get_last_error_path(self) -> pathlib.Path | None:
         """Return path where error state was last preserved.

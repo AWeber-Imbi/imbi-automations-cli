@@ -1,4 +1,3 @@
-import enum
 import json
 import logging
 import pathlib
@@ -15,34 +14,7 @@ from imbi_automations import mixins, models, prompts, utils, version
 LOGGER = logging.getLogger(__name__)
 BASE_PATH = pathlib.Path(__file__).parent
 
-
-class AgentType(enum.StrEnum):
-    """Enum for available actions."""
-
-    task = 'task'
-    validator = 'validator'
-
-
 COMMIT = 'commit'
-
-
-@claude_agent_sdk.tool(
-    name='response_validator',
-    description='Validate the response format from for the final message',
-    input_schema=str,
-)
-def response_validator(message: str) -> str:
-    """Use to format the result of an agent run."""
-    LOGGER.debug('Validator tool invoked')
-    try:
-        payload = json.loads(message)
-    except json.JSONDecodeError:
-        return 'Payload not validate as JSON'
-    try:
-        models.AgentRun.model_validate(payload)
-    except pydantic.ValidationError as exc:
-        return str(exc)
-    return 'Response is valid'
 
 
 class Claude(mixins.WorkflowLoggerMixin):
@@ -50,18 +22,17 @@ class Claude(mixins.WorkflowLoggerMixin):
 
     def __init__(
         self,
-        config: models.Configuration,
+        configuration: models.Configuration,
         context: models.WorkflowContext,
         verbose: bool = False,
     ) -> None:
         super().__init__(verbose)
-        if config.anthropic.bedrock:
+        if configuration.anthropic.bedrock:
             self.anthropic = anthropic.AsyncAnthropicBedrock()
         else:
             self.anthropic = anthropic.AsyncAnthropic()
         self.agents: dict[str, types.AgentDefinition] = {}
-        self.anthropic_model = config.anthropic.model
-        self.config = config
+        self.configuration = configuration
         self.context = context
         self.logger: logging.Logger = LOGGER
         self.session_id: str | None = None
@@ -76,67 +47,17 @@ class Claude(mixins.WorkflowLoggerMixin):
         self._set_workflow_logger(self.context.workflow)
         self.client = self._create_client()
 
-    async def commit(
-        self, context: models.WorkflowContext, action: models.WorkflowAction
-    ) -> None:
-        """Leverage Claude Code to commit changes."""
-        self.session_id = None
-        self._log_verbose_info(
-            'Using Claude Code to commit changes for %s', action.name
-        )
+    async def agent_query(self, prompt: str) -> models.AgentRun:
         await self.client.connect()
-
-        # Build the commit prompt from the command template
-        commit_template = BASE_PATH / 'prompts' / 'commit.md.j2'
-        prompt = prompts.render(
-            source=commit_template,
-            action_name=action.name,
-            **self.prompt_kwargs,
-        )
-
         await self.client.query(prompt)
-        run = await self._get_response()
+        response = await self._response()
         await self.client.disconnect()
+        return response
 
-        if run.result == models.AgentRunResult.failure:
-            for phrase in ['no changes to commit', 'working tree is clean']:
-                if phrase in (run.message or '').lower():
-                    return None
-            raise RuntimeError(f'Claude Code commit failed: {run.message}')
-        return None
-
-    async def execute(self, action: models.WorkflowClaudeAction) -> None:
-        """Execute the Claude Code action."""
-        self.session_id = None
-        await self.client.connect()
-
-        success = False
-        for cycle in range(1, action.max_cycles + 1):
-            self._log_verbose_info(
-                'Claude Code cycle %d/%d for action %s',
-                cycle,
-                action.max_cycles,
-                action.name,
-            )
-            if await self._execute_cycle(action, cycle):
-                LOGGER.debug(
-                    'Claude Code %s cycle %d successful', action.name, cycle
-                )
-                success = True
-                break
-
-        await self.client.disconnect()
-
-        if not success:
-            raise RuntimeError(
-                f'Claude Code action {action.name} failed after '
-                f'{action.max_cycles} cycles'
-            )
-
-    async def query(self, prompt: str) -> str:
+    async def anthropic_query(self, prompt: str, model: str | None) -> str:
         """Use the Anthropic API to run one-off tasks"""
         message = await self.anthropic.messages.create(
-            model=self.anthropic_model,
+            model=model or self.configuration.anthropic.model,
             max_tokens=8192,
             messages=[
                 anthropic_types.MessageParam(role='user', content=prompt)
@@ -150,7 +71,7 @@ class Claude(mixins.WorkflowLoggerMixin):
         LOGGER.debug('Claude Code settings: %s', settings)
 
         agent_tools = claude_agent_sdk.create_sdk_mcp_server(
-            'agent_tools', version, [response_validator]
+            'agent_tools', version, [self._response_validator]
         )
 
         system_prompt = (BASE_PATH / 'claude-code' / 'CLAUDE.md').read_text()
@@ -198,85 +119,6 @@ class Claude(mixins.WorkflowLoggerMixin):
         )
         return claude_agent_sdk.ClaudeSDKClient(options)
 
-    async def _execute_agent(
-        self,
-        action: models.WorkflowAction | models.WorkflowClaudeAction,
-        agent: AgentType,
-    ) -> models.AgentRun:
-        prompt = self._get_prompt(action, agent)
-        await self.client.query(prompt, session_id=self.session_id)
-        return await self._get_response()
-
-    async def _execute_cycle(
-        self, action: models.WorkflowClaudeAction, cycle: int
-    ) -> bool:
-        for agent in [AgentType.task, AgentType.validator]:
-            if agent == AgentType.validator and not action.validation_prompt:
-                self.logger.debug('No validation prompt, skipping')
-                continue
-            self._log_verbose_info(
-                'Executing Claude Code %s agent %s in cycle %d',
-                agent,
-                action.name,
-                cycle,
-            )
-            execution = await self._execute_agent(action, agent)
-            LOGGER.debug('Execute agent result: %r', execution)
-            if execution.result == models.AgentRunResult.failure:
-                self.logger.error(
-                    'Claude Code %s agent %s failed in cycle %d',
-                    agent,
-                    action.name,
-                    cycle,
-                )
-                return False
-        return True
-
-    def _get_prompt(
-        self,
-        action: models.WorkflowAction | models.WorkflowClaudeAction,
-        agent: AgentType,
-    ) -> str:
-        """Return the rendered prompt for the given agent."""
-        prompt = f'Use the "{agent}" agent to complete the following task:\n\n'
-
-        if agent == AgentType.task:
-            prompt_file = (
-                self.context.working_directory / 'workflow' / action.prompt
-            )
-        elif agent == AgentType.validator:
-            prompt_file = (
-                self.context.working_directory
-                / 'workflow'
-                / action.validation_prompt
-            )
-        else:
-            raise RuntimeError(f'Unknown agent: {agent}')
-
-        if prompt_file.suffix == '.j2':
-            data = dict(self.prompt_kwargs)
-            data.update(self.context.model_dump())
-            data.update({'action': action.model_dump()})
-            for key in {'source', 'destination'}:
-                if key in data:
-                    del data[key]
-            prompt += prompts.render(self.context, prompt_file, **data)
-        else:
-            prompt += prompt_file.read_text(encoding='utf-8')
-        return prompt
-
-    async def _get_response(self) -> models.AgentRun:
-        async for message in self.client.receive_response():
-            response = self._parse_message(message)
-            if response and isinstance(response, models.AgentRun):
-                return response
-
-        return models.AgentRun(
-            result=models.AgentRunResult.failure,
-            message='Unspecified failure',
-            errors=[],
-        )
-
     def _initialize_working_directory(self) -> pathlib.Path:
         """Setup dynamic agents and settings for claude-agents action.
 
@@ -302,7 +144,7 @@ class Claude(mixins.WorkflowLoggerMixin):
         output_styles_dir = claude_dir / 'output-style'
         output_styles_dir.mkdir(parents=True, exist_ok=True)
 
-        for agent in AgentType:
+        for agent in ['task', 'validator']:
             self.agents[agent] = self._parse_agent_file(agent)
 
         # Create custom settings.json - disable all global settings
@@ -429,3 +271,33 @@ class Claude(mixins.WorkflowLoggerMixin):
                 )
             return models.AgentRun.model_validate(payload)
         return None
+
+    async def _response(self) -> models.AgentRun:
+        async for message in self.client.receive_response():
+            response = self._parse_message(message)
+            if response and isinstance(response, models.AgentRun):
+                return response
+
+        return models.AgentRun(
+            result=models.AgentRunResult.failure,
+            message='Unspecified failure',
+            errors=[],
+        )
+
+    @claude_agent_sdk.tool(
+        name='response_validator',
+        description='Validate the response format from for the final message',
+        input_schema=str,
+    )
+    def _response_validator(self, message: str) -> str:
+        """Use to format the result of an agent run."""
+        LOGGER.debug('Validator tool invoked')
+        try:
+            payload = json.loads(message)
+        except json.JSONDecodeError:
+            return 'Payload not validate as JSON'
+        try:
+            models.AgentRun.model_validate(payload)
+        except pydantic.ValidationError as exc:
+            return str(exc)
+        return 'Response is valid'

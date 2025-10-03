@@ -59,7 +59,7 @@ class WorkflowAction(pydantic.BaseModel):
 
     name: str
     type: WorkflowActionTypes = WorkflowActionTypes.callable
-
+    ai_commit: bool = False
     conditions: list['WorkflowCondition'] = pydantic.Field(
         default_factory=list
     )
@@ -78,6 +78,7 @@ class WorkflowCallableAction(WorkflowAction):
     callable: typing.Callable
     args: list[typing.Any] = pydantic.Field(default_factory=list)
     kwargs: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
+    ai_commit: bool = True
 
 
 class WorkflowClaudeAction(WorkflowAction):
@@ -85,6 +86,7 @@ class WorkflowClaudeAction(WorkflowAction):
     prompt: str | None
     validation_prompt: str | None = None
     max_cycles: int = 3
+    ai_commit: bool = True
 
 
 class WorkflowDockerActionCommand(enum.StrEnum):

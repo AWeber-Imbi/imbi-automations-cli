@@ -1,19 +1,23 @@
 import asyncio
-import logging
 import shlex
 import subprocess
 
 from imbi_automations import mixins, models, prompts, utils
 
-LOGGER = logging.getLogger(__name__)
 
-
-class Shell(mixins.WorkflowLoggerMixin):
+class ShellAction(mixins.WorkflowLoggerMixin):
     """Shell command executor for workflow actions."""
 
-    def __init__(self, verbose: bool = False) -> None:
+    def __init__(
+        self,
+        configuration: models.Configuration,
+        context: models.WorkflowContext,
+        verbose: bool,
+    ) -> None:
         super().__init__(verbose)
-        self.logger = LOGGER
+        self._set_workflow_logger(context.workflow)
+        self.configuration = configuration
+        self.context = context
 
     async def execute(
         self,
