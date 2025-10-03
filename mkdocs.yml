@@ -6,6 +6,7 @@ edit_uri: edit/main/docs/
 
 nav:
   - Home: index.md
+  - CLI Reference: cli.md
   - Configuration: configuration.md
   - Debugging: debugging.md
   - Architecture: architecture.md
