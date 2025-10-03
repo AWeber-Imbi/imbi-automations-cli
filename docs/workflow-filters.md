@@ -84,7 +84,7 @@ Filter by project type slugs from Imbi.
 project_types = ["api", "consumer", "daemon"]
 ```
 
-**Real-world example from example-workflow:**
+**Real-world example:**
 ```toml
 [filter]
 project_types = [
@@ -126,7 +126,7 @@ project_facts = {
 
 Only projects with BOTH `Programming Language = "Python 3.12"` AND `Framework = "FastAPI"` will be included.
 
-**Real-world example from example-workflow:**
+**Real-world example:**
 ```toml
 [filter]
 project_facts = {"programming_language" = "Python 3.9"}
@@ -162,7 +162,7 @@ github_identifier_required = true
 - Projects that must have CI/CD
 - Excluding archived or non-GitHub projects
 
-**Real-world example from example-workflow:**
+**Real-world example:**
 ```toml
 [filter]
 github_identifier_required = true
@@ -193,7 +193,7 @@ github_workflow_status_exclude = ["success"]
 
 Only projects with failing, pending, or no workflows will be processed.
 
-**Real-world example from example-workflow:**
+**Real-world example:**
 ```toml
 [filter]
 github_workflow_status_exclude = ["success"]

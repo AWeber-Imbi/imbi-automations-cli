@@ -63,7 +63,7 @@ remote_file_exists = "setup.cfg"
 remote_file_exists = "**/*.tf"  # Any Terraform file recursively
 ```
 
-**Real-world example from example-workflow:**
+**Real-world example:**
 ```toml
 [[conditions]]
 remote_file_exists = "setup.cfg"
@@ -83,7 +83,7 @@ Check if a file does NOT exist using GitHub/GitLab API.
 remote_file_not_exists = "pyproject.toml"
 ```
 
-**Real-world example from example-workflow:**
+**Real-world example:**
 ```toml
 [[conditions]]
 remote_file_not_exists = "pyproject.toml"
@@ -304,7 +304,7 @@ remote_file_exists = "setup.cfg"
 remote_file_not_exists = "pyproject.toml"
 ```
 
-**Real-world example from example-workflow:**
+**Real-world example:**
 ```toml
 # Workflow level - targets un-migrated projects
 [[conditions]]
