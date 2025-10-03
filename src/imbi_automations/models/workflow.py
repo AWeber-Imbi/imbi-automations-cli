@@ -375,6 +375,7 @@ class WorkflowGitLab(pydantic.BaseModel):
 class WorkflowConfiguration(pydantic.BaseModel):
     name: str
     description: str | None = None
+    prompt: ResourceUrl | None = None
     git: WorkflowGit = pydantic.Field(default_factory=WorkflowGit)
     github: WorkflowGitHub = pydantic.Field(default_factory=WorkflowGitHub)
     gitlab: WorkflowGitLab = pydantic.Field(default_factory=WorkflowGitLab)

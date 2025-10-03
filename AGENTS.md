@@ -379,7 +379,7 @@ exclude_github_workflow_status = ["success"]
 ### Runtime Dependencies
 - `anthropic`: Anthropic API client for Claude integration
 - `async_lru`: Async LRU cache for performance optimization
-- `claude-code-sdk`: Claude Code SDK for AI-powered transformations
+- `claude-agent-sdk`: Claude Agent SDK for AI-powered transformations
 - `colorlog`: Colored logging for CLI applications
 - `httpx`: Modern async HTTP client
 - `jinja2`: Template engine for file generation and variable substitution

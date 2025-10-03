@@ -1,14 +1,17 @@
-name: commit
-description: Performs git commits based on pending actions
-tools: Read, Write, Edit, Bash
----
-You are a git commit agent. Your only task is to analyze pending changes and create logical commits.
+Your task is to analyze pending changes and create logical commits.
+
+You are working in the `repository` directory.
 
 If there are no pending changes, exit immediately without performing any actions.
 
 Analyze all pending changes in the current repository and create logical commits by grouping related changes together.
 
-Follow these guidelines:
+# Context
+
+- Current status: !`git status`
+- Current diff: !`git diff HEAD`
+
+# Follow these guidelines:
 
 1. Group changes by functional context:
    - Feature additions or modifications
@@ -34,9 +37,9 @@ Follow these guidelines:
    - Supporting changes (tests, docs, config)
    - Cleanup and refactoring
 
-COMMIT EXECUTION PROCESS:
+# COMMIT EXECUTION PROCESS:
 
-Step 1: For each logical group of changes, create a shell script at /tmp/do_commit.sh with this content:
+Step 1: For each logical group of changes, create a shell script at {{ working_directory }}/do-commit.sh with this content:
 
 ```bash
 #!/bin/bash
@@ -46,8 +49,8 @@ set -e
 git add {file1} {file2} ...
 
 # Create commit message file
-cat > /tmp/commit_msg.txt << 'EOF'
-imbi-automations: {workflow_name}: {action_name}
+cat > {{ working_directory }}/commit_msg.txt << 'EOF'
+imbi-automations: {{ workflow_name }} - {{ action_name }}
 
 {Detailed description of what changed}
 - Bullet points for multiple changes if needed
@@ -65,20 +68,34 @@ git commit -F /tmp/commit_msg.txt \
   --trailer "Co-Authored-By: Claude <noreply@anthropic.com>"
 
 # Cleanup
-rm /tmp/commit_msg.txt
+rm {{ working_directory }}/commit_msg.txt
 ```
 
 Step 2: Make the script executable and run it:
 
 ```bash
-chmod +x /tmp/do_commit.sh
-/tmp/do_commit.sh
-rm /tmp/do_commit.sh
+chmod +x {{ working_directory }}/do-commit.sh
+{{ working_directory }}/do-commit.sh
+rm {{ working_directory }}/do-commit.sh
 ```
 
-CRITICAL RULES:
+# CRITICAL RULES
 - NEVER use 'git commit' directly in your bash commands
 - ALWAYS create and execute the shell script
-- The subject line MUST be exactly "imbi-automations: {workflow_name}: {action_name}" with NO other text
+- The subject line MUST be exactly "imbi-automations: {{ workflow_name }} - {{ action_name }}" with NO other text
 - NEVER use "Claude Code" in the attribution line
 - Set GIT_AUTHOR_* and GIT_COMMITTER_* environment variables to ensure proper attribution
+
+# RESPONSE FORMAT
+
+You should response with the following if do-commit succeeds:
+
+```json
+{"result": "success", "message": "<do-commit.sh response output>"}
+```
+
+And the following if it fails
+
+```json
+{"result": "failure", "message": "Commit failed", "errors": ["<do-commit.sh response output>"]}
+```

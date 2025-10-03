@@ -67,12 +67,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             project, working_directory.name, github_repository, gitlab_project
         )
 
-        self.claude = claude.Claude(
-            self.configuration,
-            context.working_directory,
-            self.configuration.commit_author,
-            self.verbose,
-        )
+        self.claude = claude.Claude(self.configuration, context, self.verbose)
 
         if not await self.condition_checker.check_remote(
             context,
@@ -289,7 +284,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         action: models.WorkflowClaudeAction,
     ) -> None:
         """Execute the Claude Code action."""
-        await self.claude.execute(context, action)
+        await self.claude.execute(action)
 
     async def _execute_action_docker(
         self,

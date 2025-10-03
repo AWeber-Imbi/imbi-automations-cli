@@ -3,17 +3,21 @@ import pathlib
 import typing
 
 import jinja2
+import pydantic
 
 from imbi_automations import models, utils
 
 
 def render(
     context: models.WorkflowContext | None = None,
-    source: pathlib.Path | str | None = None,
+    source: models.ResourceUrl | pathlib.Path | str | None = None,
     **kwargs: typing.Any,
 ) -> str | bytes:
     if not source:
         raise ValueError('source is required')
+    elif isinstance(source, pydantic.AnyUrl):
+        source = utils.resolve_path(context, source)
+
     env = jinja2.Environment(
         autoescape=False,  # noqa: S701
         undefined=jinja2.StrictUndefined,

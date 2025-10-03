@@ -7,7 +7,7 @@ import typing
 import unittest
 from unittest import mock
 
-import claude_code_sdk
+import claude_agent_sdk
 import pydantic
 
 from imbi_automations import claude, models
@@ -114,8 +114,8 @@ class ClaudeTestCase(base.AsyncTestCase):
         super().tearDown()
         self.temp_dir.cleanup()
 
-    @mock.patch('claude_code_sdk.ClaudeSDKClient')
-    @mock.patch('claude_code_sdk.create_sdk_mcp_server')
+    @mock.patch('claude_agent_sdk.ClaudeSDKClient')
+    @mock.patch('claude_agent_sdk.create_sdk_mcp_server')
     @mock.patch(
         'builtins.open',
         new_callable=mock.mock_open,
@@ -137,6 +137,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             config=self.config,
             working_directory=self.working_directory,
             commit_author='Test Author <test@example.com>',
+            workflow=self.workflow,
             verbose=True,
         )
 
@@ -145,6 +146,7 @@ class ClaudeTestCase(base.AsyncTestCase):
         self.assertEqual(
             claude_instance.working_directory, self.working_directory
         )
+        self.assertEqual(claude_instance.workflow, self.workflow)
         self.assertTrue(claude_instance.verbose)
         self.assertIsNone(claude_instance.session_id)
 
@@ -155,8 +157,8 @@ class ClaudeTestCase(base.AsyncTestCase):
     def test_get_prompt_generator_with_jinja2(self) -> None:
         """Test _get_prompt method for generator with Jinja2 template."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -167,6 +169,7 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
         action = models.WorkflowClaudeAction(
@@ -184,10 +187,10 @@ class ClaudeTestCase(base.AsyncTestCase):
             return_value='Hello test-project!',
         ) as mock_render:
             prompt = claude_instance._get_prompt(
-                self.context, action, claude.AgentType.generator
+                self.context, action, claude.AgentType.task
             )
 
-        self.assertIn('/generator', prompt)
+        self.assertIn('"task"', prompt)
         self.assertIn('Hello test-project!', prompt)
         self.assertIn('# Context Data:', prompt)
         mock_render.assert_called_once()
@@ -195,8 +198,8 @@ class ClaudeTestCase(base.AsyncTestCase):
     def test_get_prompt_validator_with_plain_text(self) -> None:
         """Test _get_prompt method for validator with plain text."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -207,6 +210,7 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
         action = models.WorkflowClaudeAction(
@@ -226,15 +230,15 @@ class ClaudeTestCase(base.AsyncTestCase):
             self.context, action, claude.AgentType.validator
         )
 
-        self.assertIn('/validator', prompt)
+        self.assertIn('"validator"', prompt)
         self.assertIn('Validate the generated code', prompt)
         self.assertIn('# Context Data:', prompt)
 
     def test_parse_message_result_message_success(self) -> None:
         """Test _parse_message with successful ResultMessage."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -245,13 +249,14 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
         # Test with plain JSON
         valid_result = {'result': 'success', 'message': 'Operation completed'}
 
         # Create mock ResultMessage
-        message = mock.MagicMock(spec=claude_code_sdk.ResultMessage)
+        message = mock.MagicMock(spec=claude_agent_sdk.ResultMessage)
         message.session_id = 'test-session'
         message.result = json.dumps(valid_result)
         message.is_error = False
@@ -266,8 +271,8 @@ class ClaudeTestCase(base.AsyncTestCase):
     def test_parse_message_result_message_with_json_code_blocks(self) -> None:
         """Test _parse_message with JSON code blocks."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -278,6 +283,7 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
         valid_result = {'result': 'success', 'message': 'Operation completed'}
@@ -285,7 +291,7 @@ class ClaudeTestCase(base.AsyncTestCase):
         # Test with ```json wrapper
         json_with_wrapper = f'```json\n{json.dumps(valid_result)}\n```'
 
-        message = mock.MagicMock(spec=claude_code_sdk.ResultMessage)
+        message = mock.MagicMock(spec=claude_agent_sdk.ResultMessage)
         message.session_id = 'test-session'
         message.result = json_with_wrapper
         message.is_error = False
@@ -299,8 +305,8 @@ class ClaudeTestCase(base.AsyncTestCase):
     def test_parse_message_result_message_error(self) -> None:
         """Test _parse_message with error ResultMessage."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -311,9 +317,10 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
-        message = mock.MagicMock(spec=claude_code_sdk.ResultMessage)
+        message = mock.MagicMock(spec=claude_agent_sdk.ResultMessage)
         message.session_id = 'test-session'
         message.result = 'Error occurred'
         message.is_error = True
@@ -328,8 +335,8 @@ class ClaudeTestCase(base.AsyncTestCase):
     def test_parse_message_result_message_invalid_json(self) -> None:
         """Test _parse_message with ResultMessage containing invalid JSON."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -340,9 +347,10 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
-        message = mock.MagicMock(spec=claude_code_sdk.ResultMessage)
+        message = mock.MagicMock(spec=claude_agent_sdk.ResultMessage)
         message.session_id = 'test-session'
         message.result = '{"invalid": json syntax'
         message.is_error = False
@@ -362,8 +370,8 @@ class ClaudeTestCase(base.AsyncTestCase):
     def test_parse_message_assistant_message(self) -> None:
         """Test _parse_message with AssistantMessage."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -374,10 +382,11 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
-        message = mock.MagicMock(spec=claude_code_sdk.AssistantMessage)
-        message.content = [mock.MagicMock(spec=claude_code_sdk.TextBlock)]
+        message = mock.MagicMock(spec=claude_agent_sdk.AssistantMessage)
+        message.content = [mock.MagicMock(spec=claude_agent_sdk.TextBlock)]
 
         with mock.patch.object(claude_instance, '_log_message') as mock_log:
             result = claude_instance._parse_message(message)
@@ -388,8 +397,8 @@ class ClaudeTestCase(base.AsyncTestCase):
     def test_parse_message_system_message(self) -> None:
         """Test _parse_message with SystemMessage."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -400,9 +409,10 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
-        message = mock.MagicMock(spec=claude_code_sdk.SystemMessage)
+        message = mock.MagicMock(spec=claude_agent_sdk.SystemMessage)
         message.data = 'System message'
 
         result = claude_instance._parse_message(message)
@@ -412,8 +422,8 @@ class ClaudeTestCase(base.AsyncTestCase):
     def test_parse_message_user_message(self) -> None:
         """Test _parse_message with UserMessage."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -424,10 +434,11 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
-        message = mock.MagicMock(spec=claude_code_sdk.UserMessage)
-        message.content = [mock.MagicMock(spec=claude_code_sdk.TextBlock)]
+        message = mock.MagicMock(spec=claude_agent_sdk.UserMessage)
+        message.content = [mock.MagicMock(spec=claude_agent_sdk.TextBlock)]
 
         with mock.patch.object(claude_instance, '_log_message') as mock_log:
             result = claude_instance._parse_message(message)
@@ -438,8 +449,8 @@ class ClaudeTestCase(base.AsyncTestCase):
     def test_log_message_with_text_list(self) -> None:
         """Test _log_message method with list of text blocks."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -450,13 +461,14 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
-        text_block1 = mock.MagicMock(spec=claude_code_sdk.TextBlock)
+        text_block1 = mock.MagicMock(spec=claude_agent_sdk.TextBlock)
         text_block1.text = 'First message'
-        text_block2 = mock.MagicMock(spec=claude_code_sdk.TextBlock)
+        text_block2 = mock.MagicMock(spec=claude_agent_sdk.TextBlock)
         text_block2.text = 'Second message'
-        tool_block = mock.MagicMock(spec=claude_code_sdk.ToolUseBlock)
+        tool_block = mock.MagicMock(spec=claude_agent_sdk.ToolUseBlock)
 
         content = [text_block1, text_block2, tool_block]
 
@@ -475,8 +487,8 @@ class ClaudeTestCase(base.AsyncTestCase):
     def test_log_message_with_string(self) -> None:
         """Test _log_message method with string content."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -487,6 +499,7 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
         with mock.patch.object(claude_instance.logger, 'debug') as mock_debug:
@@ -499,8 +512,8 @@ class ClaudeTestCase(base.AsyncTestCase):
     def test_log_message_with_unknown_block_type(self) -> None:
         """Test _log_message method with unknown block type."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -511,6 +524,7 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
         # Create a mock unknown block type
@@ -523,8 +537,8 @@ class ClaudeTestCase(base.AsyncTestCase):
 
         self.assertIn('Unknown message type', str(exc_context.exception))
 
-    @mock.patch('claude_code_sdk.ClaudeSDKClient')
-    @mock.patch('claude_code_sdk.create_sdk_mcp_server')
+    @mock.patch('claude_agent_sdk.ClaudeSDKClient')
+    @mock.patch('claude_agent_sdk.create_sdk_mcp_server')
     @mock.patch(
         'builtins.open',
         new_callable=mock.mock_open,
@@ -549,6 +563,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             config=self.config,
             working_directory=self.working_directory,
             commit_author='Test Author <test@example.com>',
+            workflow=self.workflow,
             verbose=True,
         )
 
@@ -582,8 +597,8 @@ class ClaudeTestCase(base.AsyncTestCase):
         # Verify cycle execution
         mock_cycle.assert_called_once_with(self.context, action, 1)
 
-    @mock.patch('claude_code_sdk.ClaudeSDKClient')
-    @mock.patch('claude_code_sdk.create_sdk_mcp_server')
+    @mock.patch('claude_agent_sdk.ClaudeSDKClient')
+    @mock.patch('claude_agent_sdk.create_sdk_mcp_server')
     @mock.patch(
         'builtins.open',
         new_callable=mock.mock_open,
@@ -607,6 +622,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             config=self.config,
             working_directory=self.working_directory,
             commit_author='Test Author <test@example.com>',
+            workflow=self.workflow,
         )
 
         action = models.WorkflowClaudeAction(
@@ -641,8 +657,8 @@ class ClaudeTestCase(base.AsyncTestCase):
             ]
         )
 
-    @mock.patch('claude_code_sdk.ClaudeSDKClient')
-    @mock.patch('claude_code_sdk.create_sdk_mcp_server')
+    @mock.patch('claude_agent_sdk.ClaudeSDKClient')
+    @mock.patch('claude_agent_sdk.create_sdk_mcp_server')
     @mock.patch(
         'builtins.open',
         new_callable=mock.mock_open,
@@ -664,6 +680,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             config=self.config,
             working_directory=self.working_directory,
             commit_author='Test Author <test@example.com>',
+            workflow=self.workflow,
         )
 
         action = models.WorkflowClaudeAction(
@@ -691,13 +708,13 @@ class ClaudeTestCase(base.AsyncTestCase):
         self.assertEqual(mock_agent.call_count, 2)
         mock_agent.assert_has_calls(
             [
-                mock.call(self.context, action, claude.AgentType.generator),
+                mock.call(self.context, action, claude.AgentType.task),
                 mock.call(self.context, action, claude.AgentType.validator),
             ]
         )
 
-    @mock.patch('claude_code_sdk.ClaudeSDKClient')
-    @mock.patch('claude_code_sdk.create_sdk_mcp_server')
+    @mock.patch('claude_agent_sdk.ClaudeSDKClient')
+    @mock.patch('claude_agent_sdk.create_sdk_mcp_server')
     @mock.patch(
         'builtins.open',
         new_callable=mock.mock_open,
@@ -719,6 +736,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             config=self.config,
             working_directory=self.working_directory,
             commit_author='Test Author <test@example.com>',
+            workflow=self.workflow,
         )
 
         action = models.WorkflowClaudeAction(
@@ -745,11 +763,11 @@ class ClaudeTestCase(base.AsyncTestCase):
         # Verify only generator was executed
         # (validator should not run after generator failure)
         mock_agent.assert_called_once_with(
-            self.context, action, claude.AgentType.generator
+            self.context, action, claude.AgentType.task
         )
 
-    @mock.patch('claude_code_sdk.ClaudeSDKClient')
-    @mock.patch('claude_code_sdk.create_sdk_mcp_server')
+    @mock.patch('claude_agent_sdk.ClaudeSDKClient')
+    @mock.patch('claude_agent_sdk.create_sdk_mcp_server')
     @mock.patch(
         'builtins.open',
         new_callable=mock.mock_open,
@@ -771,6 +789,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             config=self.config,
             working_directory=self.working_directory,
             commit_author='Test Author <test@example.com>',
+            workflow=self.workflow,
         )
 
         action = models.WorkflowClaudeAction(
@@ -802,8 +821,8 @@ class ClaudeTestCase(base.AsyncTestCase):
         # Verify both agents were executed
         self.assertEqual(mock_agent.call_count, 2)
 
-    @mock.patch('claude_code_sdk.ClaudeSDKClient')
-    @mock.patch('claude_code_sdk.create_sdk_mcp_server')
+    @mock.patch('claude_agent_sdk.ClaudeSDKClient')
+    @mock.patch('claude_agent_sdk.create_sdk_mcp_server')
     @mock.patch(
         'builtins.open',
         new_callable=mock.mock_open,
@@ -827,13 +846,13 @@ class ClaudeTestCase(base.AsyncTestCase):
             mock.MagicMock, None
         ]:
             # First yield system message (should be ignored)
-            system_msg = mock.MagicMock(spec=claude_code_sdk.SystemMessage)
+            system_msg = mock.MagicMock(spec=claude_agent_sdk.SystemMessage)
             system_msg.data = 'System initialization'
             yield system_msg
 
             # Then yield assistant message (should be logged but ignored)
             assistant_msg = mock.MagicMock(
-                spec=claude_code_sdk.AssistantMessage
+                spec=claude_agent_sdk.AssistantMessage
             )
             assistant_msg.content = []
             yield assistant_msg
@@ -843,7 +862,7 @@ class ClaudeTestCase(base.AsyncTestCase):
                 'result': 'success',
                 'message': 'Agent completed successfully',
             }
-            result_msg = mock.MagicMock(spec=claude_code_sdk.ResultMessage)
+            result_msg = mock.MagicMock(spec=claude_agent_sdk.ResultMessage)
             result_msg.session_id = 'new-session'
             result_msg.result = json.dumps(success_result)
             result_msg.is_error = False
@@ -855,6 +874,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             config=self.config,
             working_directory=self.working_directory,
             commit_author='Test Author <test@example.com>',
+            workflow=self.workflow,
         )
 
         action = models.WorkflowClaudeAction(
@@ -866,7 +886,7 @@ class ClaudeTestCase(base.AsyncTestCase):
         )
 
         result = await claude_instance._execute_agent(
-            self.context, action, claude.AgentType.generator
+            self.context, action, claude.AgentType.task
         )
 
         self.assertIsInstance(result, models.AgentRun)
@@ -874,8 +894,8 @@ class ClaudeTestCase(base.AsyncTestCase):
         self.assertEqual(result.message, 'Agent completed successfully')
         self.assertEqual(claude_instance.session_id, 'new-session')
 
-    @mock.patch('claude_code_sdk.ClaudeSDKClient')
-    @mock.patch('claude_code_sdk.create_sdk_mcp_server')
+    @mock.patch('claude_agent_sdk.ClaudeSDKClient')
+    @mock.patch('claude_agent_sdk.create_sdk_mcp_server')
     @mock.patch(
         'builtins.open',
         new_callable=mock.mock_open,
@@ -898,12 +918,12 @@ class ClaudeTestCase(base.AsyncTestCase):
             mock.MagicMock, None
         ]:
             # Yield messages that don't parse to valid AgentRun
-            system_msg = mock.MagicMock(spec=claude_code_sdk.SystemMessage)
+            system_msg = mock.MagicMock(spec=claude_agent_sdk.SystemMessage)
             system_msg.data = 'System message'
             yield system_msg
 
             assistant_msg = mock.MagicMock(
-                spec=claude_code_sdk.AssistantMessage
+                spec=claude_agent_sdk.AssistantMessage
             )
             assistant_msg.content = []
             yield assistant_msg
@@ -914,6 +934,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             config=self.config,
             working_directory=self.working_directory,
             commit_author='Test Author <test@example.com>',
+            workflow=self.workflow,
         )
 
         action = models.WorkflowClaudeAction(
@@ -925,7 +946,7 @@ class ClaudeTestCase(base.AsyncTestCase):
         )
 
         result = await claude_instance._execute_agent(
-            self.context, action, claude.AgentType.generator
+            self.context, action, claude.AgentType.task
         )
 
         # Should return failure with unspecified failure message
@@ -936,8 +957,8 @@ class ClaudeTestCase(base.AsyncTestCase):
     def test_parse_message_result_with_trailing_backticks_only(self) -> None:
         """Test _parse_message with only trailing backticks."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -948,6 +969,7 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
         valid_result = {'result': 'success', 'message': 'Operation completed'}
@@ -955,7 +977,7 @@ class ClaudeTestCase(base.AsyncTestCase):
         # Test with only trailing backticks (no json prefix)
         json_with_backticks = f'{json.dumps(valid_result)}```'
 
-        message = mock.MagicMock(spec=claude_code_sdk.ResultMessage)
+        message = mock.MagicMock(spec=claude_agent_sdk.ResultMessage)
         message.session_id = 'test-session'
         message.result = json_with_backticks
         message.is_error = False
@@ -969,8 +991,8 @@ class ClaudeTestCase(base.AsyncTestCase):
     def test_log_message_with_unsupported_content_block_type(self) -> None:
         """Test _log_message method with unsupported ContentBlock type."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -981,11 +1003,12 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
         # Test with ContentBlock (should raise RuntimeError as
         # it's not supported)
-        content_block = mock.MagicMock(spec=claude_code_sdk.ContentBlock)
+        content_block = mock.MagicMock(spec=claude_agent_sdk.ContentBlock)
         content = [content_block]
 
         with self.assertRaises(RuntimeError) as exc_context:
@@ -996,8 +1019,8 @@ class ClaudeTestCase(base.AsyncTestCase):
     def test_log_message_with_tool_blocks_only(self) -> None:
         """Test _log_message method with only tool blocks."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -1008,12 +1031,13 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
         # Test with only tool blocks (should all be skipped)
-        tool_use_block = mock.MagicMock(spec=claude_code_sdk.ToolUseBlock)
+        tool_use_block = mock.MagicMock(spec=claude_agent_sdk.ToolUseBlock)
         tool_result_block = mock.MagicMock(
-            spec=claude_code_sdk.ToolResultBlock
+            spec=claude_agent_sdk.ToolResultBlock
         )
         content = [tool_use_block, tool_result_block]
 
@@ -1023,8 +1047,8 @@ class ClaudeTestCase(base.AsyncTestCase):
         # Verify no logging occurred since all blocks were skipped
         mock_debug.assert_not_called()
 
-    @mock.patch('claude_code_sdk.ClaudeSDKClient')
-    @mock.patch('claude_code_sdk.create_sdk_mcp_server')
+    @mock.patch('claude_agent_sdk.ClaudeSDKClient')
+    @mock.patch('claude_agent_sdk.create_sdk_mcp_server')
     @mock.patch(
         'builtins.open',
         new_callable=mock.mock_open,
@@ -1048,6 +1072,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             config=self.config,
             working_directory=self.working_directory,
             commit_author='Test Author <test@example.com>',
+            workflow=self.workflow,
         )
 
         action = models.WorkflowClaudeAction(
@@ -1094,8 +1119,8 @@ class ClaudeTestCase(base.AsyncTestCase):
     def test_parse_message_with_session_id_update(self) -> None:
         """Test _parse_message updates session_id when different."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -1106,6 +1131,7 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
         # Set initial session_id
@@ -1113,7 +1139,7 @@ class ClaudeTestCase(base.AsyncTestCase):
 
         valid_result = {'result': 'success', 'message': 'Session updated'}
 
-        message = mock.MagicMock(spec=claude_code_sdk.ResultMessage)
+        message = mock.MagicMock(spec=claude_agent_sdk.ResultMessage)
         message.session_id = 'new-session'
         message.result = json.dumps(valid_result)
         message.is_error = False
@@ -1126,8 +1152,8 @@ class ClaudeTestCase(base.AsyncTestCase):
     def test_parse_message_with_same_session_id(self) -> None:
         """Test _parse_message doesn't update session_id when same."""
         with (
-            mock.patch('claude_code_sdk.ClaudeSDKClient'),
-            mock.patch('claude_code_sdk.create_sdk_mcp_server'),
+            mock.patch('claude_agent_sdk.ClaudeSDKClient'),
+            mock.patch('claude_agent_sdk.create_sdk_mcp_server'),
             mock.patch(
                 'builtins.open',
                 new_callable=mock.mock_open,
@@ -1138,6 +1164,7 @@ class ClaudeTestCase(base.AsyncTestCase):
                 config=self.config,
                 working_directory=self.working_directory,
                 commit_author='Test Author <test@example.com>',
+                workflow=self.workflow,
             )
 
         # Set initial session_id
@@ -1145,7 +1172,7 @@ class ClaudeTestCase(base.AsyncTestCase):
 
         valid_result = {'result': 'success', 'message': 'Same session'}
 
-        message = mock.MagicMock(spec=claude_code_sdk.ResultMessage)
+        message = mock.MagicMock(spec=claude_agent_sdk.ResultMessage)
         message.session_id = 'same-session'
         message.result = json.dumps(valid_result)
         message.is_error = False

@@ -5,8 +5,10 @@ import pathlib
 from email import utils as email_utils
 
 import anthropic
-import claude_code_sdk
+import claude_agent_sdk
 import pydantic
+from anthropic import types as anthropic_types
+from claude_agent_sdk import types
 
 from imbi_automations import mixins, models, prompts, utils, version
 
@@ -17,12 +19,14 @@ BASE_PATH = pathlib.Path(__file__).parent
 class AgentType(enum.StrEnum):
     """Enum for available actions."""
 
-    generator = 'generator'
+    task = 'task'
     validator = 'validator'
-    commit = 'commit'
 
 
-@claude_code_sdk.tool(
+COMMIT = 'commit'
+
+
+@claude_agent_sdk.tool(
     name='response_validator',
     description='Validate the response format from for the final message',
     input_schema=str,
@@ -47,8 +51,7 @@ class Claude(mixins.WorkflowLoggerMixin):
     def __init__(
         self,
         config: models.Configuration,
-        working_directory: pathlib.Path,
-        commit_author: str,
+        context: models.WorkflowContext,
         verbose: bool = False,
     ) -> None:
         super().__init__(verbose)
@@ -56,39 +59,54 @@ class Claude(mixins.WorkflowLoggerMixin):
             self.anthropic = anthropic.AsyncAnthropicBedrock()
         else:
             self.anthropic = anthropic.AsyncAnthropic()
+        self.agents: dict[str, types.AgentDefinition] = {}
         self.anthropic_model = config.anthropic.model
-        self.commit_author = commit_author
         self.config = config
+        self.context = context
         self.logger: logging.Logger = LOGGER
-        self.working_directory = working_directory
-        self.client = self._create_client()
         self.session_id: str | None = None
+        commit_author = email_utils.parseaddr(self.config.commit_author)
+        self.prompt_kwargs = {
+            'commit_author': self.config.commit_author,
+            'commit_author_name': commit_author[0],
+            'commit_author_address': commit_author[1],
+            'workflow_name': context.workflow.configuration.name,
+            'working_directory': self.context.working_directory,
+        }
+        self._set_workflow_logger(self.context.workflow)
+        self.client = self._create_client()
 
     async def commit(
         self, context: models.WorkflowContext, action: models.WorkflowAction
     ) -> None:
-        """Leverage the `commit` agent in Claude Code to commit changes."""
+        """Leverage Claude Code to commit changes."""
         self.session_id = None
         self._log_verbose_info(
             'Using Claude Code to commit changes for %s', action.name
         )
         await self.client.connect()
-        run = await self._execute_agent(context, action, AgentType.commit)
+
+        # Build the commit prompt from the command template
+        commit_template = BASE_PATH / 'prompts' / 'commit.md.j2'
+        prompt = prompts.render(
+            source=commit_template,
+            action_name=action.name,
+            **self.prompt_kwargs,
+        )
+
+        await self.client.query(prompt)
+        run = await self._get_response()
         await self.client.disconnect()
+
         if run.result == models.AgentRunResult.failure:
             for phrase in ['no changes to commit', 'working tree is clean']:
-                if phrase in run.message.lower():
+                if phrase in (run.message or '').lower():
                     return None
             raise RuntimeError(f'Claude Code commit failed: {run.message}')
         return None
 
-    async def execute(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowClaudeAction,
-    ) -> None:
+    async def execute(self, action: models.WorkflowClaudeAction) -> None:
         """Execute the Claude Code action."""
-        self._set_workflow_logger(context.workflow)
         self.session_id = None
         await self.client.connect()
 
@@ -100,7 +118,7 @@ class Claude(mixins.WorkflowLoggerMixin):
                 action.max_cycles,
                 action.name,
             )
-            if await self._execute_cycle(context, action, cycle):
+            if await self._execute_cycle(action, cycle):
                 LOGGER.debug(
                     'Claude Code %s cycle %d successful', action.name, cycle
                 )
@@ -120,26 +138,37 @@ class Claude(mixins.WorkflowLoggerMixin):
         message = await self.anthropic.messages.create(
             model=self.anthropic_model,
             max_tokens=8192,
-            messages=[{'role': 'user', 'content': prompt}],
+            messages=[
+                anthropic_types.MessageParam(role='user', content=prompt)
+            ],
         )
         return message.content[0].text
 
-    def _create_client(self) -> claude_code_sdk.ClaudeSDKClient:
+    def _create_client(self) -> claude_agent_sdk.ClaudeSDKClient:
         """Create the Claude SDK client, initializing the environment"""
         settings = self._initialize_working_directory()
         LOGGER.debug('Claude Code settings: %s', settings)
 
-        agent_tools = claude_code_sdk.create_sdk_mcp_server(
+        agent_tools = claude_agent_sdk.create_sdk_mcp_server(
             'agent_tools', version, [response_validator]
         )
 
-        system_prompt = (BASE_PATH / 'prompts' / 'CLAUDE.md').read_text()
-        options = claude_code_sdk.ClaudeCodeOptions(
-            add_dirs=[
-                self.working_directory / 'workflow',
-                self.working_directory / 'extracted',
-            ],
-            append_system_prompt=system_prompt,
+        system_prompt = (BASE_PATH / 'claude-code' / 'CLAUDE.md').read_text()
+        if self.context.workflow.configuration.prompt:
+            system_prompt += '\n\n---\n\n'
+            if isinstance(
+                self.context.workflow.configuration.prompt, pydantic.AnyUrl
+            ):
+                system_prompt += prompts.render(
+                    self.context,
+                    self.context.workflow.configuration.prompt,
+                    **self.prompt_kwargs,
+                )
+            else:
+                raise RuntimeError
+
+        options = claude_agent_sdk.ClaudeAgentOptions(
+            agents=self.agents,
             allowed_tools=[
                 'Bash',
                 'Bash(git:*)',
@@ -158,40 +187,30 @@ class Claude(mixins.WorkflowLoggerMixin):
                 'SlashCommand',
                 'mcp__agent_tools__response_validator',
             ],
-            cwd=self.working_directory / 'repository',
-            extra_args={'settings': str(settings), 'setting-sources': 'local'},
+            cwd=self.context.working_directory,
             mcp_servers={'agent_tools': agent_tools},
             settings=str(settings),
+            setting_sources=['local'],
+            system_prompt=types.SystemPromptPreset(
+                type='preset', preset='claude_code', append=system_prompt
+            ),
             permission_mode='bypassPermissions',
         )
-        return claude_code_sdk.ClaudeSDKClient(options)
+        return claude_agent_sdk.ClaudeSDKClient(options)
 
     async def _execute_agent(
         self,
-        context: models.WorkflowContext,
         action: models.WorkflowAction | models.WorkflowClaudeAction,
         agent: AgentType,
     ) -> models.AgentRun:
-        prompt = self._get_prompt(context, action, agent)
+        prompt = self._get_prompt(action, agent)
         await self.client.query(prompt, session_id=self.session_id)
-        async for message in self.client.receive_response():
-            response = self._parse_message(message)
-            if response and isinstance(response, models.AgentRun):
-                return response
-
-        return models.AgentRun(
-            result=models.AgentRunResult.failure,
-            message='Unspecified failure',
-            errors=[],
-        )
+        return await self._get_response()
 
     async def _execute_cycle(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowClaudeAction,
-        cycle: int,
+        self, action: models.WorkflowClaudeAction, cycle: int
     ) -> bool:
-        for agent in [AgentType.generator, AgentType.validator]:
+        for agent in [AgentType.task, AgentType.validator]:
             if agent == AgentType.validator and not action.validation_prompt:
                 self.logger.debug('No validation prompt, skipping')
                 continue
@@ -201,7 +220,7 @@ class Claude(mixins.WorkflowLoggerMixin):
                 action.name,
                 cycle,
             )
-            execution = await self._execute_agent(context, action, agent)
+            execution = await self._execute_agent(action, agent)
             LOGGER.debug('Execute agent result: %r', execution)
             if execution.result == models.AgentRunResult.failure:
                 self.logger.error(
@@ -215,38 +234,48 @@ class Claude(mixins.WorkflowLoggerMixin):
 
     def _get_prompt(
         self,
-        context: models.WorkflowContext,
         action: models.WorkflowAction | models.WorkflowClaudeAction,
         agent: AgentType,
     ) -> str:
         """Return the rendered prompt for the given agent."""
-        prompt = f'/{agent}\n\n'
+        prompt = f'Use the "{agent}" agent to complete the following task:\n\n'
 
-        if agent == AgentType.generator:
-            prompt_file = self.working_directory / 'workflow' / action.prompt
+        if agent == AgentType.task:
+            prompt_file = (
+                self.context.working_directory / 'workflow' / action.prompt
+            )
         elif agent == AgentType.validator:
             prompt_file = (
-                self.working_directory / 'workflow' / action.validation_prompt
+                self.context.working_directory
+                / 'workflow'
+                / action.validation_prompt
             )
-        elif agent == AgentType.commit:
-            prompt_file = BASE_PATH / 'prompts' / 'commit-context.md.j2'
         else:
             raise RuntimeError(f'Unknown agent: {agent}')
 
         if prompt_file.suffix == '.j2':
-            data = {'commit_author': self.commit_author}
-            data.update(context.model_dump())
+            data = dict(self.prompt_kwargs)
+            data.update(self.context.model_dump())
             data.update({'action': action.model_dump()})
             for key in {'source', 'destination'}:
                 if key in data:
                     del data[key]
-            prompt += prompts.render(context, prompt_file, **data)
+            prompt += prompts.render(self.context, prompt_file, **data)
         else:
             prompt += prompt_file.read_text(encoding='utf-8')
-
-        if agent != AgentType.commit:
-            prompt += f'\n\n# Context Data: {context.model_dump_json()}'
         return prompt
+
+    async def _get_response(self) -> models.AgentRun:
+        async for message in self.client.receive_response():
+            response = self._parse_message(message)
+            if response and isinstance(response, models.AgentRun):
+                return response
+
+        return models.AgentRun(
+            result=models.AgentRunResult.failure,
+            message='Unspecified failure',
+            errors=[],
+        )
 
     def _initialize_working_directory(self) -> pathlib.Path:
         """Setup dynamic agents and settings for claude-agents action.
@@ -255,35 +284,35 @@ class Claude(mixins.WorkflowLoggerMixin):
             Path to generated settings.json file
 
         """
-        claude_dir = self.working_directory / '.claude'
-        agents_dir = claude_dir / 'agents'
-        agents_dir.mkdir(parents=True, exist_ok=True)
-        prompt_path = pathlib.Path(__file__).parent / 'prompts'
+        claude_dir = self.context.working_directory / '.claude'
+        commands_dir = claude_dir / 'commands'
+        commands_dir.mkdir(parents=True, exist_ok=True)
 
-        # Copy over agent prompts
-        for action in AgentType:
-            source = prompt_path / f'{action}.md.j2'
-            destination = agents_dir / f'{action}.md'
-            commit_author = email_utils.parseaddr(self.commit_author)
-            with destination.open('w', encoding='utf-8') as handle:
-                handle.write(
-                    prompts.render(
-                        source=source,
-                        commit_author=self.commit_author,
-                        commit_author_name=commit_author[0],
-                        commit_author_address=commit_author[1],
-                    )
+        for file in (BASE_PATH / 'claude-code' / 'commands').rglob('*'):
+            if file.suffix == '.j2':
+                content = prompts.render(
+                    self.context, file, **self.prompt_kwargs
                 )
+            else:
+                content = file.read_text(encoding='utf-8')
+            commands_dir.joinpath(file.name.rstrip('.j2')).write_text(
+                content, encoding='utf-8'
+            )
+
+        output_styles_dir = claude_dir / 'output-style'
+        output_styles_dir.mkdir(parents=True, exist_ok=True)
+
+        for agent in AgentType:
+            self.agents[agent] = self._parse_agent_file(agent)
 
         # Create custom settings.json - disable all global settings
         settings = claude_dir / 'settings.json'
         settings.write_text(
             json.dumps(
                 {
-                    'agentsPath': str(agents_dir),
                     'hooks': {},
-                    'outputStyle': 'plain',
-                    'settingSources': ['local'],
+                    'outputStyle': 'json',
+                    'settingSources': ['project', 'local'],
                 },
                 indent=2,
             ),
@@ -300,10 +329,10 @@ class Claude(mixins.WorkflowLoggerMixin):
         message_type: str,
         content: str
         | list[
-            claude_code_sdk.TextBlock
-            | claude_code_sdk.ContentBlock
-            | claude_code_sdk.ToolUseBlock
-            | claude_code_sdk.ToolResultBlock
+            claude_agent_sdk.TextBlock
+            | claude_agent_sdk.ContentBlock
+            | claude_agent_sdk.ToolUseBlock
+            | claude_agent_sdk.ToolResultBlock
         ],
     ) -> None:
         """Log the message from Claude Code passed in as a dataclass."""
@@ -311,28 +340,69 @@ class Claude(mixins.WorkflowLoggerMixin):
             for entry in content:
                 if isinstance(
                     entry,
-                    claude_code_sdk.ToolUseBlock
-                    | claude_code_sdk.ToolResultBlock,
+                    claude_agent_sdk.ToolUseBlock
+                    | claude_agent_sdk.ToolResultBlock,
                 ):
                     continue
-                elif isinstance(entry, claude_code_sdk.TextBlock):
+                elif isinstance(entry, claude_agent_sdk.TextBlock):
                     self.logger.debug('%s: %s', message_type, entry.text)
                 else:
                     raise RuntimeError(f'Unknown message type: {type(entry)}')
         else:
             self.logger.debug('%s: %s', message_type, content)
 
+    def _parse_agent_file(self, name: str) -> types.AgentDefinition:
+        """Parse the agent file and return the agent.
+
+        Expects format:
+        ---
+        name: agent_name
+        description: Agent description
+        tools: Tool1, Tool2, Tool3
+        model: inherit
+        ---
+        Prompt content here...
+        """
+        agent_file = BASE_PATH / 'claude-code' / 'agents' / f'{name}.md.j2'
+        content = agent_file.read_text(encoding='utf-8')
+
+        # Split frontmatter and prompt content
+        parts = content.split('---', 2)
+        if len(parts) < 3:
+            raise ValueError(f'Invalid agent file format for {name}')
+
+        # Parse frontmatter manually (simple YAML-like format)
+        frontmatter = {}
+        for line in parts[1].strip().split('\n'):
+            if ':' in line:
+                key, value = line.split(':', 1)
+                frontmatter[key.strip()] = value.strip()
+
+        # Extract prompt (everything after second ---)
+        prompt = parts[2].strip()
+
+        # Parse tools (comma-separated string to list)
+        tools_str = frontmatter.get('tools', '')
+        tools = [t.strip() for t in tools_str.split(',')] if tools_str else []
+
+        return types.AgentDefinition(
+            description=frontmatter.get('description', ''),
+            prompt=prompts.render(self.context, prompt, **self.prompt_kwargs),
+            tools=tools,
+            model=frontmatter.get('model', 'inherit'),
+        )
+
     def _parse_message(
-        self, message: claude_code_sdk.Message
+        self, message: claude_agent_sdk.Message
     ) -> models.AgentRun | None:
         """Parse the response from Claude Code."""
-        if isinstance(message, claude_code_sdk.AssistantMessage):
+        if isinstance(message, claude_agent_sdk.AssistantMessage):
             self._log_message('Claude Assistant', message.content)
-        elif isinstance(message, claude_code_sdk.SystemMessage):
+        elif isinstance(message, claude_agent_sdk.SystemMessage):
             self.logger.debug('Claude System: %s', message.data)
-        elif isinstance(message, claude_code_sdk.UserMessage):
+        elif isinstance(message, claude_agent_sdk.UserMessage):
             self._log_message('Claude User', message.content)
-        elif isinstance(message, claude_code_sdk.ResultMessage):
+        elif isinstance(message, claude_agent_sdk.ResultMessage):
             if self.session_id != message.session_id:
                 self.session_id = message.session_id
             if message.is_error:

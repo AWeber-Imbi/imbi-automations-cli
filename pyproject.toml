@@ -36,7 +36,7 @@ classifiers = [
 dependencies = [
   "anthropic[bedrock]",
   "async_lru",
-  "claude-code-sdk",
+  "claude-agent-sdk",
   "colorlog",
   "httpx",
   "jinja2",
