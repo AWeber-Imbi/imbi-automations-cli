@@ -700,6 +700,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../imbi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Imbi
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../shell/" class="md-nav__link">
         
   
@@ -1531,6 +1554,7 @@
 
 
 <h1 id="template-actions">Template Actions<a class="headerlink" href="#template-actions" title="Permanent link">&para;</a></h1>
+<p>⚠️ <strong>CRITICAL BUG</strong>: Template actions are currently broken. Context variables are not passed to templates, causing all variable references to fail with <code>UndefinedError</code>. See <a href="#template-context">Template Context</a> section for details.</p>
 <p>Template actions render Jinja2 templates with full workflow context, enabling dynamic file generation for configurations, documentation, and code files.</p>
 <h2 id="configuration">Configuration<a class="headerlink" href="#configuration" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[[actions]]</span>
@@ -1559,7 +1583,8 @@
 - Parent directories created automatically
 - Existing files overwritten</p>
 <h2 id="template-context">Template Context<a class="headerlink" href="#template-context" title="Permanent link">&para;</a></h2>
-<p>All templates have access to these variables:</p>
+<p>⚠️ <strong>KNOWN ISSUE</strong>: The current implementation does NOT pass context variables to templates. Template variables like <code>{{ imbi_project.name }}</code> will raise <code>UndefinedError</code> until this bug is fixed.</p>
+<p><strong>Expected variables (not currently available):</strong></p>
 <table>
 <thead>
 <tr>
@@ -1601,6 +1626,8 @@
 </tr>
 </tbody>
 </table>
+<p><strong>Technical Details:</strong></p>
+<p>The template action calls <code>prompts.render(self.context, source_path)</code> but does not pass <code>**self.context.model_dump()</code> as kwargs, unlike shell and claude actions which do pass context variables. This means all template examples below will fail in the current implementation.</p>
 <h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
 <h3 id="single-file-template">Single File Template<a class="headerlink" href="#single-file-template" title="Permanent link">&para;</a></h3>
 <p><strong>Workflow config:</strong>
@@ -1949,14 +1976,24 @@ The API is available at: <code>https://{{ imbi_project.slug }}.example.com/api</
 <h2 id="implementation-notes">Implementation Notes<a class="headerlink" href="#implementation-notes" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Templates rendered using Jinja2 with StrictUndefined by default</li>
-<li><code>.j2</code> extension automatically removed from output filenames</li>
-<li>Directory rendering is recursive</li>
+<li><strong>BUG</strong>: Context variables NOT passed to templates (missing <code>**context.model_dump()</code> in render calls)</li>
+<li><code>.j2</code> extension NOT automatically removed from output filenames</li>
+<li>Directory rendering is recursive via <code>source_path.rglob('*')</code></li>
 <li>Existing files overwritten without warning</li>
-<li>Parent directories created automatically</li>
-<li>File permissions preserved from template files</li>
+<li>Parent directories created automatically with <code>mkdir(parents=True, exist_ok=True)</code></li>
+<li>File permissions NOT explicitly preserved (uses default umask)</li>
 <li>Template context is immutable during rendering</li>
-<li>All Jinja2 built-in filters and tests available</li>
+<li>All Jinja2 built-in filters and tests available (if context were passed)</li>
+<li>Only <code>extract_image_from_dockerfile</code> custom function added to globals</li>
 </ul>
+<p><strong>Implementation Location</strong>: <code>src/imbi_automations/actions/template.py:24-82</code></p>
+<p><strong>Bug Details</strong>:
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a><span class="c1"># Current broken implementation (line 52, 73):</span>
+<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a><span class="n">prompts</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="p">,</span> <span class="n">source_path</span><span class="p">)</span>
+<a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a>
+<a id="__codelineno-32-4" name="__codelineno-32-4" href="#__codelineno-32-4"></a><span class="c1"># Should be (like shell.py:130 and claude.py:130):</span>
+<a id="__codelineno-32-5" name="__codelineno-32-5" href="#__codelineno-32-5"></a><span class="n">prompts</span><span class="o">.</span><span class="n">render</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="p">,</span> <span class="n">source_path</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="o">.</span><span class="n">model_dump</span><span class="p">())</span>
+</code></pre></div></p>
 <h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
 <ol>
 <li><strong>Use <code>.j2</code> extension</strong>: Makes templates easily identifiable</li>

@@ -12,7 +12,7 @@
         <link rel="prev" href="../git/">
       
       
-        <link rel="next" href="../shell/">
+        <link rel="next" href="../imbi/">
       
       
       <link rel="icon" href="../../logo.svg">
@@ -736,13 +736,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#operations" class="md-nav__link">
+  <a href="#commands" class="md-nav__link">
     <span class="md-ellipsis">
-      Operations
+      Commands
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Operations">
+    <nav class="md-nav" aria-label="Commands">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -793,9 +793,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#implementation-notes" class="md-nav__link">
+  <a href="#implementation-status" class="md-nav__link">
     <span class="md-ellipsis">
-      Implementation Notes
+      Implementation Status
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#planned-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Planned Implementation Notes
     </span>
   </a>
   
@@ -805,6 +814,29 @@
   
 </nav>
       
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../imbi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Imbi
+    
+  </span>
+  
+
+      </a>
     </li>
   
 
@@ -966,13 +998,13 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#operations" class="md-nav__link">
+  <a href="#commands" class="md-nav__link">
     <span class="md-ellipsis">
-      Operations
+      Commands
     </span>
   </a>
   
-    <nav class="md-nav" aria-label="Operations">
+    <nav class="md-nav" aria-label="Commands">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
@@ -1023,9 +1055,18 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#implementation-notes" class="md-nav__link">
+  <a href="#implementation-status" class="md-nav__link">
     <span class="md-ellipsis">
-      Implementation Notes
+      Implementation Status
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#planned-implementation-notes" class="md-nav__link">
+    <span class="md-ellipsis">
+      Planned Implementation Notes
     </span>
   </a>
   
@@ -1056,24 +1097,26 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a><span class="k">[[actions]]</span>
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;action-name&quot;</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;github&quot;</span>
-<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">operation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sync_environments&quot;</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># Operation-specific fields</span>
+<a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sync_environments&quot;</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="c1"># Command-specific fields</span>
 </code></pre></div>
-<h2 id="operations">Operations<a class="headerlink" href="#operations" title="Permanent link">&para;</a></h2>
+<h2 id="commands">Commands<a class="headerlink" href="#commands" title="Permanent link">&para;</a></h2>
 <h3 id="sync_environments">sync_environments<a class="headerlink" href="#sync_environments" title="Permanent link">&para;</a></h3>
+<p><strong>Status:</strong> ❌ Not yet implemented (raises NotImplementedError)</p>
 <p>Synchronize GitHub repository environments with Imbi project environments.</p>
 <p><strong>Example:</strong>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a><span class="k">[[actions]]</span>
 <a id="__codelineno-1-2" name="__codelineno-1-2" href="#__codelineno-1-2"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sync-github-envs&quot;</span>
 <a id="__codelineno-1-3" name="__codelineno-1-3" href="#__codelineno-1-3"></a><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;github&quot;</span>
-<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">operation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sync_environments&quot;</span>
+<a id="__codelineno-1-4" name="__codelineno-1-4" href="#__codelineno-1-4"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sync_environments&quot;</span>
 </code></pre></div></p>
-<p><strong>Behavior:</strong>
-- Reads environments from Imbi project
-- Creates/updates GitHub repository environments
-- Synchronizes environment variables and secrets
-- Maintains environment protection rules</p>
+<p><strong>Planned Behavior:</strong>
+- Read environments from Imbi project
+- Create/update GitHub repository environments
+- Synchronize environment variables and secrets
+- Maintain environment protection rules</p>
 <h2 id="common-use-cases">Common Use Cases<a class="headerlink" href="#common-use-cases" title="Permanent link">&para;</a></h2>
+<p><strong>Note:</strong> These examples show the intended usage once <code>sync_environments</code> is implemented.</p>
 <h3 id="environment-synchronization">Environment Synchronization<a class="headerlink" href="#environment-synchronization" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="k">[[conditions]]</span>
 <a id="__codelineno-2-2" name="__codelineno-2-2" href="#__codelineno-2-2"></a><span class="n">remote_file_exists</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;.github/workflows/deploy.yml&quot;</span>
@@ -1081,7 +1124,7 @@
 <a id="__codelineno-2-4" name="__codelineno-2-4" href="#__codelineno-2-4"></a><span class="k">[[actions]]</span>
 <a id="__codelineno-2-5" name="__codelineno-2-5" href="#__codelineno-2-5"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ensure-environments&quot;</span>
 <a id="__codelineno-2-6" name="__codelineno-2-6" href="#__codelineno-2-6"></a><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;github&quot;</span>
-<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">operation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sync_environments&quot;</span>
+<a id="__codelineno-2-7" name="__codelineno-2-7" href="#__codelineno-2-7"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sync_environments&quot;</span>
 </code></pre></div>
 <h3 id="post-deployment-updates">Post-Deployment Updates<a class="headerlink" href="#post-deployment-updates" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-3-1" name="__codelineno-3-1" href="#__codelineno-3-1"></a><span class="k">[[actions]]</span>
@@ -1092,15 +1135,19 @@
 <a id="__codelineno-3-6" name="__codelineno-3-6" href="#__codelineno-3-6"></a><span class="k">[[actions]]</span>
 <a id="__codelineno-3-7" name="__codelineno-3-7" href="#__codelineno-3-7"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;update-environments&quot;</span>
 <a id="__codelineno-3-8" name="__codelineno-3-8" href="#__codelineno-3-8"></a><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;github&quot;</span>
-<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">operation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sync_environments&quot;</span>
+<a id="__codelineno-3-9" name="__codelineno-3-9" href="#__codelineno-3-9"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;sync_environments&quot;</span>
 </code></pre></div>
-<h2 id="implementation-notes">Implementation Notes<a class="headerlink" href="#implementation-notes" title="Permanent link">&para;</a></h2>
-<ul>
-<li>Requires GitHub API access</li>
-<li>Uses authenticated GitHub client</li>
-<li>Respects GitHub API rate limits</li>
-<li>Idempotent operations (safe to re-run)</li>
-</ul>
+<h2 id="implementation-status">Implementation Status<a class="headerlink" href="#implementation-status" title="Permanent link">&para;</a></h2>
+<p>Currently, the GitHub action type is defined but not implemented:
+- <code>sync_environments</code>: Raises <code>NotImplementedError</code></p>
+<p>The action type exists in the codebase but will error when executed. This is likely a placeholder for future functionality.</p>
+<h2 id="planned-implementation-notes">Planned Implementation Notes<a class="headerlink" href="#planned-implementation-notes" title="Permanent link">&para;</a></h2>
+<p>When implemented, the action would:
+- Require GitHub API access with appropriate permissions
+- Use authenticated GitHub client from workflow context
+- Respect GitHub API rate limits
+- Provide idempotent operations (safe to re-run)
+- Integrate with Imbi project environment configuration</p>
 
 
 

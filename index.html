@@ -470,6 +470,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#use-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Use Cases
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#action-types" class="md-nav__link">
     <span class="md-ellipsis">
       Action Types
@@ -863,6 +872,29 @@
   
   
     <li class="md-nav__item">
+      <a href="actions/imbi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Imbi
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="actions/shell/" class="md-nav__link">
         
   
@@ -1022,6 +1054,15 @@
 </li>
         
           <li class="md-nav__item">
+  <a href="#use-cases" class="md-nav__link">
+    <span class="md-ellipsis">
+      Use Cases
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#action-types" class="md-nav__link">
     <span class="md-ellipsis">
       Action Types
@@ -1160,14 +1201,28 @@
 <li><strong>Batch Processing</strong>: Concurrent processing with resumption capabilities</li>
 <li><strong>Template System</strong>: Jinja2-based file generation with full project context</li>
 </ul>
+<h3 id="use-cases">Use Cases<a class="headerlink" href="#use-cases" title="Permanent link">&para;</a></h3>
+<p>Across all of your software projects and repositories, Imbi Automations can automate the following tasks:</p>
+<ul>
+<li><strong>Project Updates</strong>: Upgrade projects to the latest syntax, update dependencies, and fix CI/CD pipelines</li>
+<li><strong>Project Migrations</strong>: Convert all projects from a language like JavaScript to TypeScript</li>
+<li><strong>Standards Compliance</strong>: Identify and report on places where project standards are not being followed</li>
+<li><strong>Project Analysis</strong>: Update Imbi Project Facts based on project analysis results</li>
+<li><strong>Code Quality Improvements</strong>: Apply linting, formatting, and pre-commit hooks</li>
+<li><strong>Infrastructure Updates</strong>: Modernize project configurations and tooling</li>
+<li><strong>Project Reviews</strong>: Automated code reviews and code quality analysis</li>
+<li><strong>Security Updates</strong>: Update dependencies with security patches</li>
+<li><strong>Software Upgrades</strong>: Upgrade projects to newer software versions</li>
+</ul>
 <h3 id="action-types">Action Types<a class="headerlink" href="#action-types" title="Permanent link">&para;</a></h3>
 <p>The framework supports multiple transformation types:</p>
 <ul>
 <li><strong>Callable Actions</strong>: Direct API method calls with dynamic parameters</li>
 <li><strong>Claude Code Integration</strong>: Complex multi-file analysis and AI transformations</li>
 <li><strong>Docker Operations</strong>: Container-based file extraction and manipulation</li>
-<li><strong>Git Operations</strong>: Version control operations and branch management</li>
 <li><strong>File Actions</strong>: Copy, move, delete, and regex replacement operations</li>
+<li><strong>Git Operations</strong>: Extract files from previous commits, clone repositories, etc.</li>
+<li><strong>Imbi Actions</strong>: Update project facts</li>
 <li><strong>Shell Commands</strong>: Execute arbitrary commands with template variables</li>
 <li><strong>Utility Actions</strong>: Helper operations for common workflow patterns</li>
 </ul>
@@ -1215,16 +1270,15 @@
 <h2 id="documentation">Documentation<a class="headerlink" href="#documentation" title="Permanent link">&para;</a></h2>
 <ul>
 <li><strong><a href="architecture/">Architecture Guide</a></strong>: Comprehensive technical documentation</li>
+<li><strong><a href="workflows/">Workflow Configuration</a></strong>: Creating and running workflows</li>
 <li><strong><a href="actions/">Workflow Actions</a></strong>: Complete action types reference</li>
-<li><strong>Workflow Configuration</strong>: See workflows directory in repository</li>
-<li><strong>Developer Guide</strong>: See AGENTS.md in repository</li>
 </ul>
 <h2 id="requirements">Requirements<a class="headerlink" href="#requirements" title="Permanent link">&para;</a></h2>
 <ul>
 <li>Python 3.12 or higher</li>
+<li>Imbi project management system access</li>
 <li>GitHub API access (for GitHub workflows)</li>
 <li>GitLab API access (for GitLab workflows)</li>
-<li>Imbi project management system access</li>
 </ul>
 
 

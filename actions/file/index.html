@@ -820,6 +820,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../imbi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Imbi
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../shell/" class="md-nav__link">
         
   
@@ -1206,7 +1229,7 @@
 - For <code>path</code>: Deletes specific file or directory (recursive)
 - For <code>pattern</code>: Searches recursively and deletes all matching files
 - Does not error if path doesn't exist
-- Pattern matching uses Python regex syntax</p>
+- Pattern matching uses Python regex syntax (string in TOML, compiled at runtime)</p>
 <hr />
 <h3 id="append">append<a class="headerlink" href="#append" title="Permanent link">&para;</a></h3>
 <p>Append content to existing files or create new files.</p>
@@ -1254,7 +1277,7 @@
 - Creates file if it doesn't exist
 - Creates parent directories automatically
 - Appends to end of existing files
-- Supports both text and binary content</p>
+- Text mode only (bytes are decoded using specified encoding)</p>
 <hr />
 <h3 id="write">write<a class="headerlink" href="#write" title="Permanent link">&para;</a></h3>
 <p>Write content to files, overwriting if they exist.</p>
@@ -1271,14 +1294,14 @@
 <a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;write&quot;</span>
 <a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;repository:///README.md&quot;</span>
 <a id="__codelineno-6-7" name="__codelineno-6-7" href="#__codelineno-6-7"></a><span class="n">content</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;&quot;</span>
-<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="s2"># {{ imbi_project.name }}</span>
+<a id="__codelineno-6-8" name="__codelineno-6-8" href="#__codelineno-6-8"></a><span class="s2"># My Project</span>
 <a id="__codelineno-6-9" name="__codelineno-6-9" href="#__codelineno-6-9"></a>
-<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="s2">{{ imbi_project.description }}</span>
+<a id="__codelineno-6-10" name="__codelineno-6-10" href="#__codelineno-6-10"></a><span class="s2">Description here</span>
 <a id="__codelineno-6-11" name="__codelineno-6-11" href="#__codelineno-6-11"></a>
 <a id="__codelineno-6-12" name="__codelineno-6-12" href="#__codelineno-6-12"></a><span class="s2">## Installation</span>
 <a id="__codelineno-6-13" name="__codelineno-6-13" href="#__codelineno-6-13"></a>
 <a id="__codelineno-6-14" name="__codelineno-6-14" href="#__codelineno-6-14"></a><span class="s2">```bash</span>
-<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="s2">pip install {{ imbi_project.name }}</span>
+<a id="__codelineno-6-15" name="__codelineno-6-15" href="#__codelineno-6-15"></a><span class="s2">pip install my-project</span>
 </code></pre></div>
 """</p>
 <h1 id="write-json-configuration">Write JSON configuration<a class="headerlink" href="#write-json-configuration" title="Permanent link">&para;</a></h1>
@@ -1289,9 +1312,9 @@ command = "write"
 path = "repository:///config.json"
 content = """
 {
-  "name": "{{ imbi_project.name }}",
+  "name": "my-project",
   "version": "1.0.0",
-  "type": "{{ imbi_project.project_type }}"
+  "type": "library"
 }
 """</p>
 <h1 id="write-with-custom-encoding">Write with custom encoding<a class="headerlink" href="#write-with-custom-encoding" title="Permanent link">&para;</a></h1>
@@ -1301,20 +1324,13 @@ type = "file"
 command = "write"
 path = "repository:///data.txt"
 content = "Unicode content: 你好"
-encoding = "utf-16"</p>
-<h1 id="write-binary-content">Write binary content<a class="headerlink" href="#write-binary-content" title="Permanent link">&para;</a></h1>
-<p>[[actions]]
-name = "write-binary"
-type = "file"
-command = "write"
-path = "repository:///image.dat"
-content = "{{ binary_data }}"  # Must be bytes
+encoding = "utf-16"
 <div class="highlight"><pre><span></span><code><a id="__codelineno-7-1" name="__codelineno-7-1" href="#__codelineno-7-1"></a>**Behavior:**
 <a id="__codelineno-7-2" name="__codelineno-7-2" href="#__codelineno-7-2"></a>- Overwrites existing files
 <a id="__codelineno-7-3" name="__codelineno-7-3" href="#__codelineno-7-3"></a>- Creates file if it doesn&#39;t exist
 <a id="__codelineno-7-4" name="__codelineno-7-4" href="#__codelineno-7-4"></a>- Creates parent directories automatically
-<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>- Supports both text and binary content
-<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>- Content supports Jinja2 template variables
+<a id="__codelineno-7-5" name="__codelineno-7-5" href="#__codelineno-7-5"></a>- Text mode (string) or binary mode (bytes) - detected automatically
+<a id="__codelineno-7-6" name="__codelineno-7-6" href="#__codelineno-7-6"></a>- Does NOT support Jinja2 templating (use `template` action instead)
 <a id="__codelineno-7-7" name="__codelineno-7-7" href="#__codelineno-7-7"></a>
 <a id="__codelineno-7-8" name="__codelineno-7-8" href="#__codelineno-7-8"></a>---
 <a id="__codelineno-7-9" name="__codelineno-7-9" href="#__codelineno-7-9"></a>
@@ -1374,7 +1390,11 @@ content = "{{ binary_data }}"  # Must be bytes
 <a id="__codelineno-8-10" name="__codelineno-8-10" href="#__codelineno-8-10"></a><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;file&quot;</span>
 <a id="__codelineno-8-11" name="__codelineno-8-11" href="#__codelineno-8-11"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;write&quot;</span>
 <a id="__codelineno-8-12" name="__codelineno-8-12" href="#__codelineno-8-12"></a><span class="n">path</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;repository:///config.yaml&quot;</span>
-<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="n">content</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;{{ new_config }}&quot;</span>
+<a id="__codelineno-8-13" name="__codelineno-8-13" href="#__codelineno-8-13"></a><span class="n">content</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;&quot;</span>
+<a id="__codelineno-8-14" name="__codelineno-8-14" href="#__codelineno-8-14"></a><span class="s2">database:</span>
+<a id="__codelineno-8-15" name="__codelineno-8-15" href="#__codelineno-8-15"></a><span class="s2">  host: localhost</span>
+<a id="__codelineno-8-16" name="__codelineno-8-16" href="#__codelineno-8-16"></a><span class="s2">  port: 5432</span>
+<a id="__codelineno-8-17" name="__codelineno-8-17" href="#__codelineno-8-17"></a><span class="s2">&quot;&quot;&quot;</span>
 </code></pre></div>
 <h3 id="template-deployment-pattern">Template Deployment Pattern<a class="headerlink" href="#template-deployment-pattern" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">[[actions]]</span>
@@ -1427,11 +1447,14 @@ content = "{{ binary_data }}"  # Must be bytes
 <h2 id="implementation-notes">Implementation Notes<a class="headerlink" href="#implementation-notes" title="Permanent link">&para;</a></h2>
 <ul>
 <li>All operations create parent directories automatically</li>
-<li>File metadata (permissions, timestamps) preserved in copy operations</li>
+<li>File metadata (permissions, timestamps) preserved in copy operations via <code>shutil.copy2</code></li>
 <li>Glob patterns resolved relative to source base directory</li>
 <li>Empty glob results raise <code>RuntimeError</code></li>
-<li>Binary content detected automatically (bytes vs string)</li>
-<li>Encoding applies only to text operations</li>
+<li>Binary content detected automatically (bytes vs string) in <code>write</code> command</li>
+<li><code>append</code> command converts bytes to text using encoding (text mode only)</li>
+<li>Encoding applies only to text operations (default: <code>utf-8</code>)</li>
+<li>Pattern field accepts regex strings in TOML, compiled to <code>re.Pattern</code> at runtime</li>
+<li>Content does NOT support Jinja2 templating - use <code>template</code> action type for that</li>
 </ul>
 
 

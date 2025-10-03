@@ -9,7 +9,7 @@
       
       
       
-        <link rel="prev" href="../github/">
+        <link rel="prev" href="../imbi/">
       
       
         <link rel="next" href="../template/">
@@ -697,6 +697,29 @@
                 
   
   
+  
+  
+    <li class="md-nav__item">
+      <a href="../imbi/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Imbi
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
     
   
   
@@ -787,9 +810,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#ignore_failure-optional" class="md-nav__link">
+  <a href="#ignore_errors-optional" class="md-nav__link">
     <span class="md-ellipsis">
-      ignore_failure (optional)
+      ignore_errors (optional)
     </span>
   </a>
   
@@ -838,27 +861,27 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#complex-multi-line-commands" class="md-nav__link">
+  <a href="#multi-step-script-execution" class="md-nav__link">
     <span class="md-ellipsis">
-      Complex Multi-line Commands
+      Multi-Step Script Execution
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#conditional-execution" class="md-nav__link">
+  <a href="#conditional-execution-with-shell" class="md-nav__link">
     <span class="md-ellipsis">
-      Conditional Execution
+      Conditional Execution with Shell
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#ignore-failures" class="md-nav__link">
+  <a href="#ignore-errors" class="md-nav__link">
     <span class="md-ellipsis">
-      Ignore Failures
+      Ignore Errors
     </span>
   </a>
   
@@ -1300,9 +1323,9 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#ignore_failure-optional" class="md-nav__link">
+  <a href="#ignore_errors-optional" class="md-nav__link">
     <span class="md-ellipsis">
-      ignore_failure (optional)
+      ignore_errors (optional)
     </span>
   </a>
   
@@ -1351,27 +1374,27 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#complex-multi-line-commands" class="md-nav__link">
+  <a href="#multi-step-script-execution" class="md-nav__link">
     <span class="md-ellipsis">
-      Complex Multi-line Commands
+      Multi-Step Script Execution
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#conditional-execution" class="md-nav__link">
+  <a href="#conditional-execution-with-shell" class="md-nav__link">
     <span class="md-ellipsis">
-      Conditional Execution
+      Conditional Execution with Shell
     </span>
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#ignore-failures" class="md-nav__link">
+  <a href="#ignore-errors" class="md-nav__link">
     <span class="md-ellipsis">
-      Ignore Failures
+      Ignore Errors
     </span>
   </a>
   
@@ -1669,8 +1692,8 @@
 <a id="__codelineno-0-2" name="__codelineno-0-2" href="#__codelineno-0-2"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;action-name&quot;</span>
 <a id="__codelineno-0-3" name="__codelineno-0-3" href="#__codelineno-0-3"></a><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;shell&quot;</span>
 <a id="__codelineno-0-4" name="__codelineno-0-4" href="#__codelineno-0-4"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;command to execute&quot;</span>
-<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">working_directory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;path&quot;</span><span class="w">  </span><span class="c1"># Optional</span>
-<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">ignore_failure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="w">      </span><span class="c1"># Optional, default: false</span>
+<a id="__codelineno-0-5" name="__codelineno-0-5" href="#__codelineno-0-5"></a><span class="n">working_directory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;path&quot;</span><span class="w">  </span><span class="c1"># Optional, default: repository:///</span>
+<a id="__codelineno-0-6" name="__codelineno-0-6" href="#__codelineno-0-6"></a><span class="n">ignore_errors</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">false</span><span class="w">       </span><span class="c1"># Optional, default: false</span>
 </code></pre></div>
 <h2 id="fields">Fields<a class="headerlink" href="#fields" title="Permanent link">&para;</a></h2>
 <h3 id="command-required">command (required)<a class="headerlink" href="#command-required" title="Permanent link">&para;</a></h3>
@@ -1684,10 +1707,10 @@
 - <code>working_directory</code>: Path to workflow working directory
 - <code>starting_commit</code>: Initial Git commit SHA</p>
 <h3 id="working_directory-optional">working_directory (optional)<a class="headerlink" href="#working_directory-optional" title="Permanent link">&para;</a></h3>
-<p>Directory to execute the command in. Defaults to the workflow's working directory.</p>
+<p>Directory to execute the command in.</p>
 <p><strong>Type:</strong> <code>ResourceUrl</code> (string path)
-<strong>Default:</strong> <code>{working_directory}</code></p>
-<h3 id="ignore_failure-optional">ignore_failure (optional)<a class="headerlink" href="#ignore_failure-optional" title="Permanent link">&para;</a></h3>
+<strong>Default:</strong> <code>repository:///</code> (the cloned repository directory)</p>
+<h3 id="ignore_errors-optional">ignore_errors (optional)<a class="headerlink" href="#ignore_errors-optional" title="Permanent link">&para;</a></h3>
 <p>Whether to continue workflow execution if the command fails (non-zero exit code).</p>
 <p><strong>Type:</strong> <code>boolean</code>
 <strong>Default:</strong> <code>false</code></p>
@@ -1712,32 +1735,30 @@
 <a id="__codelineno-3-4" name="__codelineno-3-4" href="#__codelineno-3-4"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;git tag -a v{{ version }} -m &#39;Release {{ version }} for {{ imbi_project.name }}&#39;&quot;</span>
 <a id="__codelineno-3-5" name="__codelineno-3-5" href="#__codelineno-3-5"></a><span class="n">working_directory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;repository:///&quot;</span>
 </code></pre></div>
-<h3 id="complex-multi-line-commands">Complex Multi-line Commands<a class="headerlink" href="#complex-multi-line-commands" title="Permanent link">&para;</a></h3>
+<h3 id="multi-step-script-execution">Multi-Step Script Execution<a class="headerlink" href="#multi-step-script-execution" title="Permanent link">&para;</a></h3>
+<p><strong>Note:</strong> Shell actions execute commands directly without a shell, so shell operators like <code>&amp;&amp;</code>, <code>||</code>, <code>;</code>, and <code>|</code> do not work. For multi-step operations, use a shell wrapper:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="k">[[actions]]</span>
 <a id="__codelineno-4-2" name="__codelineno-4-2" href="#__codelineno-4-2"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;setup-and-test&quot;</span>
 <a id="__codelineno-4-3" name="__codelineno-4-3" href="#__codelineno-4-3"></a><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;shell&quot;</span>
 <a id="__codelineno-4-4" name="__codelineno-4-4" href="#__codelineno-4-4"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;&quot;&quot;</span>
-<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="s2">python -m venv .venv &amp;&amp; </span><span class="se">\</span>
-<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="s2">source .venv/bin/activate &amp;&amp; </span><span class="se">\</span>
-<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="s2">pip install -e .[dev] &amp;&amp; </span><span class="se">\</span>
-<a id="__codelineno-4-8" name="__codelineno-4-8" href="#__codelineno-4-8"></a><span class="s2">pytest tests/ --cov={{ imbi_project.slug }}</span>
-<a id="__codelineno-4-9" name="__codelineno-4-9" href="#__codelineno-4-9"></a><span class="s2">&quot;&quot;&quot;</span>
-<a id="__codelineno-4-10" name="__codelineno-4-10" href="#__codelineno-4-10"></a><span class="n">working_directory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;{{ working_directory }}/repository&quot;</span>
+<a id="__codelineno-4-5" name="__codelineno-4-5" href="#__codelineno-4-5"></a><span class="s2">bash -c &#39;python -m venv .venv &amp;&amp; source .venv/bin/activate &amp;&amp; pip install -e .[dev] &amp;&amp; pytest tests/ --cov={{ imbi_project.slug }}&#39;</span>
+<a id="__codelineno-4-6" name="__codelineno-4-6" href="#__codelineno-4-6"></a><span class="s2">&quot;&quot;&quot;</span>
+<a id="__codelineno-4-7" name="__codelineno-4-7" href="#__codelineno-4-7"></a><span class="n">working_directory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;{{ working_directory }}/repository&quot;</span>
 </code></pre></div>
-<h3 id="conditional-execution">Conditional Execution<a class="headerlink" href="#conditional-execution" title="Permanent link">&para;</a></h3>
+<h3 id="conditional-execution-with-shell">Conditional Execution with Shell<a class="headerlink" href="#conditional-execution-with-shell" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-5-1" name="__codelineno-5-1" href="#__codelineno-5-1"></a><span class="k">[[actions]]</span>
 <a id="__codelineno-5-2" name="__codelineno-5-2" href="#__codelineno-5-2"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;npm-install-if-needed&quot;</span>
 <a id="__codelineno-5-3" name="__codelineno-5-3" href="#__codelineno-5-3"></a><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;shell&quot;</span>
-<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;if [ -f package.json ]; then npm install; fi&quot;</span>
+<a id="__codelineno-5-4" name="__codelineno-5-4" href="#__codelineno-5-4"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;bash -c &#39;if [ -f package.json ]; then npm install; fi&#39;&quot;</span>
 <a id="__codelineno-5-5" name="__codelineno-5-5" href="#__codelineno-5-5"></a><span class="n">working_directory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;repository:///&quot;</span>
 </code></pre></div>
-<h3 id="ignore-failures">Ignore Failures<a class="headerlink" href="#ignore-failures" title="Permanent link">&para;</a></h3>
+<h3 id="ignore-errors">Ignore Errors<a class="headerlink" href="#ignore-errors" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-6-1" name="__codelineno-6-1" href="#__codelineno-6-1"></a><span class="k">[[actions]]</span>
 <a id="__codelineno-6-2" name="__codelineno-6-2" href="#__codelineno-6-2"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;optional-linting&quot;</span>
 <a id="__codelineno-6-3" name="__codelineno-6-3" href="#__codelineno-6-3"></a><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;shell&quot;</span>
 <a id="__codelineno-6-4" name="__codelineno-6-4" href="#__codelineno-6-4"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;ruff check src/&quot;</span>
 <a id="__codelineno-6-5" name="__codelineno-6-5" href="#__codelineno-6-5"></a><span class="n">working_directory</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;repository:///&quot;</span>
-<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="n">ignore_failure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="w">  </span><span class="c1"># Don&#39;t fail workflow if linting fails</span>
+<a id="__codelineno-6-6" name="__codelineno-6-6" href="#__codelineno-6-6"></a><span class="n">ignore_errors</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="w">  </span><span class="c1"># Don&#39;t fail workflow if linting fails</span>
 </code></pre></div>
 <h2 id="common-use-cases">Common Use Cases<a class="headerlink" href="#common-use-cases" title="Permanent link">&para;</a></h2>
 <h3 id="running-tests">Running Tests<a class="headerlink" href="#running-tests" title="Permanent link">&para;</a></h3>
@@ -1918,14 +1939,14 @@
 <a id="__codelineno-18-10" name="__codelineno-18-10" href="#__codelineno-18-10"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;optional-command&quot;</span>
 <a id="__codelineno-18-11" name="__codelineno-18-11" href="#__codelineno-18-11"></a><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;shell&quot;</span>
 <a id="__codelineno-18-12" name="__codelineno-18-12" href="#__codelineno-18-12"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;optional-operation&quot;</span>
-<a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a><span class="n">ignore_failure</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="w">  </span><span class="c1"># Continues even if exit code != 0</span>
+<a id="__codelineno-18-13" name="__codelineno-18-13" href="#__codelineno-18-13"></a><span class="n">ignore_errors</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="w">  </span><span class="c1"># Continues even if exit code != 0</span>
 </code></pre></div>
 <h3 id="command-not-found">Command Not Found<a class="headerlink" href="#command-not-found" title="Permanent link">&para;</a></h3>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="k">[[actions]]</span>
 <a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;missing-command&quot;</span>
 <a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;shell&quot;</span>
 <a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;nonexistent-command&quot;</span>
-<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="c1"># Raises RuntimeError: Command &#39;nonexistent-command&#39; not found</span>
+<a id="__codelineno-19-5" name="__codelineno-19-5" href="#__codelineno-19-5"></a><span class="c1"># Raises FileNotFoundError: Command not found: nonexistent-command</span>
 </code></pre></div>
 <h2 id="security-considerations">Security Considerations<a class="headerlink" href="#security-considerations" title="Permanent link">&para;</a></h2>
 <h3 id="command-injection-prevention">Command Injection Prevention<a class="headerlink" href="#command-injection-prevention" title="Permanent link">&para;</a></h3>
@@ -1943,34 +1964,42 @@
 <a id="__codelineno-20-11" name="__codelineno-20-11" href="#__codelineno-20-11"></a><span class="c1"># SAFEST - avoid untrusted input in shell commands</span>
 </code></pre></div>
 <h3 id="environment-variables">Environment Variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h3>
-<p>Commands execute with the same environment as the workflow process:</p>
+<p>Commands execute with the same environment as the workflow process. Note that environment variables in the command string itself are NOT expanded (no shell):</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="k">[[actions]]</span>
 <a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="n">name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;use-env-var&quot;</span>
 <a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;shell&quot;</span>
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;echo $HOME &amp;&amp; echo $USER&quot;</span>
+<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;bash -c &#39;echo $HOME &amp;&amp; echo $USER&#39;&quot;</span><span class="w">  </span><span class="c1"># Need bash -c for shell features</span>
 </code></pre></div>
 <h2 id="performance-tips">Performance Tips<a class="headerlink" href="#performance-tips" title="Permanent link">&para;</a></h2>
 <h3 id="chaining-commands">Chaining Commands<a class="headerlink" href="#chaining-commands" title="Permanent link">&para;</a></h3>
-<p>Use <code>&amp;&amp;</code> for dependent commands (fail fast):
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="k">[[actions]]</span>
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;shell&quot;</span>
-<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;cd repository &amp;&amp; make build &amp;&amp; make test&quot;</span>
-</code></pre></div></p>
-<p>Use <code>;</code> for independent commands (always run all):
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="k">[[actions]]</span>
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;shell&quot;</span>
-<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;make clean; make build; make test&quot;</span>
-</code></pre></div></p>
+<p><strong>Important:</strong> Shell operators require wrapping the command in <code>bash -c</code> or <code>sh -c</code>:</p>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1"># Use &amp;&amp; for dependent commands (fail fast):</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a><span class="k">[[actions]]</span>
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;shell&quot;</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;bash -c &#39;cd repository &amp;&amp; make build &amp;&amp; make test&#39;&quot;</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="c1"># Use ; for independent commands (always run all):</span>
+<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a><span class="k">[[actions]]</span>
+<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="n">type</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;shell&quot;</span>
+<a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a><span class="n">command</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;bash -c &#39;make clean; make build; make test&#39;&quot;</span>
+</code></pre></div>
 <h3 id="background-processes">Background Processes<a class="headerlink" href="#background-processes" title="Permanent link">&para;</a></h3>
 <p>Not recommended - commands block until completion. For long-running operations, consider using Docker actions instead.</p>
 <h2 id="implementation-notes">Implementation Notes<a class="headerlink" href="#implementation-notes" title="Permanent link">&para;</a></h2>
 <ul>
-<li>Commands execute in a subprocess using asyncio</li>
-<li>Full shell features available (pipes, redirects, environment variables)</li>
-<li>Working directory resolved before command execution</li>
+<li>Commands execute in a subprocess using <code>asyncio.create_subprocess_exec</code></li>
+<li><strong>No shell by default</strong>: Commands are parsed with <code>shlex.split()</code> and executed directly</li>
+<li><strong>Shell features require explicit shell</strong>: Use <code>bash -c '...'</code> or <code>sh -c '...'</code> for:</li>
+<li>Pipes (<code>|</code>), redirects (<code>&gt;</code>, <code>&lt;</code>), wildcards (<code>*</code>)</li>
+<li>Command chaining (<code>&amp;&amp;</code>, <code>||</code>, <code>;</code>)</li>
+<li>Environment variable expansion (<code>$VAR</code>)</li>
+<li>Built-in shell commands (<code>cd</code>, <code>export</code>, etc.)</li>
+<li>Working directory resolved before command execution via <code>utils.resolve_path()</code></li>
 <li>Template rendering occurs before command execution</li>
-<li>Timeout: Configurable (default varies by implementation)</li>
-<li>Shell: Uses system default shell (<code>/bin/sh</code> on Unix, <code>cmd.exe</code> on Windows)</li>
+<li>Commands are parsed as shell-like arguments (respecting quotes and escapes)</li>
+<li>No timeout configured (commands run until completion)</li>
+<li>stdout and stderr captured and logged at DEBUG level</li>
+<li>Non-zero exit codes raise <code>subprocess.CalledProcessError</code> (unless <code>ignore_errors=true</code>)</li>
 </ul>
 
 
