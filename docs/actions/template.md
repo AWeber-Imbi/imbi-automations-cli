@@ -1,5 +1,7 @@
 # Template Actions
 
+⚠️ **CRITICAL BUG**: Template actions are currently broken. Context variables are not passed to templates, causing all variable references to fail with `UndefinedError`. See [Template Context](#template-context) section for details.
+
 Template actions render Jinja2 templates with full workflow context, enabling dynamic file generation for configurations, documentation, and code files.
 
 ## Configuration
@@ -40,7 +42,9 @@ Output location for rendered templates.
 
 ## Template Context
 
-All templates have access to these variables:
+⚠️ **KNOWN ISSUE**: The current implementation does NOT pass context variables to templates. Template variables like `{{ imbi_project.name }}` will raise `UndefinedError` until this bug is fixed.
+
+**Expected variables (not currently available):**
 
 | Variable | Type | Description |
 |----------|------|-------------|
@@ -50,6 +54,10 @@ All templates have access to these variables:
 | `gitlab_project` | `GitLabProject` | GitLab project data (if applicable) |
 | `working_directory` | `Path` | Workflow execution directory |
 | `starting_commit` | `str` | Initial Git commit SHA |
+
+**Technical Details:**
+
+The template action calls `prompts.render(self.context, source_path)` but does not pass `**self.context.model_dump()` as kwargs, unlike shell and claude actions which do pass context variables. This means all template examples below will fail in the current implementation.
 
 ## Examples
 
@@ -490,13 +498,26 @@ Template actions raise errors for:
 ## Implementation Notes
 
 - Templates rendered using Jinja2 with StrictUndefined by default
-- `.j2` extension automatically removed from output filenames
-- Directory rendering is recursive
+- **BUG**: Context variables NOT passed to templates (missing `**context.model_dump()` in render calls)
+- `.j2` extension NOT automatically removed from output filenames
+- Directory rendering is recursive via `source_path.rglob('*')`
 - Existing files overwritten without warning
-- Parent directories created automatically
-- File permissions preserved from template files
+- Parent directories created automatically with `mkdir(parents=True, exist_ok=True)`
+- File permissions NOT explicitly preserved (uses default umask)
 - Template context is immutable during rendering
-- All Jinja2 built-in filters and tests available
+- All Jinja2 built-in filters and tests available (if context were passed)
+- Only `extract_image_from_dockerfile` custom function added to globals
+
+**Implementation Location**: `src/imbi_automations/actions/template.py:24-82`
+
+**Bug Details**:
+```python
+# Current broken implementation (line 52, 73):
+prompts.render(self.context, source_path)
+
+# Should be (like shell.py:130 and claude.py:130):
+prompts.render(self.context, source_path, **self.context.model_dump())
+```
 
 ## Best Practices
 
