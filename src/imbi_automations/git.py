@@ -203,7 +203,7 @@ async def clone_to_directory(
     return head_commit
 
 
-async def add_files(working_directory: pathlib.Path, files: list[str]) -> None:
+async def add_files(working_directory: pathlib.Path) -> None:
     """Add files to git staging area.
 
     Args:
@@ -214,25 +214,16 @@ async def add_files(working_directory: pathlib.Path, files: list[str]) -> None:
         RuntimeError: If git add fails
 
     """
-    if not files:
-        LOGGER.debug('No files to add to git staging area')
-        return
-
-    LOGGER.debug('Adding %d files to git staging area', len(files))
-
-    # Use git add with multiple files
-    command = ['git', 'add'] + files
-
+    command = ['git', 'add', '--all']
     returncode, stdout, stderr = await _run_git_command(
         command, cwd=working_directory, timeout_seconds=60
     )
-
+    LOGGER.debug('STDOUT: %s', stdout)
     if returncode != 0:
+        LOGGER.error('STDERR: %s', stderr)
         raise RuntimeError(
             f'Git add failed (exit code {returncode}): {stderr or stdout}'
         )
-
-    LOGGER.debug('Successfully added %d files to git staging area', len(files))
 
 
 async def remove_files(

@@ -79,7 +79,7 @@ class Committer(mixins.WorkflowLoggerMixin):
         repo_dir = context.working_directory / 'repository'
 
         # Stage all changes including deletions
-        await git.add_files(working_directory=repo_dir, files=['--all'])
+        await git.add_files(working_directory=repo_dir)
 
         # Build commit message
         body = f'{action.commit_message}\n\n' if action.commit_message else ''
