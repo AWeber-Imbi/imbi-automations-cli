@@ -36,6 +36,7 @@ class ClaudeAction(mixins.WorkflowLoggerMixin):
         self.claude = claude.Claude(configuration, context, verbose)
         self.configuration = configuration
         self.context = context
+        self.last_error: models.AgentRun | None = None
         commit_author = utils.parseaddr(self.configuration.commit_author)
         self.prompt_kwargs = {
             'commit_author': self.configuration.commit_author,
@@ -48,6 +49,7 @@ class ClaudeAction(mixins.WorkflowLoggerMixin):
     async def execute(self, action: models.WorkflowClaudeAction) -> None:
         """Execute the Claude Code action."""
         success = False
+        self.last_error = None
         for cycle in range(1, action.max_cycles + 1):
             self._log_verbose_info(
                 'Claude Code cycle %d/%d for action %s',
@@ -126,4 +128,14 @@ class ClaudeAction(mixins.WorkflowLoggerMixin):
             prompt += prompts.render(self.context, prompt_file, **data)
         else:
             prompt += prompt_file.read_text(encoding='utf-8')
+
+        if self.last_error:
+            prompt += """
+            ---
+            You need to fix problems identified from a previous run.
+            The errors for context are:
+
+            { self.last_error.model_dump_json() }
+            """
+
         return prompt
