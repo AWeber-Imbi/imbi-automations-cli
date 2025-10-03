@@ -15,20 +15,16 @@ class GitActions(mixins.WorkflowLoggerMixin):
         self.configuration = configuration
         self.context = context
 
-    async def execute(
-        self, context: models.WorkflowContext, action: models.WorkflowGitAction
-    ) -> None:
+    async def execute(self, action: models.WorkflowGitAction) -> None:
         """Execute the shell action."""
-        self._set_workflow_logger(context.workflow)
-
         match action.command:
             case models.WorkflowGitActionCommand.extract:
                 destination_file = utils.resolve_path(
-                    context, action.destination
+                    self.context, action.destination
                 )
                 if (
                     not await git.extract_file_from_commit(
-                        working_directory=context.working_directory
+                        working_directory=self.context.working_directory
                         / 'repository',
                         source_file=action.source,
                         destination_file=destination_file,
@@ -43,10 +39,10 @@ class GitActions(mixins.WorkflowLoggerMixin):
                     )
             case models.WorkflowGitActionCommand.clone:
                 destination_path = utils.resolve_path(
-                    context, action.destination
+                    self.context, action.destination
                 )
                 await git.clone_to_directory(
-                    working_directory=context.working_directory,
+                    working_directory=self.context.working_directory,
                     clone_url=action.url,
                     destination=destination_path,
                     branch=action.branch,

@@ -19,15 +19,10 @@ class ShellAction(mixins.WorkflowLoggerMixin):
         self.configuration = configuration
         self.context = context
 
-    async def execute(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowShellAction,
-    ) -> None:
+    async def execute(self, action: models.WorkflowShellAction) -> None:
         """Execute a shell command with optional template rendering.
 
         Args:
-            context: Workflow context for template rendering
             action: Shell action containing the command to execute
 
         Raises:
@@ -35,10 +30,8 @@ class ShellAction(mixins.WorkflowLoggerMixin):
             ValueError: If cmd syntax is invalid or template rendering fails
 
         """
-        self._set_workflow_logger(context.workflow)
-
         # Render command if it contains templating
-        command_str = self._render_command(action.command, context)
+        command_str = self._render_command(action.command, self.context)
 
         self.logger.debug('Executing shell command: %s', command_str)
 
@@ -52,9 +45,7 @@ class ShellAction(mixins.WorkflowLoggerMixin):
             raise ValueError('Empty command after template rendering')
 
         # Set working directory using resolve_path
-        cwd = None
-        if context.working_directory:
-            cwd = utils.resolve_path(context, action.working_directory)
+        cwd = utils.resolve_path(self.context, action.working_directory)
 
         try:
             # Execute command asynchronously

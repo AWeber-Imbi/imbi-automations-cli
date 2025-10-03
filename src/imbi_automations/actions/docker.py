@@ -19,11 +19,7 @@ class DockerActions(mixins.WorkflowLoggerMixin):
         self.configuration = configuration
         self.context = context
 
-    async def execute(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowDockerAction,
-    ) -> None:
+    async def execute(self, action: models.WorkflowDockerAction) -> None:
         """Execute a docker action based on the command type.
 
         Args:
@@ -35,38 +31,32 @@ class DockerActions(mixins.WorkflowLoggerMixin):
             ValueError: If required parameters are missing or invalid
 
         """
-        self._set_workflow_logger(context.workflow)
-
         match action.command:
             case models.WorkflowDockerActionCommand.build:
-                await self._execute_build(context, action)
+                await self._execute_build(action)
             case models.WorkflowDockerActionCommand.extract:
-                await self._execute_extract(context, action)
+                await self._execute_extract(action)
             case models.WorkflowDockerActionCommand.pull:
-                await self._execute_pull(context, action)
+                await self._execute_pull(action)
             case models.WorkflowDockerActionCommand.push:
-                await self._execute_push(context, action)
+                await self._execute_push(action)
             case _:
                 raise RuntimeError(
                     f'Unsupported docker command: {action.command}'
                 )
 
     async def _execute_build(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowDockerAction,
+        self, action: models.WorkflowDockerAction
     ) -> None:
         """Execute docker build command."""
         raise NotImplementedError('Docker build not yet supported')
 
     async def _execute_extract(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowDockerAction,
+        self, action: models.WorkflowDockerAction
     ) -> None:
         """Execute docker extract command to copy files from container."""
         image = (
-            prompts.render(context, str(action.image))
+            prompts.render(self.context, str(action.image))
             if prompts.has_template_syntax(action.image)
             else action.image
         )
@@ -83,7 +73,9 @@ class DockerActions(mixins.WorkflowLoggerMixin):
             if dest_uri.host
             else dest_uri.path.lstrip('/')
         )
-        dest_path = context.working_directory / 'extracted' / dest_filename
+        dest_path = (
+            self.context.working_directory / 'extracted' / dest_filename
+        )
         self._log_verbose_info(
             'Extracting %s from container %s to %s',
             source_path,
@@ -118,19 +110,11 @@ class DockerActions(mixins.WorkflowLoggerMixin):
                     'Failed to cleanup container %s: %s', container_name, exc
                 )
 
-    async def _execute_pull(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowDockerAction,
-    ) -> None:
+    async def _execute_pull(self, action: models.WorkflowDockerAction) -> None:
         """Execute docker pull command."""
         raise NotImplementedError('Docker pull not yet supported')
 
-    async def _execute_push(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowDockerAction,
-    ) -> None:
+    async def _execute_push(self, action: models.WorkflowDockerAction) -> None:
         """Execute docker push command."""
         raise NotImplementedError('Docker push not yet supported')
 

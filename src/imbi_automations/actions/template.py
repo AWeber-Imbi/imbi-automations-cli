@@ -15,25 +15,20 @@ class TemplateAction(mixins.WorkflowLoggerMixin):
         self.configuration = configuration
         self.context = context
 
-    async def execute(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowTemplateAction,
-    ) -> None:
+    async def execute(self, action: models.WorkflowTemplateAction) -> None:
         """Execute template action to render Jinja2 templates.
 
         Args:
-            context: Workflow execution context
             action: Template action configuration
 
         Raises:
             RuntimeError: If template rendering fails
 
         """
-        self._set_workflow_logger(context.workflow)
-
-        source_path = utils.resolve_path(context, action.source_path)
-        destination_path = utils.resolve_path(context, action.destination_path)
+        source_path = utils.resolve_path(self.context, action.source_path)
+        destination_path = utils.resolve_path(
+            self.context, action.destination_path
+        )
 
         if not source_path.exists():
             raise RuntimeError(
@@ -48,7 +43,7 @@ class TemplateAction(mixins.WorkflowLoggerMixin):
                 destination_path,
             )
             with destination_path.open('w', encoding='utf-8') as fh:
-                fh.write(prompts.render(context, source_path))
+                fh.write(prompts.render(self.context, source_path))
             self._log_verbose_info('Rendered template to %s', destination_path)
             return
 
@@ -69,7 +64,7 @@ class TemplateAction(mixins.WorkflowLoggerMixin):
                 dest_file = destination_path / relative_path
                 dest_file.parent.mkdir(parents=True, exist_ok=True)
                 with dest_file.open('w', encoding='utf-8') as fh:
-                    fh.write(prompts.render(context, template_file))
+                    fh.write(prompts.render(self.context, template_file))
                 file_count += 1
 
         self._log_verbose_info(

@@ -17,11 +17,7 @@ class UtilityActions(mixins.WorkflowLoggerMixin):
         self.configuration = configuration
         self.context = context
 
-    async def execute(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowUtilityAction,
-    ) -> None:
+    async def execute(self, action: models.WorkflowUtilityAction) -> None:
         match action.command:
             case models.WorkflowUtilityCommands.docker_tag:
                 raise NotImplementedError(

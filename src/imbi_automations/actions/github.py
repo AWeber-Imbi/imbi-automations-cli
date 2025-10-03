@@ -17,11 +17,7 @@ class GitHubActions(mixins.WorkflowLoggerMixin):
         self.configuration = configuration
         self.context = context
 
-    async def execute(
-        self,
-        context: models.WorkflowContext,
-        action: models.WorkflowGitHubAction,
-    ) -> None:
+    async def execute(self, action: models.WorkflowGitHubAction) -> None:
         match action.command:
             case models.WorkflowGitHubCommand.sync_environments:
                 raise NotImplementedError(
