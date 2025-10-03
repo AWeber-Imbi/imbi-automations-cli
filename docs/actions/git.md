@@ -22,7 +22,7 @@ Extract a specific file from Git commit history. Useful for retrieving old versi
 
 
 - `source` (pathlib.Path): Path to the file in the repository
-- `destination` (ResourceUrl): Where to write the extracted file
+- `destination` ([`ResourceUrl`](index.md#resourceurl-path-system)): Where to write the extracted file
 
 **Optional Fields:**
 
@@ -56,7 +56,7 @@ Clone a Git repository to a specific location.
 
 
 - `url` (string): Git repository URL to clone
-- `destination` (ResourceUrl): Where to clone the repository
+- `destination` ([`ResourceUrl`](index.md#resourceurl-path-system)): Where to clone the repository
 
 **Optional Fields:**
 
@@ -229,5 +229,5 @@ destination_path = "repository:///config/"
 **Path resolution**:
 
 - `source` paths are relative to repository root
-- `destination` supports all ResourceUrl schemes (`extracted:///`, `repository:///`, etc.)
+- `destination` supports all [`ResourceUrl`](index.md#resourceurl-path-system) schemes (`extracted:///`, `repository:///`, etc.)
 - Destination directories created automatically if needed
