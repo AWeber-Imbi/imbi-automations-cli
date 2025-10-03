@@ -61,7 +61,9 @@ class Claude(mixins.WorkflowLoggerMixin):
         await self.client.disconnect()
         return response
 
-    async def anthropic_query(self, prompt: str, model: str | None) -> str:
+    async def anthropic_query(
+        self, prompt: str, model: str | None = None
+    ) -> str:
         """Use the Anthropic API to run one-off tasks"""
         message = await self.anthropic.messages.create(
             model=model or self.configuration.anthropic.model,
