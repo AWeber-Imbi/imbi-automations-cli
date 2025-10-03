@@ -124,6 +124,7 @@ depth = 100  # More history available for git operations
 ```
 
 **Use cases:**
+
 - `depth = 1`: Fastest, use for most workflows
 - `depth = 100+`: When extracting files from commit history
 
@@ -224,6 +225,7 @@ replace_branch = true  # Force-replace existing PR branch
 **Requirements:** `create_pull_request` must be `true`.
 
 **Use cases:**
+
 - Updating failed workflow runs
 - Re-running workflows with fixes
 - Forcing clean state
@@ -303,6 +305,7 @@ With `condition_type = "any"`, workflow executes if EITHER file exists.
 Array of condition objects. See [Workflow Conditions](workflow-conditions.md) for complete condition types and examples.
 
 **Condition Types:**
+
 - **Remote conditions** (checked via API before cloning)
   - `remote_file_exists` / `remote_file_not_exists`
   - `remote_file_contains` / `remote_file_doesnt_contain` + `remote_file`
@@ -385,6 +388,7 @@ committable = false  # Don't commit this file
 ```
 
 **Use cases:**
+
 - Temporary files for other actions
 - Diagnostic output files
 - Intermediate processing artifacts

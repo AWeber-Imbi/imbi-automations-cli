@@ -33,12 +33,14 @@ file_exists = "Dockerfile"
 Remote conditions are checked via API before cloning the repository. They are **faster** and more **efficient** than local conditions.
 
 **Advantages:**
+
 - ⚡ No repository cloning required
 - 💾 Saves bandwidth and disk space
 - 🚀 Faster workflow evaluation
 - ✅ Early filtering (fail fast)
 
 **Limitations:**
+
 - Limited to single file content checks
 - No glob pattern support for content matching
 - API rate limits may apply
@@ -60,7 +62,7 @@ remote_file_exists = "setup.cfg"
 remote_file_exists = "**/*.tf"  # Any Terraform file recursively
 ```
 
-**Real-world example from python39-project-fix:**
+**Real-world example from example-workflow:**
 ```toml
 [[conditions]]
 remote_file_exists = "setup.cfg"
@@ -79,7 +81,7 @@ Check if a file does NOT exist using GitHub/GitLab API.
 remote_file_not_exists = "pyproject.toml"
 ```
 
-**Real-world example from python39-project-fix:**
+**Real-world example from example-workflow:**
 ```toml
 [[conditions]]
 remote_file_not_exists = "pyproject.toml"
@@ -147,12 +149,14 @@ remote_file_exists = ".gitlab-ci.yml"
 Local conditions are checked after cloning the repository. They have **full filesystem access** and support **glob patterns**.
 
 **Advantages:**
+
 - ✅ Full glob pattern support
 - ✅ Access to all files, even .gitignored
 - ✅ Complex pattern matching
 - ✅ Directory checks
 
 **Disadvantages:**
+
 - 🐌 Requires git clone first
 - 💾 Uses bandwidth and disk space
 - ⏱️ Slower than remote conditions
@@ -178,7 +182,7 @@ file_exists = "**/*.py"  # Any Python file recursively
 file_exists = "src/**/__init__.py"  # __init__.py in any src subdirectory
 ```
 
-**Real-world example from python39-project-fix (action-level):**
+**Real-world example from example-workflow (action-level):**
 ```toml
 [[actions]]
 name = "extract-constraints"
@@ -203,13 +207,13 @@ Check if a file or directory does NOT exist locally.
 file_not_exists = ".travis.yml"  # No legacy CI
 ```
 
-**Real-world example from python39-project-fix (action-level):**
+**Real-world example from example-workflow (action-level):**
 ```toml
 [[actions]]
 name = "extract-original-compose-yml"
 type = "git"
 command = "extract"
-commit_keyword = "g2g-migration"
+commit_keyword = "migration"
 source = "compose.yml"
 destination = "extracted:///compose.original.yaml"
 
@@ -285,7 +289,7 @@ remote_file_exists = "setup.cfg"
 remote_file_not_exists = "pyproject.toml"
 ```
 
-**Real-world example from python39-project-fix:**
+**Real-world example from example-workflow:**
 ```toml
 # Workflow level - targets un-migrated projects
 [[conditions]]
@@ -318,7 +322,7 @@ remote_file_exists = "setup.py"
 
 ## Real-World Examples
 
-### Example 1: Workflow-Level Conditions (python39-project-fix)
+### Example 1: Workflow-Level Conditions (example-workflow)
 
 ```toml
 # Only target Python projects that still use setup.cfg
@@ -363,7 +367,7 @@ file_exists = "Dockerfile"
 name = "extract-original-docker-compose-yml"
 type = "git"
 command = "extract"
-commit_keyword = "g2g-migration"
+commit_keyword = "migration"
 source = "docker-compose.yml"
 destination = "extracted:///compose.original.yaml"
 ignore_errors = true
@@ -402,7 +406,7 @@ file_exists = "repository:///Dockerfile"
 
 ### Example 5: Multiple Condition Fallbacks
 
-This pattern from python39-project-fix tries multiple compose file names:
+This pattern from example-workflow tries multiple compose file names:
 
 ```toml
 # Try compose.yaml first
@@ -570,7 +574,7 @@ remote_file = "setup.cfg"
 
 ## Complete Example
 
-This is the actual condition strategy from python39-project-fix:
+This is the actual condition strategy from example-workflow:
 
 ```toml
 # Filter: Broad targeting

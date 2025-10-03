@@ -5,6 +5,7 @@ Project filters reduce the scope of workflow execution by pre-filtering projects
 ## When to Use Filters
 
 **Use filters when you want to:**
+
 - Target specific project types (APIs, consumers, libraries, etc.)
 - Select projects with specific technology stacks
 - Require GitHub/GitLab integration
@@ -43,6 +44,7 @@ project_ids = [42, 108, 256]
 ```
 
 **Use cases:**
+
 - Testing workflows on specific projects
 - Fixing issues in known problem projects
 - Updating projects that failed in a previous run
@@ -62,6 +64,7 @@ Filter by project type slugs from Imbi.
 **Default:** `[]` (no type filtering)
 
 **Common project types:**
+
 - `api` / `apis` - REST APIs and web services
 - `backend-libraries` - Shared backend libraries
 - `bots` - Chat and automation bots
@@ -77,7 +80,7 @@ Filter by project type slugs from Imbi.
 project_types = ["api", "consumer", "daemon"]
 ```
 
-**Real-world example from python39-project-fix:**
+**Real-world example from example-workflow:**
 ```toml
 [filter]
 project_types = [
@@ -102,6 +105,7 @@ Filter by exact Imbi project fact values.
 **Default:** `{}` (no fact filtering)
 
 **Fact matching:**
+
 - Keys are fact names (case-sensitive)
 - Values must match exactly
 - ALL specified facts must match (AND logic)
@@ -116,7 +120,7 @@ project_facts = {
 
 Only projects with BOTH `Programming Language = "Python 3.12"` AND `Framework = "FastAPI"` will be included.
 
-**Real-world example from python39-project-fix:**
+**Real-world example from example-workflow:**
 ```toml
 [filter]
 project_facts = {"programming_language" = "Python 3.9"}
@@ -125,6 +129,7 @@ project_facts = {"programming_language" = "Python 3.9"}
 **Why this filter?** Targets only Python 3.9 projects that need updating.
 
 **Common fact names:**
+
 - `Programming Language` - e.g., "Python 3.12", "TypeScript", "Go"
 - `Framework` - e.g., "FastAPI", "Flask", "Express"
 - `Database` - e.g., "PostgreSQL", "MongoDB"
@@ -144,11 +149,12 @@ github_identifier_required = true
 ```
 
 **Use cases:**
+
 - GitHub-specific workflows (workflow fixes, PR automation)
 - Projects that must have CI/CD
 - Excluding archived or non-GitHub projects
 
-**Real-world example from python39-project-fix:**
+**Real-world example from example-workflow:**
 ```toml
 [filter]
 github_identifier_required = true
@@ -176,7 +182,7 @@ github_workflow_status_exclude = ["success"]
 
 Only projects with failing, pending, or no workflows will be processed.
 
-**Real-world example from python39-project-fix:**
+**Real-world example from example-workflow:**
 ```toml
 [filter]
 github_workflow_status_exclude = ["success"]
@@ -201,7 +207,7 @@ github_workflow_status_exclude = ["success", "pending"]
 
 ## Complete Real-World Example
 
-This is the actual filter from the python39-project-fix workflow:
+This is the actual filter from the example-workflow workflow:
 
 ```toml
 [filter]
