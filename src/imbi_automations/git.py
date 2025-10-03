@@ -295,7 +295,7 @@ async def commit_changes(
     with (working_directory / 'commit-msg.txt').open('w') as f:
         f.write(message)
 
-    command = ['git', 'commit', '-f', '../commit-msg.txt']
+    command = ['git', 'commit', '-F', '../commit-msg.txt']
 
     # Add author information if provided
     if commit_author:
