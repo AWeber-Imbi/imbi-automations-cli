@@ -123,7 +123,7 @@ Create a commit with all Python version references updated to 3.12.
 
 ## Failure Indication
 
-If you cannot complete this task, create a file named `ACTION_FAILED` with details about what prevented completion.
+If you cannot complete this task, return failure with details about what prevented completion.
 ```
 
 ### Multi-Cycle Transformation with Retry
@@ -218,13 +218,13 @@ Project: {{ imbi_project.name }}
 
 ## Failure Conditions
 
-Create `PYDANTIC_MIGRATION_FAILED` file if:
+Return failure if:
 - Unable to identify Pydantic usage patterns
 - Migration would break existing functionality
 - Tests fail after migration
 - Manual intervention required
 
-Include specific error details and affected files.
+Include specific error details and affected files in the failure response.
 ```
 
 ## Prompt Best Practices
@@ -272,13 +272,13 @@ You must:
 
 ## Failure Indication
 
-Create `DOCKER_UPDATE_FAILED` file if:
+Return failure if:
 - No Dockerfile found in repository
 - Unable to parse existing Dockerfile syntax
 - Changes would break the build process
 - Multiple conflicting Dockerfile versions exist
 
-Include the specific error and list of files examined.
+Include the specific error and list of files examined in the failure response.
 ```
 
 ### Project Context Usage
@@ -320,7 +320,7 @@ Claude actions detect failure through specific files created in the working dire
 ```markdown
 ## Failure Indication
 
-If you cannot complete this task, create a file named `UPDATE_DEPENDENCIES_FAILED` containing:
+If you cannot complete this task, return failure with:
 
 1. **Reason**: Why the task failed
 2. **Files Examined**: List of files you checked
@@ -328,12 +328,13 @@ If you cannot complete this task, create a file named `UPDATE_DEPENDENCIES_FAILE
 4. **Manual Steps**: What a human would need to do
 5. **Context**: Any relevant information for debugging
 
-Example:
+Example failure response:
 ````
-REASON: Unable to parse pyproject.toml due to syntax error
-FILES: pyproject.toml, requirements.txt
-ERROR: toml.decoder.TomlDecodeError at line 15
-MANUAL: Fix toml syntax error in pyproject.toml line 15
+Unable to parse pyproject.toml due to syntax error
+
+Files examined: pyproject.toml, requirements.txt
+Error: toml.decoder.TomlDecodeError at line 15
+Manual steps: Fix toml syntax error in pyproject.toml line 15
 ````
 ```
 
