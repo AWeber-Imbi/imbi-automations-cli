@@ -8,7 +8,12 @@ nav:
   - Home: index.md
   - Architecture: architecture.md
   - Configuration: configuration.md
-  - Workflows: workflows.md
+  - Workflows:
+    - Overview: workflows.md
+    - Configuration: workflow-configuration.md
+    - Filters: workflow-filters.md
+    - Conditions: workflow-conditions.md
+    - Debugging: debugging.md
   - Actions:
     - actions/index.md
     - Callable: actions/callable.md
@@ -22,7 +27,6 @@ nav:
     - Template: actions/template.md
     - Utility: actions/utility.md
   - CLI Reference: cli.md
-  - Debugging: debugging.md
 
 theme:
   name: material
