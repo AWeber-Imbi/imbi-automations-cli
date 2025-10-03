@@ -36,7 +36,9 @@ github_workflow_status_exclude = ["success"]
 Target specific projects by their Imbi project ID.
 
 **Type:** `list[int]`
+
 **Default:** `[]` (no ID filtering)
+
 
 ```toml
 [filter]
@@ -61,7 +63,9 @@ project_ids = [123, 456, 789]
 Filter by project type slugs from Imbi.
 
 **Type:** `list[string]`
+
 **Default:** `[]` (no type filtering)
+
 
 **Common project types:**
 
@@ -102,7 +106,9 @@ project_types = [
 Filter by exact Imbi project fact values.
 
 **Type:** `dict[string, string]`
+
 **Default:** `{}` (no fact filtering)
+
 
 **Fact matching:**
 
@@ -141,7 +147,9 @@ project_facts = {"programming_language" = "Python 3.9"}
 Require projects to have a GitHub repository identifier.
 
 **Type:** `boolean`
+
 **Default:** `false`
+
 
 ```toml
 [filter]
@@ -167,7 +175,9 @@ github_identifier_required = true
 Exclude projects with specific GitHub Actions workflow statuses.
 
 **Type:** `list[string]`
+
 **Default:** `[]` (no status filtering)
+
 
 **Valid statuses:**
 

@@ -51,6 +51,7 @@ Check if a file exists using GitHub/GitLab API.
 
 **Type:** `string` (file path or glob pattern)
 
+
 ```toml
 [[conditions]]
 remote_file_exists = "setup.cfg"
@@ -76,6 +77,7 @@ Check if a file does NOT exist using GitHub/GitLab API.
 
 **Type:** `string` (file path or glob pattern)
 
+
 ```toml
 [[conditions]]
 remote_file_not_exists = "pyproject.toml"
@@ -94,7 +96,9 @@ remote_file_not_exists = "pyproject.toml"
 Check if a file contains specific text or matches a regex pattern.
 
 **Type:** `string` (pattern to search for)
+
 **Requires:** `remote_file` field with target file path
+
 
 ```toml
 [[conditions]]
@@ -137,7 +141,9 @@ remote_file = "pyproject.toml"
 Specify which API client to use for remote checks.
 
 **Type:** `string`
+
 **Values:** `"github"` (default), `"gitlab"`
+
 
 ```toml
 [[conditions]]
@@ -167,7 +173,9 @@ Local conditions are checked after cloning the repository. They have **full file
 Check if a file or directory exists locally.
 
 **Type:** `ResourceUrl` (path relative to repository)
+
 **Supports:** Glob patterns
+
 
 ```toml
 [[conditions]]
@@ -229,7 +237,9 @@ file_not_exists = "extracted:///compose.original.yaml"
 Check if a file contains specific text or matches a regex pattern.
 
 **Type:** `string` (pattern to search for)
+
 **Requires:** `file` field with target file path
+
 
 ```toml
 [[conditions]]
@@ -274,8 +284,11 @@ file = "setup.py"
 Controls how multiple conditions are evaluated.
 
 **Type:** `string`
+
 **Values:** `"all"` (AND logic), `"any"` (OR logic)
+
 **Default:** `"all"`
+
 
 #### AND Logic (condition_type = "all")
 

@@ -60,6 +60,7 @@ Workflow display name shown in logs, reports, and pull requests.
 
 **Type:** `string`
 
+
 ```toml
 name = "Update Python Dependencies"
 ```
@@ -69,7 +70,9 @@ name = "Update Python Dependencies"
 Human-readable description of workflow purpose and goals.
 
 **Type:** `string`
+
 **Default:** None
+
 
 ```toml
 description = "Updates Python dependencies to latest compatible versions while maintaining compatibility"
@@ -80,7 +83,9 @@ description = "Updates Python dependencies to latest compatible versions while m
 Base prompt file for Claude Code actions. This prompt is prepended to all Claude actions in the workflow unless they specify their own prompt.
 
 **Type:** `ResourceUrl` (path to prompt template file)
+
 **Default:** None
+
 
 ```toml
 prompt = "workflow:///prompts/base-context.md"
@@ -97,7 +102,9 @@ The `[git]` section controls repository cloning and commit behavior.
 Whether to clone the repository from the remote.
 
 **Type:** `boolean`
+
 **Default:** `true`
+
 
 ```toml
 [git]
@@ -111,7 +118,9 @@ clone = true
 Shallow clone depth (number of commits to fetch).
 
 **Type:** `integer`
+
 **Default:** `1`
+
 
 ```toml
 [git]
@@ -133,7 +142,9 @@ depth = 100  # More history available for git operations
 Git reference (branch, tag, or commit SHA) to clone.
 
 **Type:** `string`
+
 **Default:** Repository's default branch
+
 
 ```toml
 [git]
@@ -155,7 +166,9 @@ ref = "abc123"  # Clone specific commit
 Branch name to use as starting point for workflow branch.
 
 **Type:** `string`
+
 **Default:** Repository's default branch
+
 
 ```toml
 [git]
@@ -167,7 +180,9 @@ starting_branch = "develop"  # Branch from develop instead of main
 Whether to skip CI/CD checks in commit messages.
 
 **Type:** `boolean`
+
 **Default:** `false`
+
 
 ```toml
 [git]
@@ -179,7 +194,9 @@ ci_skip_checks = true  # Adds [skip ci] to commit messages
 Protocol to use for cloning repositories.
 
 **Type:** `string`
+
 **Values:** `"ssh"` (default), `"http"`
+
 
 ```toml
 [git]
@@ -200,7 +217,9 @@ The `[github]` section controls GitHub pull request creation and branch manageme
 Whether to create a pull request after committing changes.
 
 **Type:** `boolean`
+
 **Default:** `true`
+
 
 ```toml
 [github]
@@ -214,7 +233,9 @@ create_pull_request = true
 Delete and recreate remote branch if it already exists.
 
 **Type:** `boolean`
+
 **Default:** `false`
+
 
 ```toml
 [github]
@@ -241,7 +262,9 @@ The `[gitlab]` section controls GitLab merge request creation and branch managem
 Whether to create a merge request after committing changes.
 
 **Type:** `boolean`
+
 **Default:** `true`
+
 
 ```toml
 [gitlab]
@@ -253,7 +276,9 @@ create_merge_request = true
 Delete and recreate remote branch if it already exists.
 
 **Type:** `boolean`
+
 **Default:** `false`
+
 
 ```toml
 [gitlab]
@@ -272,8 +297,11 @@ Workflow conditions determine if the entire workflow should execute for a projec
 How to evaluate multiple conditions.
 
 **Type:** `string`
+
 **Values:** `"all"` (AND logic), `"any"` (OR logic)
+
 **Default:** `"all"`
+
 
 ```toml
 condition_type = "all"  # All conditions must pass
@@ -338,6 +366,7 @@ Action identifier for logging and error messages.
 
 **Type:** `string`
 
+
 ```toml
 [[actions]]
 name = "copy-gitignore"
@@ -348,7 +377,9 @@ name = "copy-gitignore"
 Action type determines which operation to perform.
 
 **Type:** `string`
+
 **Values:** `callable`, `claude`, `docker`, `file`, `git`, `github`, `imbi`, `shell`, `template`, `utility`
+
 
 ```toml
 [[actions]]
@@ -362,8 +393,11 @@ See [Actions Reference](actions/index.md) for complete documentation of each act
 Use AI to generate commit message for this action's changes.
 
 **Type:** `boolean`
+
 **Default:** `false`
+
 **Requires:** Anthropic API key configured
+
 
 ```toml
 [[actions]]
@@ -377,7 +411,9 @@ ai_commit = true  # AI-generated commit message
 Whether this action's changes should be included in git commits.
 
 **Type:** `boolean`
+
 **Default:** `true`
+
 
 ```toml
 [[actions]]
@@ -398,6 +434,7 @@ committable = false  # Don't commit this file
 Action name to jump to if this action succeeds.
 
 **Type:** `string` (action name)
+
 
 ```toml
 [[actions]]
@@ -420,7 +457,9 @@ name = "skip-slow-method"
 Action name to restart from if this action fails after all retry cycles.
 
 **Type:** `string` (action name)
+
 **Max Retries:** 3 per action
+
 
 ```toml
 [[actions]]
@@ -449,7 +488,9 @@ destination = "repository:///src/"
 Maximum execution time for action in seconds.
 
 **Type:** `integer`
+
 **Default:** `3600` (1 hour)
+
 
 ```toml
 [[actions]]
@@ -464,6 +505,7 @@ timeout = 7200  # 2 hours
 Project filter to apply for this specific action. Uses same filter format as workflow-level `[filter]`.
 
 **Type:** `WorkflowFilter` object
+
 
 ```toml
 [[actions]]
@@ -480,7 +522,9 @@ project_types = ["api"]
 How to evaluate multiple action conditions.
 
 **Type:** `string`
+
 **Values:** `"all"` (default), `"any"`
+
 
 ```toml
 [[actions]]
@@ -523,7 +567,9 @@ See [Workflow Conditions](workflow-conditions.md) for detailed condition documen
 Custom data dictionary for action-specific use.
 
 **Type:** `dict[string, any]`
+
 **Default:** `{}`
+
 
 ```toml
 [[actions]]

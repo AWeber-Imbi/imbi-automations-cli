@@ -1,4 +1,4 @@
-# Workflow Actions
+# About Actions
 
 Workflow actions are the core building blocks of automation in Imbi Automations. Each action type provides specific capabilities for interacting with repositories, external services, and project files.
 
