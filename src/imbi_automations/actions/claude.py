@@ -6,6 +6,7 @@ AI-powered code transformations.
 """
 
 import enum
+import pathlib
 from email import utils
 
 from imbi_automations import claude, mixins, models, prompts
@@ -131,12 +132,13 @@ class ClaudeAction(mixins.WorkflowLoggerMixin):
             prompt += prompt_file.read_text(encoding='utf-8')
 
         if self.last_error:
-            prompt += """
-            ---
-            You need to fix problems identified from a previous run.
-            The errors for context are:
-
-            { self.last_error.model_dump_json() }
-            """
+            prompt_file = (
+                pathlib.Path(__file__).parent / 'prompts' / 'last-error.md.j2'
+            )
+            prompt += prompts.render(
+                self.context,
+                prompt_file,
+                last_error=self.last_error.model_dump_json(indent=2),
+            )
 
         return prompt
