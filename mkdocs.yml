@@ -7,6 +7,7 @@ edit_uri: edit/main/docs/
 nav:
   - Home: index.md
   - Configuration: configuration.md
+  - Debugging: debugging.md
   - Architecture: architecture.md
   - Actions:
     - actions/index.md
@@ -22,26 +23,33 @@ nav:
 
 theme:
   name: material
+  logo: logo.svg  # Place logo.svg in docs/ directory
+  favicon: logo.svg
   features:
     - navigation.sections
     - navigation.expand
     - navigation.top
+    - navigation.tabs
     - search.suggest
     - search.highlight
     - content.code.copy
   palette:
     - scheme: default
-      primary: indigo
+      primary: custom
       accent: indigo
       toggle:
         icon: material/brightness-7
         name: Switch to dark mode
     - scheme: slate
-      primary: indigo
+      primary: custom
       accent: indigo
       toggle:
         icon: material/brightness-4
         name: Switch to light mode
+  custom_dir: docs/overrides
+
+extra_css:
+  - stylesheets/extra.css
 
 markdown_extensions:
   - admonition
