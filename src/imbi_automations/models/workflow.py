@@ -93,9 +93,9 @@ class WorkflowFilter(pydantic.BaseModel):
                 slug = fact_registry.FactRegistry.normalize_name(key)
 
                 # Validate against cache if available
-                if registry and registry.facts:
-                    fact_def = registry.get_fact(slug)
-                    if not fact_def:
+                if registry and registry.facts_by_slug:
+                    fact_defs = registry.get_facts(slug)
+                    if not fact_defs:
                         # Try to find similar names for helpful error
                         similar = [
                             name
@@ -113,11 +113,36 @@ class WorkflowFilter(pydantic.BaseModel):
                         raise ValueError(error_msg)
 
                     # Validate value for enum facts
-                    if fact_def.fact_type == 'enum' and fact_def.enum_values:
-                        is_valid, error = fact_def.validate_value(value)
-                        if not is_valid:
+                    # For filters, collect ALL possible enum values across
+                    # all fact definitions (since filters may target multiple
+                    # project types with different enum options)
+                    enum_facts = [
+                        f
+                        for f in fact_defs
+                        if f.fact_type == 'enum' and f.enum_values
+                    ]
+
+                    if enum_facts:
+                        # Collect all possible enum values
+                        all_enum_values = set()
+                        for fact_def in enum_facts:
+                            all_enum_values.update(fact_def.enum_values)
+
+                        # Validate against combined set
+                        try:
+                            typed_value = enum_facts[0]._coerce_value(value)
+                        except (ValueError, TypeError) as exc:
                             raise ValueError(
-                                f'Invalid value for fact "{key}": {error}'
+                                f'Invalid type for fact "{key}": {exc}'
+                            ) from exc
+
+                        if typed_value not in all_enum_values:
+                            combined = ', '.join(
+                                sorted(map(str, all_enum_values))
+                            )
+                            raise ValueError(
+                                f'Invalid value for fact "{key}": '
+                                f'Value must be one of: {combined}'
                             )
 
                 normalized[slug] = value

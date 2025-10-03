@@ -149,7 +149,8 @@ class FactRegistry:
     """
 
     def __init__(self) -> None:
-        self.facts: dict[str, FactTypeDefinition] = {}
+        self.facts_by_id: dict[int, FactTypeDefinition] = {}
+        self.facts_by_slug: dict[str, list[FactTypeDefinition]] = {}
         self.slug_to_name: dict[str, str] = {}
         self.name_to_slug: dict[str, str] = {}
         self._cache_dir = pathlib.Path.home() / '.imbi-automations'
@@ -261,11 +262,23 @@ class FactRegistry:
 
             self._register_fact(fact_def)
 
-        LOGGER.info('Loaded %d fact types from Imbi API', len(self.facts))
+        LOGGER.info(
+            'Loaded %d fact types from Imbi API', len(self.facts_by_id)
+        )
 
     def _register_fact(self, fact_def: FactTypeDefinition) -> None:
-        """Register a fact type in the registry."""
-        self.facts[fact_def.slug] = fact_def
+        """Register a fact type in the registry.
+
+        Handles multiple fact types with the same name (different IDs
+        for different project types).
+        """
+        self.facts_by_id[fact_def.id] = fact_def
+
+        # Multiple facts can have the same slug
+        if fact_def.slug not in self.facts_by_slug:
+            self.facts_by_slug[fact_def.slug] = []
+        self.facts_by_slug[fact_def.slug].append(fact_def)
+
         self.slug_to_name[fact_def.slug] = fact_def.name
         self.name_to_slug[fact_def.name] = fact_def.slug
 
@@ -277,7 +290,9 @@ class FactRegistry:
             'version': 1,
             'hostname': self._hostname,
             'cached_at': datetime.datetime.now(datetime.UTC).isoformat(),
-            'fact_types': [fact.model_dump() for fact in self.facts.values()],
+            'fact_types': [
+                fact.model_dump() for fact in self.facts_by_id.values()
+            ],
         }
 
         with open(self._cache_file, 'w') as f:
@@ -299,22 +314,32 @@ class FactRegistry:
         return name.lower().replace(' ', '_').replace('-', '_')
 
     def get_fact(self, name_or_slug: str) -> FactTypeDefinition | None:
-        """Get fact type by name or slug.
+        """Get first fact type by name or slug.
 
         Args:
             name_or_slug: Fact name or slug
 
         Returns:
-            FactTypeDefinition or None if not found
+            First matching FactTypeDefinition or None if not found
+
+        Note: For fact names with multiple definitions (different project
+        types), use get_facts() to get all matching definitions.
+        """
+        facts = self.get_facts(name_or_slug)
+        return facts[0] if facts else None
+
+    def get_facts(self, name_or_slug: str) -> list[FactTypeDefinition]:
+        """Get all fact types matching name or slug.
+
+        Args:
+            name_or_slug: Fact name or slug
+
+        Returns:
+            List of matching FactTypeDefinitions (multiple for same name)
 
         """
-        # Try as slug first
-        if name_or_slug in self.facts:
-            return self.facts[name_or_slug]
-
-        # Try normalizing as name
         slug = self.normalize_name(name_or_slug)
-        return self.facts.get(slug)
+        return self.facts_by_slug.get(slug, [])
 
     def validate_value(
         self, fact_name: str, value: typing.Any
