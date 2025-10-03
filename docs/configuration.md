@@ -73,6 +73,7 @@ Git commit author information for automated commits.
 **Default:** `"Imbi Automations <noreply@aweber.com>"`
 **Format:** `"Name <email>"`
 
+
 ```toml
 commit_author = "Bot User <bot@example.com>"
 ```

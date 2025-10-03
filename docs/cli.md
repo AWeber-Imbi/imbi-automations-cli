@@ -46,6 +46,7 @@ Path to configuration file containing API credentials and settings.
 
 **Type:** File path
 **Format:** TOML file
+
 **Required:** Yes
 
 **Example:**
@@ -157,6 +158,7 @@ Process a single GitHub repository by URL.
 
 **Type:** URL string
 **Format:** `https://github.com/org/repo` or `org/repo`
+
 **Use Case:** Target specific GitHub repository
 
 **Example:**
@@ -215,6 +217,7 @@ Process a single GitLab repository by URL.
 
 **Type:** URL string
 **Format:** `https://gitlab.com/group/project`
+
 **Use Case:** Target specific GitLab project
 
 **Example:**

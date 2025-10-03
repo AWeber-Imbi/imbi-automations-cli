@@ -24,7 +24,11 @@ Path to Jinja2 template file containing the task prompt for Claude.
 **Type:** `string` (path relative to workflow directory)
 
 **Format:** Jinja2 template (`.j2` extension) or plain markdown
+
+
 **Location:** Relative to workflow directory (e.g., `prompts/update-python.md`)
+
+
 
 ### validation_prompt (optional)
 
