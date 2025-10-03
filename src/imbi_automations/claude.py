@@ -37,9 +37,15 @@ class Claude(mixins.WorkflowLoggerMixin):
         if configuration.anthropic.bedrock:
             self.anthropic = anthropic.AsyncAnthropicBedrock()
         else:
-            self.anthropic = anthropic.AsyncAnthropic(
-                api_key=configuration.anthropic.api_key.get_secret_value()
-            )
+            if isinstance(configuration.anthropic.api_key, str):
+                api_key = configuration.anthropic.api_key
+            elif isinstance(
+                configuration.anthropic.api_key, pydantic.SecretStr
+            ):
+                api_key = configuration.anthropic.api_key.get_secret_value()
+            else:
+                api_key = None
+            self.anthropic = anthropic.AsyncAnthropic(api_key=api_key)
         self.agents: dict[str, types.AgentDefinition] = {}
         self.configuration = configuration
         self.context = context

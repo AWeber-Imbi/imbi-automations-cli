@@ -208,12 +208,12 @@ async def add_files(working_directory: pathlib.Path) -> None:
 
     Args:
         working_directory: Git repository working directory
-        files: List of file paths relative to working directory
 
     Raises:
         RuntimeError: If git add fails
 
     """
+    LOGGER.debug('Working directory: %s', working_directory)
     command = ['git', 'add', '--all']
     returncode, stdout, stderr = await _run_git_command(
         command, cwd=working_directory, timeout_seconds=60

@@ -101,6 +101,7 @@ class WorkflowAction(pydantic.BaseModel):
     filter: WorkflowFilter | None = None
     on_success: str | None = None
     on_failure: str | None = None
+    ignore_errors: bool = False
     timeout: int = 3600
     data: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
 
@@ -304,7 +305,6 @@ class WorkflowGitAction(WorkflowAction):
     depth: int | None = None
     commit_keyword: str | None = None
     search_strategy: WorkflowGitActionCommitMatchStrategy | None = None
-    ignore_errors: bool = False
     committable: bool = False
 
     @pydantic.model_validator(mode='after')
