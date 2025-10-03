@@ -170,6 +170,7 @@ Exclude projects with specific GitHub Actions workflow statuses.
 **Default:** `[]` (no status filtering)
 
 **Valid statuses:**
+
 - `"success"` - All workflows passing
 - `"failure"` - At least one workflow failing
 - `"pending"` - Workflows currently running

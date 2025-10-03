@@ -103,6 +103,7 @@ remote_file = "setup.cfg"
 ```
 
 **Pattern matching:**
+
 1. String search first (fast)
 2. Falls back to regex if string not found
 3. Use regex escaping: `\\.` for literal `.`, `\\d` for digits
@@ -237,6 +238,7 @@ file = "Dockerfile"
 ```
 
 **Pattern matching:**
+
 1. String search first (fast)
 2. Falls back to regex if string not found
 3. Use regex escaping: `\\.` for literal `.`, `\\d` for digits
@@ -334,6 +336,7 @@ remote_file_not_exists = "pyproject.toml"
 ```
 
 **What it does:**
+
 1. ✅ Project must have `setup.cfg` (old configuration)
 2. ✅ Project must NOT have `pyproject.toml` (not yet migrated)
 
@@ -355,6 +358,7 @@ file_exists = "Dockerfile"
 ```
 
 **What it does:**
+
 - Only extracts Docker constraints if project has a Dockerfile
 - If no Dockerfile, action is skipped (not a failure)
 
@@ -380,6 +384,7 @@ file_exists = "repository:///compose.yaml"
 ```
 
 **What it does:**
+
 1. ✅ Only extract if we haven't already extracted a compose file
 2. ✅ Only extract if project currently has compose.yaml
 
@@ -399,6 +404,7 @@ file_exists = "repository:///Dockerfile"
 ```
 
 **What it does:**
+
 - Only runs Claude to update Dockerfile if project has one
 - Projects without Docker are skipped gracefully
 
@@ -452,6 +458,7 @@ file_not_exists = "extracted:///compose.original.yaml"
 ```
 
 **What it does:**
+
 1. Try `compose.yaml` (modern name)
 2. If that fails, try `compose.yml`
 3. If that fails, try `docker-compose.yaml`
@@ -615,6 +622,7 @@ file_exists = "repository:///Dockerfile"  # Only if Dockerfile exists
 ```
 
 **Result:**
+
 1. Filter reduces 1000 projects → 50 Python 3.9 projects with failing builds
 2. Remote conditions reduce 50 projects → 30 projects needing migration (have setup.cfg, no pyproject.toml)
 3. Action conditions skip Docker-related actions for non-Docker projects

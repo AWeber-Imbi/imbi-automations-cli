@@ -78,19 +78,23 @@ GitLab API integration for:
 All models use Pydantic for validation and type safety:
 
 #### Configuration Models (`models/configuration.py`)
+
 - TOML-based configuration with secret handling
 - Provider-specific settings (GitHub, GitLab, Imbi)
 - Claude Code SDK integration settings
 - Validation rules and default values
 
 #### Workflow Models (`models/workflow.py`)
+
 Comprehensive workflow definition including:
+
 - **Actions**: Sequence of operations with type validation
 - **Conditions**: Repository state requirements (local and remote)
 - **Filters**: Project targeting and selection criteria
 - **Templates**: Jinja2 template configurations
 
 #### Provider Models
+
 - **GitHub Models** (`models/github.py`): Repository, organization, and API response models
 - **GitLab Models** (`models/gitlab.py`): Project, group, and API response models
 - **Imbi Models** (`models/imbi.py`): Project management system models
@@ -98,7 +102,9 @@ Comprehensive workflow definition including:
 ### Supporting Components
 
 #### Git Operations (`git.py`)
+
 Comprehensive Git integration:
+
 - Repository cloning with authentication
 - Branch management and switching
 - Commit creation and history management
@@ -106,7 +112,9 @@ Comprehensive Git integration:
 - Conflict resolution strategies
 
 #### File Actions (`file_actions.py`)
+
 File manipulation operations:
+
 - Copy, move, and delete operations
 - Regex-based content replacement
 - Template file processing
@@ -114,7 +122,9 @@ File manipulation operations:
 - Backup and restore capabilities
 
 #### Shell Integration (`shell.py`)
+
 Command execution with:
+
 - Template variable substitution
 - Environment variable management
 - Output capture and logging
@@ -122,14 +132,18 @@ Command execution with:
 - Timeout and resource management
 
 #### Condition Checker (`condition_checker.py`)
+
 Workflow condition evaluation:
+
 - Local file system checks (post-clone)
 - Remote repository checks via API (pre-clone)
 - Regex pattern matching
 - Performance optimization with early filtering
 
 #### Docker Integration (`docker.py`)
+
 Container operations for:
+-
 - Image extraction and analysis
 - File extraction from containers
 - Dockerfile parsing and manipulation

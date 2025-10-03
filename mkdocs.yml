@@ -13,20 +13,21 @@ nav:
     - Configuration: workflow-configuration.md
     - Filters: workflow-filters.md
     - Conditions: workflow-conditions.md
-    - Actions: actions/index.md
+    - Actions:
+      - actions/index.md
+      - Callable: actions/callable.md
+      - Claude: actions/claude.md
+      - Docker: actions/docker.md
+      - File: actions/file.md
+      - Git: actions/git.md
+      - GitHub: actions/github.md
+      - Imbi: actions/imbi.md
+      - Shell: actions/shell.md
+      - Template: actions/template.md
+      - Utility: actions/utility.md
+
     - Debugging: debugging.md
-  - Actions:
-    - actions/index.md
-    - Callable: actions/callable.md
-    - Claude: actions/claude.md
-    - Docker: actions/docker.md
-    - File: actions/file.md
-    - Git: actions/git.md
-    - GitHub: actions/github.md
-    - Imbi: actions/imbi.md
-    - Shell: actions/shell.md
-    - Template: actions/template.md
-    - Utility: actions/utility.md
+
   - CLI Reference: cli.md
 
 theme:
