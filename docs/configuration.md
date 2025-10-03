@@ -83,6 +83,7 @@ commit_author = "Bot User <bot@example.com>"
 Directory to store error logs and debugging information when workflows fail.
 
 **Type:** `path`
+
 **Default:** `"./errors"`
 
 ```toml
@@ -146,6 +147,7 @@ Claude model to use for API requests.
 **Default:** `"claude-3-5-haiku-latest"`
 
 **Available Models:**
+
 - `claude-3-5-sonnet-latest` - Most capable, higher cost
 - `claude-3-5-haiku-latest` - Fast and efficient (default)
 - `claude-3-opus-latest` - Highest capability, highest cost
@@ -190,6 +192,7 @@ enabled = false
 Custom base prompt file for Claude Code sessions.
 
 **Type:** `path`
+
 **Default:** `src/imbi_automations/prompts/claude.md`
 
 ```toml
