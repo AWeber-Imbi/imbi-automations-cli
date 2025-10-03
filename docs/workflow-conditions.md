@@ -575,6 +575,7 @@ remote_file = "setup.cfg"
 | **Bandwidth** | None | Minimal | High |
 
 **Best practice:** Use all three in combination:
+
 1. **Filters** for broad technology targeting
 2. **Remote conditions** for file-based applicability
 3. **Local conditions** for complex repository checks
