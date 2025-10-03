@@ -6,7 +6,6 @@ automation.
 """
 
 import asyncio
-import shlex
 import subprocess
 
 from imbi_automations import mixins, models, prompts, utils
@@ -46,22 +45,13 @@ class ShellAction(mixins.WorkflowLoggerMixin):
 
         self.logger.debug('Executing shell command: %s', command_str)
 
-        # Parse command string into arguments using shell-like parsing
-        try:
-            command_args = shlex.split(command_str)
-        except ValueError as exc:
-            raise ValueError(f'Invalid shell command syntax: {exc}') from exc
-
-        if not command_args:
-            raise ValueError('Empty command after template rendering')
-
         # Set working directory using resolve_path
         cwd = utils.resolve_path(self.context, action.working_directory)
 
         try:
-            # Execute command asynchronously
-            process = await asyncio.create_subprocess_exec(
-                *command_args,
+            # Execute command through shell to enable glob expansion
+            process = await asyncio.create_subprocess_shell(
+                command_str,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=cwd,
@@ -102,14 +92,14 @@ class ShellAction(mixins.WorkflowLoggerMixin):
                     )
                     raise subprocess.CalledProcessError(
                         process.returncode,
-                        command_args,
+                        command_str,
                         output=stdout,
                         stderr=stderr,
                     )
 
         except FileNotFoundError as exc:
             raise FileNotFoundError(
-                f'Command not found: {command_args[0]}'
+                f'Command not found: {command_str}'
             ) from exc
 
     def _render_command(
