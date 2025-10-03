@@ -4,7 +4,7 @@ Workflows define automated processes to execute across projects. Each workflow i
 
 ## Three Levels of Project Selection
 
-Imbi Automations provides three complementary mechanisms to control which projects and actions execute:
+In addition to the `--project-id`, `--project-type`, and `--all-projects` command-line arguments, Imbi Automations provides three complementary mechanisms to control which projects to process and which actions execute:
 
 ### 1. **Project Filters** - Pre-filter before processing
 Target specific project subsets using Imbi metadata:
