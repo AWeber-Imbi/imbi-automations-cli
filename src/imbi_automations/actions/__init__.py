@@ -29,6 +29,7 @@ from . import (
     filea,
     git,
     github,
+    imbi,
     shell,
     template,
     utility,
@@ -61,6 +62,7 @@ class Actions(mixins.WorkflowLoggerMixin):
             | models.WorkflowFileAction
             | models.WorkflowGitAction
             | models.WorkflowGitHubAction
+            | models.WorkflowImbiAction
             | models.WorkflowShellAction
             | models.WorkflowTemplateAction
             | models.WorkflowUtilityAction
@@ -88,6 +90,10 @@ class Actions(mixins.WorkflowLoggerMixin):
                 obj = git.GitActions(self.configuration, context, self.verbose)
             case models.WorkflowActionTypes.github:
                 obj = github.GitHubActions(
+                    self.configuration, context, self.verbose
+                )
+            case models.WorkflowActionTypes.imbi:
+                obj = imbi.ImbiActions(
                     self.configuration, context, self.verbose
                 )
             case models.WorkflowActionTypes.shell:

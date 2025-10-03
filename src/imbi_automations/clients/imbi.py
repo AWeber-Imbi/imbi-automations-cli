@@ -37,6 +37,7 @@ class Imbi(http.BaseURLHTTPClient):
         self.add_header('Private-Token', config.api_key.get_secret_value())
         self._project_types: list[models.ImbiProjectType] = []
         self._fact_types: list[models.ImbiProjectFactType] = []
+        self._fact_type_enums: list[models.ImbiProjectFactTypeEnum] = []
 
     async def get_project(self, project_id: int) -> models.ImbiProject | None:
         result = await self._opensearch_projects(
@@ -315,6 +316,27 @@ class Imbi(http.BaseURLHTTPClient):
             if fact_type.name == fact_name:
                 return fact_type.id
         return None
+
+    async def get_fact_type_enums(
+        self,
+    ) -> list[models.ImbiProjectFactTypeEnum]:
+        """Get all project fact type enum values.
+
+        Returns:
+            List of all enum values for all fact types
+
+        Raises:
+            httpx.HTTPError: If API request fails
+
+        """
+        if not self._fact_type_enums:
+            response = await self.get('/project-fact-type-enums')
+            response.raise_for_status()
+            self._fact_type_enums = [
+                models.ImbiProjectFactTypeEnum.model_validate(enum)
+                for enum in response.json()
+            ]
+        return self._fact_type_enums
 
     async def get_project_facts(
         self, project_id: int

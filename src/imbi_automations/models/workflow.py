@@ -55,7 +55,7 @@ class WorkflowActionTypes(enum.StrEnum):
     """Enumeration of available workflow action types.
 
     Defines all supported action types including callable, claude, docker,
-    file, git, github, shell, template, and utility actions.
+    file, git, github, imbi, shell, template, and utility actions.
     """
 
     callable = 'callable'
@@ -64,6 +64,7 @@ class WorkflowActionTypes(enum.StrEnum):
     file = 'file'
     git = 'git'
     github = 'github'
+    imbi = 'imbi'
     shell = 'shell'
     template = 'template'
     utility = 'utility'
@@ -361,6 +362,25 @@ class WorkflowImbiAction(WorkflowAction):
 
     type: typing.Literal['imbi'] = 'imbi'
     command: WorkflowImbiCommands
+
+    # Fields for set_project_fact command
+    fact_name: str | None = None
+    value: bool | int | float | str | None = None
+    skip_validations: bool = False
+
+    @pydantic.model_validator(mode='after')
+    def validate_set_project_fact_fields(self) -> 'WorkflowImbiAction':
+        """Validate required fields for set_project_fact command."""
+        if self.command == WorkflowImbiCommands.set_project_fact:
+            if not self.fact_name:
+                raise ValueError(
+                    'fact_name is required for set_project_fact command'
+                )
+            if self.value is None:
+                raise ValueError(
+                    'value is required for set_project_fact command'
+                )
+        return self
 
 
 class WorkflowShellAction(WorkflowAction):
