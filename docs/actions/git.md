@@ -205,25 +205,29 @@ destination_path = "repository:///config/"
 
 ## Implementation Notes
 
-- **Extract command**:
-  - If `commit_keyword` provided: Searches git log for commits matching keyword and extracts from the commit **before** the match
-  - If no `commit_keyword`: Extracts file from current HEAD
-  - Uses `git show COMMIT:PATH` to retrieve file contents
-  - Returns false if file or commit not found (unless `ignore_errors` is true)
-  - Works within the cloned repository directory (`{working_directory}/repository/`)
-  - File must exist at the target commit (raises RuntimeError if not found)
+**Extract command**:
 
-- **Clone command**:
-  - Uses `git clone` with optional branch and depth parameters
-  - Shallow clones (`depth=1`) are faster for large repositories
-  - Cloned repository placed at destination path
-  - Full git history available unless depth is specified
+- If `commit_keyword` provided: Searches git log for commits matching keyword and extracts from the commit **before** the match
+- If no `commit_keyword`: Extracts file from current HEAD
+- Uses `git show COMMIT:PATH` to retrieve file contents
+- Returns false if file or commit not found (unless `ignore_errors` is true)
+- Works within the cloned repository directory (`{working_directory}/repository/`)
+- File must exist at the target commit (raises RuntimeError if not found)
 
-- **Search strategies**:
-  - `before_first_match`: Useful for finding original version before any changes
-  - `before_last_match`: Useful for finding most recent version before latest change
+**Clone command**:
 
-- **Path resolution**:
-  - `source` paths are relative to repository root
-  - `destination` supports all ResourceUrl schemes (`extracted:///`, `repository:///`, etc.)
-  - Destination directories created automatically if needed
+- Uses `git clone` with optional branch and depth parameters
+- Shallow clones (`depth=1`) are faster for large repositories
+- Cloned repository placed at destination path
+- Full git history available unless depth is specified
+
+**Search strategies**:
+
+- `before_first_match`: Useful for finding original version before any changes
+- `before_last_match`: Useful for finding most recent version before latest change
+
+**Path resolution**:
+
+- `source` paths are relative to repository root
+- `destination` supports all ResourceUrl schemes (`extracted:///`, `repository:///`, etc.)
+- Destination directories created automatically if needed

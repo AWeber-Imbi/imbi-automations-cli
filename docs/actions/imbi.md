@@ -151,6 +151,7 @@ fact_value = "FastAPI"
 Currently, Imbi actions are defined but not fully implemented. The `set_project_fact` command raises `NotImplementedError`.
 
 **Planned Implementation:**
+
 - Integration with Imbi API for fact updates
 - Support for creating new facts
 - Validation of fact names against Imbi schema

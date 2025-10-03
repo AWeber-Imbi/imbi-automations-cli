@@ -329,12 +329,11 @@ If you cannot complete this task, create a file named `UPDATE_DEPENDENCIES_FAILE
 5. **Context**: Any relevant information for debugging
 
 Example:
-```
+
 REASON: Unable to parse pyproject.toml due to syntax error
 FILES: pyproject.toml, requirements.txt
 ERROR: toml.decoder.TomlDecodeError at line 15
 MANUAL: Fix toml syntax error in pyproject.toml line 15
-```
 ```
 
 ### Retry Mechanism

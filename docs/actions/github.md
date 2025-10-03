@@ -68,6 +68,7 @@ command = "sync_environments"
 ## Implementation Status
 
 Currently, the GitHub action type is defined but not implemented:
+
 - `sync_environments`: Raises `NotImplementedError`
 
 The action type exists in the codebase but will error when executed. This is likely a placeholder for future functionality.
@@ -75,6 +76,7 @@ The action type exists in the codebase but will error when executed. This is lik
 ## Planned Implementation Notes
 
 When implemented, the action would:
+
 - Require GitHub API access with appropriate permissions
 - Use authenticated GitHub client from workflow context
 - Respect GitHub API rate limits

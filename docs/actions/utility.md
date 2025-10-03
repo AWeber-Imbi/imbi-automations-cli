@@ -140,6 +140,7 @@ async def execute(self, action: models.WorkflowUtilityAction) -> None:
 
 Until these utilities are implemented, use alternative approaches:
 
+
 1. **Docker tag parsing**: Use shell action with `docker inspect` or regex
 2. **Dockerfile FROM**: Use file action with regex pattern or shell action with `grep`
 3. **Semver comparison**: Use shell action with `semver` CLI tool
