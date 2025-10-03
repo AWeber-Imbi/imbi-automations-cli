@@ -38,7 +38,7 @@ class Claude(mixins.WorkflowLoggerMixin):
             self.anthropic = anthropic.AsyncAnthropicBedrock()
         else:
             self.anthropic = anthropic.AsyncAnthropic(
-                api_key=configuration.anthropic.api_key
+                api_key=configuration.anthropic.api_key.get_secret_value()
             )
         self.agents: dict[str, types.AgentDefinition] = {}
         self.configuration = configuration
