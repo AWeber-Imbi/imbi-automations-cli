@@ -1,4 +1,22 @@
-""" """
+"""Action execution dispatcher for workflow actions.
+
+Provides centralized routing of workflow actions to their respective
+implementation classes using Python 3.12 match/case pattern matching.
+The Actions class acts as a facade that delegates action execution to
+specialized handlers based on the action type.
+
+Supported action types:
+- callable: Direct method calls on client instances
+- claude: AI-powered transformations using Claude Code SDK
+- docker: Docker container operations and file extractions
+- file: File manipulation (copy, move, regex replacement)
+- git: Git operations (revert, extract, branch management)
+- github: GitHub-specific operations and API integrations
+- imbi: Imbi API operations and integrations
+- shell: Shell command execution with templating support
+- template: Jinja2 template rendering with full workflow context
+- utility: Helper operations for common workflow tasks
+"""
 
 import logging
 
@@ -20,6 +38,12 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Actions(mixins.WorkflowLoggerMixin):
+    """Centralized dispatcher routing workflow actions to specialized handlers.
+
+    Uses Python 3.12 match/case pattern to delegate action execution based
+    on type.
+    """
+
     def __init__(
         self, configuration: models.Configuration, verbose: bool = False
     ) -> None:

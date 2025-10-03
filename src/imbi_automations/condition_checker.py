@@ -1,3 +1,11 @@
+"""Workflow condition evaluation for local and remote repository checks.
+
+Evaluates workflow conditions including file existence, content matching,
+and glob patterns, with support for both local (post-clone) and remote
+(GitHub API) checks for performance optimization.
+"""
+
+import fnmatch
 import logging
 import pathlib
 import re
@@ -296,8 +304,6 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
             # Match against glob pattern
             if pattern.startswith('**/'):
                 # Recursive glob
-                import fnmatch
-
                 pattern_suffix = pattern[3:]
                 for file_path in file_paths:
                     if fnmatch.fnmatch(file_path, f'*/{pattern_suffix}'):
@@ -306,8 +312,6 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
                         return True
             else:
                 # Regular glob
-                import fnmatch
-
                 for file_path in file_paths:
                     if fnmatch.fnmatch(file_path, pattern):
                         return True

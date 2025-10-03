@@ -1,3 +1,10 @@
+"""Command-line interface for Imbi Automations.
+
+Provides the main entry point for the imbi-automations CLI tool, handling
+argument parsing, configuration loading, colored logging setup, and
+orchestrating workflow execution through the controller.
+"""
+
 import argparse
 import asyncio
 import logging
@@ -106,6 +113,15 @@ def workflow(path: str) -> models.Workflow:
 
 
 def parse_args(args: list[str] | None = None) -> argparse.Namespace:
+    """Parse command-line arguments for imbi-automations.
+
+    Args:
+        args: List of command-line arguments. Defaults to sys.argv if None.
+
+    Returns:
+        Parsed argument namespace with configuration, workflow, and
+        targeting options.
+    """
     parser = argparse.ArgumentParser(
         description='Imbi Automations',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
@@ -220,6 +236,11 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
 
 
 def main() -> None:
+    """Main entry point for imbi-automations CLI.
+
+    Parses arguments, loads configuration, validates workflow requirements,
+    and executes the automation controller with proper error handling.
+    """
     args = parse_args()
     configure_logging(args.debug)
 

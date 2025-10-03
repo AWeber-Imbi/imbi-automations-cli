@@ -1,3 +1,10 @@
+"""Claude Code action implementation for AI-powered transformations.
+
+Executes Claude Code actions using agent-based workflows (task/validator) with
+prompt templating, failure detection, and restart capabilities for reliable
+AI-powered code transformations.
+"""
+
 import enum
 from email import utils
 
@@ -5,13 +12,19 @@ from imbi_automations import claude, mixins, models, prompts
 
 
 class AgentType(enum.StrEnum):
-    """Enum for available actions."""
+    """Claude Code agent types for task execution and validation workflows."""
 
     task = 'task'
     validator = 'validator'
 
 
 class ClaudeAction(mixins.WorkflowLoggerMixin):
+    """Executes AI-powered code transformations using Claude Code SDK.
+
+    Manages agent-based workflows with task/validator cycles, prompt
+    templating, and automatic restart on failure detection.
+    """
+
     def __init__(
         self,
         configuration: models.Configuration,
@@ -69,6 +82,7 @@ class ClaudeAction(mixins.WorkflowLoggerMixin):
                 cycle,
             )
             prompt = self._get_prompt(action, agent)
+            self.logger.debug('Execute agent prompt: %s', prompt)
             run = await self.claude.agent_query(prompt)
             self.logger.debug('Execute agent result: %r', run)
             if run.result == models.AgentRunResult.failure:

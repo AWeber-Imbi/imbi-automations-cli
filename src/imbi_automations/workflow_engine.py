@@ -1,3 +1,10 @@
+"""Workflow execution engine with action orchestration and context management.
+
+The workflow engine executes workflow actions in sequence, managing temporary
+directories, git operations, condition checking, and pull request creation with
+comprehensive error handling and restart capabilities.
+"""
+
 import datetime
 import logging
 import pathlib
@@ -6,6 +13,7 @@ import tempfile
 
 from imbi_automations import (
     actions,
+    claude,
     clients,
     committer,
     condition_checker,
@@ -184,7 +192,9 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         )
         self.logger.debug('Prompt: %s', prompt)
 
-        body = await self.claude.query(prompt)
+        client = claude.Claude(self.configuration, context, self.verbose)
+        body = await client.anthropic_query(prompt)
+
         pr_url = await self.github.create_pull_request(
             context=context,
             title=f'imbi-automations: {context.workflow.configuration.name}',

@@ -1,3 +1,10 @@
+"""Git commit handling with AI-powered and manual commit support.
+
+Manages git commits for workflow actions, supporting both Claude
+AI-powered commit message generation and manual commits with templated
+messages.
+"""
+
 import logging
 import pathlib
 
@@ -9,6 +16,12 @@ BASE_PATH = pathlib.Path(__file__).parent
 
 
 class Committer(mixins.WorkflowLoggerMixin):
+    """Handles git commits for workflow actions.
+
+    Supports both AI-powered commit message generation via Claude and manual
+    commits with templated messages.
+    """
+
     def __init__(
         self, configuration: models.Configuration, verbose: bool
     ) -> None:

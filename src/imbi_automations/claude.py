@@ -1,3 +1,10 @@
+"""Claude Code integration for AI-powered code transformations.
+
+Provides integration with Claude Code SDK for executing complex multi-file
+analysis and transformations using Claude AI, supporting both agent-based
+workflows and direct Anthropic API queries.
+"""
+
 import json
 import logging
 import pathlib

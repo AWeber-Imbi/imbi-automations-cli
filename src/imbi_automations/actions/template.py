@@ -4,6 +4,12 @@ from imbi_automations import mixins, models, prompts, utils
 
 
 class TemplateAction(mixins.WorkflowLoggerMixin):
+    """Renders Jinja2 templates with full workflow context.
+
+    Supports single file or directory rendering with automatic variable
+    substitution from workflow, project, and repository context.
+    """
+
     def __init__(
         self,
         configuration: models.Configuration,

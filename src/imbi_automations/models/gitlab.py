@@ -1,3 +1,10 @@
+"""GitLab API response models.
+
+Defines Pydantic models for GitLab API responses including namespaces,
+users, and projects. Models follow GitLab's REST API schema with proper
+type annotations for both self-hosted and GitLab.com instances.
+"""
+
 import datetime
 import typing
 

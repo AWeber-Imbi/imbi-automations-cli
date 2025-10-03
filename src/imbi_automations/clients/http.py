@@ -1,3 +1,11 @@
+"""Base HTTP client with SSL verification, authentication, and errors.
+
+Provides base HTTP client classes using httpx with singleton pattern, SSL
+certificate handling via truststore, custom headers, and comprehensive
+error handling. Implements both basic HTTPClient and BaseURLHTTPClient
+with base URL management.
+"""
+
 import asyncio
 import contextlib
 import http
@@ -70,8 +78,8 @@ class HTTPClient:
 class BaseURLHTTPClient(HTTPClient):
     """Base client for APIs that use a common base URL.
 
-    Subclasses should override the `_base_url` class variable to set
-    the appropriate API endpoint. All HTTP method calls will automatically
+    Subclasses should override the `_base_url` class variable to set the
+    appropriate API endpoint. All HTTP method calls will automatically
     have the base URL prepended if not already absolute.
     """
 

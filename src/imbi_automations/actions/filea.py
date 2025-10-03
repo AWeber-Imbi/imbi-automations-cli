@@ -8,7 +8,11 @@ from imbi_automations import mixins, models, utils
 
 
 class FileActions(mixins.WorkflowLoggerMixin):
-    """File action executor for workflow actions."""
+    """Executes file manipulation operations with glob pattern support.
+
+    Handles copy, move, rename, delete, append, and write operations with
+    automatic directory creation and pattern matching.
+    """
 
     def __init__(
         self,

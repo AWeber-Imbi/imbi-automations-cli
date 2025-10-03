@@ -4,7 +4,11 @@ from imbi_automations import mixins, models
 
 
 class CallableAction(mixins.WorkflowLoggerMixin):
-    """Callable executor for workflow actions."""
+    """Executes direct method calls on client instances.
+
+    Enables dynamic invocation of client methods with flexible arguments for
+    workflow integration.
+    """
 
     def __init__(
         self,

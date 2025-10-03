@@ -1,3 +1,11 @@
+"""Configuration models with Pydantic validation.
+
+Defines configuration data models for all external integrations including
+Anthropic, GitHub, GitLab, Imbi, Claude Code, and SonarQube. All models
+use Pydantic for validation with SecretStr for sensitive data and
+environment variable defaults.
+"""
+
 import os
 import pathlib
 import typing
@@ -6,6 +14,12 @@ import pydantic
 
 
 class AnthropicConfiguration(pydantic.BaseModel):
+    """Anthropic API configuration for Claude models.
+
+    Supports both direct API access and AWS Bedrock integration with
+    configurable model selection and API key from environment variables.
+    """
+
     api_key: pydantic.SecretStr | None = pydantic.Field(
         default=os.environ.get('ANTHROPIC_API_KEY')
     )
@@ -14,16 +28,33 @@ class AnthropicConfiguration(pydantic.BaseModel):
 
 
 class GitHubConfiguration(pydantic.BaseModel):
+    """GitHub API configuration.
+
+    Supports both GitHub.com and GitHub Enterprise with API token
+    authentication.
+    """
+
     api_key: pydantic.SecretStr
     hostname: str = pydantic.Field(default='github.com')
 
 
 class GitLabConfiguration(pydantic.BaseModel):
+    """GitLab API configuration.
+
+    Supports both GitLab.com and self-hosted instances with private token auth.
+    """
+
     api_key: pydantic.SecretStr
     hostname: str = pydantic.Field(default='gitlab.com')
 
 
 class ImbiConfiguration(pydantic.BaseModel):
+    """Imbi project management system configuration.
+
+    Defines project identifiers and link types for mapping external systems
+    (GitHub, GitLab, PagerDuty, SonarQube, Sentry, Grafana) to Imbi projects.
+    """
+
     api_key: pydantic.SecretStr
     hostname: str
     github_identifier: str = 'github'
@@ -40,6 +71,12 @@ class ImbiConfiguration(pydantic.BaseModel):
 
 
 class ClaudeCodeConfiguration(pydantic.BaseModel):
+    """Claude Code SDK configuration.
+
+    Configures the Claude Code executable path, base prompt file, and
+    whether AI-powered transformations are enabled for workflows.
+    """
+
     executable: str = 'claude'  # Claude Code executable path
     base_prompt: pathlib.Path | None = None
     enabled: bool = True
@@ -55,6 +92,12 @@ class ClaudeCodeConfiguration(pydantic.BaseModel):
 
 
 class Configuration(pydantic.BaseModel):
+    """Main application configuration.
+
+    Root configuration object combining all integration configurations with
+    global settings for commits, error handling, and workflow execution.
+    """
+
     ai_commits: bool = False
     anthropic: AnthropicConfiguration = pydantic.Field(
         default_factory=AnthropicConfiguration

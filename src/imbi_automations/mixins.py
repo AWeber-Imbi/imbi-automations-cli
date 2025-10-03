@@ -1,3 +1,9 @@
+"""Reusable mixins for cross-cutting concerns.
+
+Provides mixin classes for workflow logging functionality that can be composed
+with other classes throughout the codebase.
+"""
+
 import logging
 import typing
 

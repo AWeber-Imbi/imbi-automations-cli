@@ -1,3 +1,10 @@
+"""GitLab API client for project operations and repository management.
+
+Provides GitLab API integration for project retrieval and repository
+operations, supporting self-hosted GitLab instances with configurable
+hostnames.
+"""
+
 import logging
 
 import httpx
@@ -11,6 +18,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 class GitLab(http.BaseURLHTTPClient):
+    """GitLab API client for project operations.
+
+    Provides GitLab API integration for project retrieval, supporting both
+    self-hosted GitLab instances and GitLab.com with private token
+    authentication.
+    """
+
     def __init__(
         self,
         config: models.Configuration,

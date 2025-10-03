@@ -1,3 +1,10 @@
+"""Project filtering and targeting logic for workflow execution.
+
+Provides filtering capabilities to target specific subsets of projects
+based on IDs, types, facts, GitHub identifiers, and workflow statuses for
+efficient batch processing.
+"""
+
 import logging
 
 from imbi_automations import clients, mixins, models

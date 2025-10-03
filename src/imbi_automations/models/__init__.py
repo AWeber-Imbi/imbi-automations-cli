@@ -1,3 +1,9 @@
+"""Model exports for all Pydantic models used across the application.
+
+Centralizes imports for configuration, API responses (GitHub, GitLab, Imbi),
+workflow definitions, git operations, and Claude Code integration models.
+"""
+
 from .claude import AgentRun, AgentRunResult
 from .configuration import (
     AnthropicConfiguration,
@@ -61,6 +67,8 @@ from .workflow import (
     WorkflowGitHubAction,
     WorkflowGitHubCommand,
     WorkflowGitLab,
+    WorkflowImbiAction,
+    WorkflowImbiCommands,
     WorkflowShellAction,
     WorkflowTemplateAction,
     WorkflowUtilityAction,
@@ -125,6 +133,8 @@ __all__ = [
     'WorkflowGitHubAction',
     'WorkflowGitHubCommand',
     'WorkflowGitLab',
+    'WorkflowImbiCommands',
+    'WorkflowImbiAction',
     'WorkflowShellAction',
     'WorkflowTemplateAction',
     'WorkflowUtilityAction',

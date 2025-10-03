@@ -1,3 +1,11 @@
+"""Workflow definition models with comprehensive action and condition support.
+
+Defines the complete workflow structure including actions (callable, claude,
+docker, file, git, github, shell, template, utility), conditions (local and
+remote file checks), filters (project targeting), and workflow context for
+execution state management.
+"""
+
 import enum
 import pathlib
 import typing
@@ -27,6 +35,12 @@ ResourceUrl: type[AnyUrl] = typing.Annotated[
 
 
 class WorkflowFilter(pydantic.BaseModel):
+    """Filter criteria for targeting specific projects in workflow execution.
+
+    Supports filtering by project IDs, types, facts, environments, and GitHub
+    workflow status to efficiently target subsets of projects.
+    """
+
     project_ids: set[int] = pydantic.Field(default_factory=set)
     project_types: set[str] = pydantic.Field(default_factory=set)
     project_facts: dict[str, str] = pydantic.Field(default_factory=dict)
@@ -38,6 +52,12 @@ class WorkflowFilter(pydantic.BaseModel):
 
 
 class WorkflowActionTypes(enum.StrEnum):
+    """Enumeration of available workflow action types.
+
+    Defines all supported action types including callable, claude, docker,
+    file, git, github, shell, template, and utility actions.
+    """
+
     callable = 'callable'
     claude = 'claude'
     docker = 'docker'
@@ -50,11 +70,23 @@ class WorkflowActionTypes(enum.StrEnum):
 
 
 class WorkflowConditionType(enum.StrEnum):
+    """Condition evaluation strategy for workflows.
+
+    Determines whether all conditions must pass (all) or any single condition
+    must pass (any) for workflow execution to proceed.
+    """
+
     all = 'all'
     any = 'any'
 
 
 class WorkflowAction(pydantic.BaseModel):
+    """Base class for workflow actions with common configuration.
+
+    Provides shared fields for action identification, conditional execution,
+    commit behavior, timeout management, and control flow options.
+    """
+
     model_config = pydantic.ConfigDict(extra='forbid')
 
     name: str
@@ -73,6 +105,12 @@ class WorkflowAction(pydantic.BaseModel):
 
 
 class WorkflowCallableAction(WorkflowAction):
+    """Action for direct method calls on client instances.
+
+    Executes callable methods with dynamic args and kwargs, supporting direct
+    API calls and client operations with AI-powered commit messages.
+    """
+
     type: typing.Literal['callable'] = 'callable'
     import_name: str = pydantic.Field(alias='import')
     callable: typing.Callable
@@ -82,6 +120,12 @@ class WorkflowCallableAction(WorkflowAction):
 
 
 class WorkflowClaudeAction(WorkflowAction):
+    """Action for AI-powered code transformations using Claude Code SDK.
+
+    Executes complex multi-file analysis and transformation with prompt-based
+    instructions, validation cycles, and AI-generated commit messages.
+    """
+
     type: typing.Literal['claude'] = 'claude'
     prompt: str | None
     validation_prompt: str | None = None
@@ -90,6 +134,12 @@ class WorkflowClaudeAction(WorkflowAction):
 
 
 class WorkflowDockerActionCommand(enum.StrEnum):
+    """Docker operation commands for container management.
+
+    Defines available Docker operations including build, extract, pull,
+    and push.
+    """
+
     build = 'build'
     extract = 'extract'
     pull = 'pull'
@@ -97,6 +147,12 @@ class WorkflowDockerActionCommand(enum.StrEnum):
 
 
 class WorkflowDockerAction(validators.CommandRulesMixin, WorkflowAction):
+    """Action for Docker container operations and file extraction.
+
+    Supports building images, extracting files from containers, and
+    pushing/pulling images with command-specific field validation.
+    """
+
     type: typing.Literal['docker'] = 'docker'
     command: WorkflowDockerActionCommand
     image: str
@@ -129,6 +185,12 @@ class WorkflowDockerAction(validators.CommandRulesMixin, WorkflowAction):
 
 
 class WorkflowFileActionCommand(enum.StrEnum):
+    """File operation commands for manipulation and management.
+
+    Defines available file operations including append, copy, delete, move,
+    rename, and write.
+    """
+
     append = 'append'
     copy = 'copy'
     delete = 'delete'
@@ -149,6 +211,12 @@ def _file_delete_requires_path_or_pattern(model: 'WorkflowFileAction') -> None:
 
 
 class WorkflowFileAction(validators.CommandRulesMixin, WorkflowAction):
+    """Action for file manipulation with glob pattern support.
+
+    Supports copying, moving, deleting, appending, and writing files with
+    glob patterns, regex matching, and command-specific field validation.
+    """
+
     type: typing.Literal['file'] = 'file'
     command: WorkflowFileActionCommand
     path: ResourceUrl | None = None
@@ -182,16 +250,33 @@ class WorkflowFileAction(validators.CommandRulesMixin, WorkflowAction):
 
 
 class WorkflowGitActionCommand(enum.StrEnum):
+    """Git operation commands for repository management.
+
+    Defines available Git operations including extract and clone.
+    """
+
     extract = 'extract'
     clone = 'clone'
 
 
 class WorkflowGitActionCommitMatchStrategy(enum.StrEnum):
+    """Strategy for matching commits when extracting from Git history.
+
+    Determines whether to extract before the first or last matching commit
+    when searching Git history by keyword.
+    """
+
     before_first_match = 'before_first_match'
     before_last_match = 'before_last_match'
 
 
 class WorkflowGitAction(WorkflowAction):
+    """Action for Git repository operations and version control.
+
+    Supports cloning repositories and extracting files from Git history with
+    commit matching strategies and branch management.
+    """
+
     type: typing.Literal['git'] = 'git'
     command: WorkflowGitActionCommand
     source: pathlib.Path | None = None
@@ -221,15 +306,52 @@ class WorkflowGitAction(WorkflowAction):
 
 
 class WorkflowGitHubCommand(enum.StrEnum):
+    """GitHub-specific operation commands.
+
+    Defines available GitHub operations including environment synchronization.
+    """
+
     sync_environments = 'sync_environments'
 
 
 class WorkflowGitHubAction(WorkflowAction):
+    """Action for GitHub-specific operations and integrations.
+
+    Executes GitHub API operations including environment synchronization and
+    repository management.
+    """
+
     type: typing.Literal['github'] = 'github'
     command: WorkflowGitHubCommand
 
 
+class WorkflowImbiCommands(enum.StrEnum):
+    """Imbi project management system operation commands.
+
+    Defines available Imbi operations including project fact management.
+    """
+
+    set_project_fact = 'set_project_fact'
+
+
+class WorkflowImbiAction(WorkflowAction):
+    """Action for Imbi project management system operations.
+
+    Executes Imbi API operations including setting project facts and managing
+    project metadata.
+    """
+
+    type: typing.Literal['imbi'] = 'imbi'
+    command: WorkflowImbiCommands
+
+
 class WorkflowShellAction(WorkflowAction):
+    """Action for shell command execution with templating support.
+
+    Executes arbitrary shell commands with Jinja2 templating, working directory
+    control, and optional error handling.
+    """
+
     type: typing.Literal['shell'] = 'shell'
     command: str
     ignore_errors: bool = False
@@ -237,12 +359,25 @@ class WorkflowShellAction(WorkflowAction):
 
 
 class WorkflowTemplateAction(WorkflowAction):
+    """Action for Jinja2 template rendering with full workflow context.
+
+    Renders template files or directories with access to workflow, repository,
+    project data, and working directory paths.
+    """
+
     type: typing.Literal['template'] = 'template'
     source_path: ResourceUrl
     destination_path: ResourceUrl
 
 
 class WorkflowUtilityCommands(enum.StrEnum):
+    """Utility helper operation commands.
+
+    Defines available utility operations including docker tag parsing,
+    Dockerfile base image extraction, semver comparison, and Python
+    constraint parsing.
+    """
+
     docker_tag = 'docker_tag'
     dockerfile_from = 'dockerfile_from'
     compare_semver = 'compare_semver'
@@ -250,6 +385,12 @@ class WorkflowUtilityCommands(enum.StrEnum):
 
 
 class WorkflowUtilityAction(WorkflowAction):
+    """Action for utility helper operations and common workflow tasks.
+
+    Provides helper operations for Docker tag parsing, Dockerfile analysis,
+    version comparison, and constraint parsing with flexible arguments.
+    """
+
     type: typing.Literal['utility'] = 'utility'
     command: WorkflowUtilityCommands
     path: ResourceUrl | None = None
@@ -265,6 +406,7 @@ WorkflowActions = typing.Annotated[
         | WorkflowFileAction
         | WorkflowGitAction
         | WorkflowGitHubAction
+        | WorkflowImbiAction
         | WorkflowShellAction
         | WorkflowTemplateAction
         | WorkflowUtilityAction
@@ -274,11 +416,22 @@ WorkflowActions = typing.Annotated[
 
 
 class WorkflowConditionRemoteClient(enum.StrEnum):
+    """Remote client types for condition checking.
+
+    Specifies which API client to use for remote file condition checks.
+    """
+
     github = 'github'
     gitlab = 'gitlab'
 
 
 class WorkflowCondition(validators.ExclusiveGroupsMixin, pydantic.BaseModel):
+    """Workflow execution condition with local and remote file checks.
+
+    Supports both local (post-clone) and remote (pre-clone) file existence,
+    absence, and content matching with glob patterns and regex support.
+    """
+
     file_exists: ResourceUrl | None = None
     file_not_exists: ResourceUrl | None = None
     file_contains: str | None = None
@@ -334,11 +487,22 @@ class WorkflowCondition(validators.ExclusiveGroupsMixin, pydantic.BaseModel):
 
 
 class WorkflowGitCloneType(enum.StrEnum):
+    """Git clone protocol type.
+
+    Specifies the protocol to use for cloning repositories (HTTP or SSH).
+    """
+
     http = 'http'
     ssh = 'ssh'
 
 
 class WorkflowGit(pydantic.BaseModel):
+    """Git configuration for workflow repository operations.
+
+    Controls repository cloning behavior including depth, branch selection,
+    protocol type, and CI skip check handling.
+    """
+
     clone: bool = True
     depth: int = 1
     ref: str | None = None
@@ -348,6 +512,12 @@ class WorkflowGit(pydantic.BaseModel):
 
 
 class WorkflowGitHub(pydantic.BaseModel):
+    """GitHub workflow configuration for pull request management.
+
+    Controls pull request creation and branch replacement behavior with
+    validation ensuring consistent configuration.
+    """
+
     create_pull_request: bool = True
     replace_branch: bool = False
 
@@ -361,6 +531,12 @@ class WorkflowGitHub(pydantic.BaseModel):
 
 
 class WorkflowGitLab(pydantic.BaseModel):
+    """GitLab workflow configuration for merge request management.
+
+    Controls merge request creation and branch replacement behavior with
+    validation ensuring consistent configuration.
+    """
+
     create_merge_request: bool = True
     replace_branch: bool = False
 
@@ -375,6 +551,12 @@ class WorkflowGitLab(pydantic.BaseModel):
 
 
 class WorkflowConfiguration(pydantic.BaseModel):
+    """Complete workflow configuration with actions, conditions, and filters.
+
+    Defines the full workflow structure including provider configurations,
+    execution conditions, filtering criteria, and action sequences.
+    """
+
     name: str
     description: str | None = None
     prompt: ResourceUrl | None = None
@@ -390,10 +572,21 @@ class WorkflowConfiguration(pydantic.BaseModel):
 
 
 class WorkflowActionResult(pydantic.BaseModel):
+    """Result information for a completed workflow action.
+
+    Contains the action name for tracking and reporting execution results.
+    """
+
     name: str
 
 
 class Workflow(pydantic.BaseModel):
+    """Complete workflow definition with path, configuration, and slug.
+
+    Represents a loaded workflow from disk with automatic slug generation
+    from the directory name if not explicitly provided.
+    """
+
     path: pathlib.Path
     configuration: WorkflowConfiguration
     slug: str | None = None

@@ -4,6 +4,7 @@ import asyncio
 import datetime
 import logging
 import pathlib
+import re
 
 from imbi_automations import models
 
@@ -317,8 +318,6 @@ async def commit_changes(
     commit_sha = ''
     if stdout:
         # Git commit output typically starts with [branch commit_sha]
-        import re
-
         sha_match = re.search(r'\[.*?([a-f0-9]{7,40})\]', stdout)
         if sha_match:
             commit_sha = sha_match.group(1)

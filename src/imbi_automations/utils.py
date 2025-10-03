@@ -1,3 +1,10 @@
+"""Utility functions for configuration, directory, and URL management.
+
+Provides helper functions for loading TOML configuration files, creating
+directories, masking passwords in URLs, and other common utilities used
+throughout the codebase.
+"""
+
 import json
 import logging
 import pathlib

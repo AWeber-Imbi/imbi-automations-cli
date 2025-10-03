@@ -1,3 +1,10 @@
+"""Imbi project management system API client.
+
+Provides integration with the Imbi project management system API for
+retrieving projects, project types, environments, and other project
+metadata used throughout the automation workflows.
+"""
+
 import copy
 import logging
 import typing
@@ -12,6 +19,14 @@ LOGGER = logging.getLogger(__name__)
 
 
 class Imbi(http.BaseURLHTTPClient):
+    """Imbi project management system API client.
+
+    Provides access to the Imbi API for retrieving projects, project
+    types, environments, facts, and other project metadata used for
+    workflow targeting and context enrichment. Supports OpenSearch-based
+    project queries.
+    """
+
     def __init__(
         self,
         config: models.ImbiConfiguration,

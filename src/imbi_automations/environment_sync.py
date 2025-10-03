@@ -1,3 +1,10 @@
+"""GitHub environment synchronization logic for Imbi projects.
+
+Synchronizes GitHub repository environments with Imbi project environment
+definitions, creating, updating, or deleting environments as needed to maintain
+consistency between the two systems.
+"""
+
 import logging
 import typing
 

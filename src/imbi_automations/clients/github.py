@@ -1,3 +1,11 @@
+"""GitHub API client for repository operations and integrations.
+
+Provides comprehensive GitHub API integration including repository
+management, pull request creation, workflow file detection with pattern
+support, environment synchronization, and repository tree operations for
+remote file checking.
+"""
+
 import logging
 
 import httpx
@@ -10,6 +18,13 @@ LOGGER = logging.getLogger(__name__)
 
 
 class GitHub(http.BaseURLHTTPClient):
+    """GitHub API client for repository operations and integrations.
+
+    Provides comprehensive GitHub API access including repository
+    retrieval, pull request creation, workflow management, environment
+    operations, and file tree traversal for remote condition checking.
+    """
+
     def __init__(
         self,
         config: models.Configuration,

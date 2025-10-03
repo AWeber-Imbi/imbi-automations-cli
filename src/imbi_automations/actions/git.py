@@ -1,8 +1,18 @@
+"""Git operation actions for version control within workflows.
+
+Provides git operations including file reversion, content extraction from
+history, and branch management for workflow automation tasks.
+"""
+
 from imbi_automations import git, mixins, models, utils
 
 
 class GitActions(mixins.WorkflowLoggerMixin):
-    """Git command executor for workflow actions."""
+    """Executes Git version control operations for workflow automation.
+
+    Handles file extraction from commit history, repository cloning, and branch
+    management with configurable search strategies.
+    """
 
     def __init__(
         self,

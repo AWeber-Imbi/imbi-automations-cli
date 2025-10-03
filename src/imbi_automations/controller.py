@@ -1,3 +1,10 @@
+"""Main automation controller for executing workflows across projects.
+
+The controller implements an iterator pattern for processing different
+target types (GitHub repositories, GitLab projects, Imbi projects) with
+workflow execution, concurrency control, and comprehensive error handling.
+"""
+
 import argparse
 import asyncio
 import collections
@@ -19,6 +26,12 @@ LOGGER = logging.getLogger(__name__)
 
 
 class AutomationIterator(enum.Enum):
+    """Enumeration of automation target types.
+
+    Defines supported iteration patterns for GitHub repositories, GitLab
+    projects, and Imbi project types and projects.
+    """
+
     github_repositories = 1
     github_organization = 2
     github_project = 3
@@ -31,7 +44,12 @@ class AutomationIterator(enum.Enum):
 
 
 class Automation(mixins.WorkflowLoggerMixin):
-    """Implements the controller for the automation"""
+    """Main automation controller for executing workflows across projects.
+
+    Orchestrates workflow execution with iterator pattern support for
+    different target types, project filtering, concurrency control, and
+    resumable processing.
+    """
 
     def __init__(
         self,
@@ -166,7 +184,7 @@ class Automation(mixins.WorkflowLoggerMixin):
     ) -> models.GitLabProject | None:
         if not self.configuration.gitlab:
             return None
-        client = clients.GitHub.get_instance(config=self.configuration)
+        client = clients.GitLab.get_instance(config=self.configuration)
         return await client.get_project(project)
 
     async def _process_github_repositories(self) -> bool: ...

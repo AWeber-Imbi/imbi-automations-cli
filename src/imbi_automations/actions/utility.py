@@ -4,7 +4,11 @@ from imbi_automations import mixins, models
 
 
 class UtilityActions(mixins.WorkflowLoggerMixin):
-    """Utility executor for workflow actions."""
+    """Executes utility helper operations for common workflow tasks.
+
+    Provides Docker tag parsing, Dockerfile analysis, semantic versioning
+    comparison, and Python constraint parsing utilities.
+    """
 
     def __init__(
         self,

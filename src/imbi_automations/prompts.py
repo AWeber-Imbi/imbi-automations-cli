@@ -1,3 +1,10 @@
+"""Jinja2 template rendering for prompts and dynamic content generation.
+
+Provides template rendering functionality for Claude Code prompts, pull request
+messages, commit messages, and other dynamic content using Jinja2 with full
+workflow context support.
+"""
+
 import logging
 import pathlib
 import typing
@@ -13,6 +20,19 @@ def render(
     source: models.ResourceUrl | pathlib.Path | str | None = None,
     **kwargs: typing.Any,
 ) -> str | bytes:
+    """Render a Jinja2 template with workflow context and variables.
+
+    Args:
+        context: Workflow context for global variables and path resolution.
+        source: Template source as URL, path, or string content.
+        **kwargs: Additional variables to pass to template rendering.
+
+    Returns:
+        Rendered template as string or bytes.
+
+    Raises:
+        ValueError: If source is not provided.
+    """
     if not source:
         raise ValueError('source is required')
     elif isinstance(source, pydantic.AnyUrl):

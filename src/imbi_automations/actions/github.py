@@ -4,7 +4,11 @@ from imbi_automations import mixins, models
 
 
 class GitHubActions(mixins.WorkflowLoggerMixin):
-    """GitHub executor for workflow actions."""
+    """Executes GitHub-specific operations via API integration.
+
+    Handles GitHub environment synchronization and repository management
+    workflows.
+    """
 
     def __init__(
         self,

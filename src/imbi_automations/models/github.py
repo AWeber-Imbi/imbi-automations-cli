@@ -1,3 +1,10 @@
+"""GitHub API response models.
+
+Defines Pydantic models for GitHub API responses including organizations,
+repositories, users, workflow runs, pull requests, and environments. Models
+follow GitHub's REST API v3 schema with proper type annotations.
+"""
+
 import datetime
 import typing
 

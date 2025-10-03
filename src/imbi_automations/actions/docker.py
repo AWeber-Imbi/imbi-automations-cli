@@ -6,7 +6,11 @@ from imbi_automations import mixins, models, prompts
 
 
 class DockerActions(mixins.WorkflowLoggerMixin):
-    """Docker executor for workflow actions."""
+    """Executes Docker operations including container file extraction.
+
+    Manages Docker container lifecycle for build, extract, pull, and push
+    operations with automatic cleanup.
+    """
 
     def __init__(
         self,

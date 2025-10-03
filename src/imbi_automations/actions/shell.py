@@ -1,3 +1,10 @@
+"""Shell command execution action with templating and environment support.
+
+Executes shell commands with Jinja2 template variable substitution, working
+directory management, and proper async subprocess handling for workflow
+automation.
+"""
+
 import asyncio
 import shlex
 import subprocess
@@ -6,7 +13,11 @@ from imbi_automations import mixins, models, prompts, utils
 
 
 class ShellAction(mixins.WorkflowLoggerMixin):
-    """Shell command executor for workflow actions."""
+    """Executes shell commands with Jinja2 template variable substitution.
+
+    Provides async subprocess execution with working directory management and
+    optional error handling.
+    """
 
     def __init__(
         self,
