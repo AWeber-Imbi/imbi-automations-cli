@@ -473,6 +473,7 @@ destination_path = "extracted:///processed/output.txt"
 ## Error Handling
 
 Template actions raise errors for:
+
 - **Missing source**: Source file/directory doesn't exist
 - **Template syntax errors**: Invalid Jinja2 syntax
 - **Undefined variables**: Referenced variables not in context

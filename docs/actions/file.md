@@ -287,9 +287,9 @@ Description here
 
 ## Installation
 
-```bash
+````bash
 pip install my-project
-```
+````
 """
 
 # Write JSON configuration
@@ -448,6 +448,7 @@ destination = "repository:///src/"
 ## Error Handling
 
 File actions raise `RuntimeError` in these situations:
+
 - `copy`/`move`/`rename`: Source file doesn't exist
 - `delete`: No errors (gracefully handles missing files)
 - `append`/`write`: I/O errors, permission denied
