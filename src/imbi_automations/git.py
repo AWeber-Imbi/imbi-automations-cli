@@ -292,7 +292,10 @@ async def commit_changes(
     if not message.startswith('imbi-automations:'):
         message = f'imbi-automations: {message}'
 
-    command = ['git', 'commit', '-m', message, '-a']
+    with (working_directory / 'commit-msg.txt').open('w') as f:
+        f.write(message)
+
+    command = ['git', 'commit', '-f', '../commit-msg.txt']
 
     # Add author information if provided
     if commit_author:
