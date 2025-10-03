@@ -1,0 +1,19 @@
+name: Publish Docs
+on:
+  release:
+    types: [created]
+permissions:
+  contents: write
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v5
+    - uses: actions/setup-python@v6
+      with:
+        python-version: '3.12'
+    - uses: pypa/hatch@install
+    - run: |
+        python3 -m pip install --upgrade pip
+        pip3 install -e '.[docs]'
+    - run: hatch run github-pages
