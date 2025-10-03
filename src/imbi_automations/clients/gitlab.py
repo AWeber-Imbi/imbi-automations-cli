@@ -35,6 +35,7 @@ class GitLab(http.BaseURLHTTPClient):
         self.add_header(
             'PRIVATE-TOKEN', config.gitlab.api_key.get_secret_value()
         )
+        self.configuration = config
 
     async def get_project(
         self, project: models.ImbiProject
