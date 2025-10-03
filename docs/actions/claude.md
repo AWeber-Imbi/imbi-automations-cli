@@ -348,6 +348,7 @@ on_failure = "cleanup" # Run cleanup action if all cycles fail
 ```
 
 **Cycle behavior:**
+
 1. Execute transformation
 2. Check for failure files
 3. If failure detected and cycles remaining, retry
