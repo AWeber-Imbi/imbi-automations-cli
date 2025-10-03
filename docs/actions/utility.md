@@ -23,6 +23,7 @@ kwargs = {}    # Optional
 The utility operation to perform.
 
 **Type:** `string`
+
 **Options:**
 - `docker_tag` - Parse Docker image tags (not implemented)
 - `dockerfile_from` - Extract FROM directive from Dockerfile (not implemented)
@@ -34,21 +35,27 @@ The utility operation to perform.
 File path for operations that require file input.
 
 **Type:** `ResourceUrl` (string path)
+
 **Default:** None
+
 
 ### args (optional)
 
 Positional arguments for the utility operation.
 
 **Type:** `list`
+
 **Default:** `[]`
+
 
 ### kwargs (optional)
 
 Keyword arguments for the utility operation.
 
 **Type:** `dict`
+
 **Default:** `{}`
+
 
 ## Commands
 

@@ -24,15 +24,19 @@ ai_commit = true  # Optional, default: true
 Python module path to import the callable from.
 
 **Type:** `string`
+
 **Field Name:** `import` (model field: `import_name`)
 
+
 **Example:** `"imbi_automations.clients.github"`
+
 
 ### callable (required)
 
 The callable object (function, method, or class) to invoke.
 
 **Type:** `Callable` (Python callable object)
+
 
 **Note:** The model expects an actual callable object, not a string. The TOML configuration likely needs to reference importable callables by name.
 
@@ -41,21 +45,27 @@ The callable object (function, method, or class) to invoke.
 Positional arguments to pass to the callable.
 
 **Type:** `list`
+
 **Default:** `[]`
+
 
 ### kwargs (optional)
 
 Keyword arguments to pass to the callable.
 
 **Type:** `dict`
+
 **Default:** `{}`
+
 
 ### ai_commit (optional)
 
 Whether to use AI-generated commit messages for changes.
 
 **Type:** `boolean`
+
 **Default:** `true`
+
 
 ## Implementation Status
 

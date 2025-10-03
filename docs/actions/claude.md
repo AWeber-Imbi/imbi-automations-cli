@@ -22,6 +22,7 @@ ai_commit = true                                # Optional, default: true
 Path to Jinja2 template file containing the task prompt for Claude.
 
 **Type:** `string` (path relative to workflow directory)
+
 **Format:** Jinja2 template (`.j2` extension) or plain markdown
 **Location:** Relative to workflow directory (e.g., `prompts/update-python.md`)
 
@@ -31,12 +32,15 @@ Path to validation prompt template. If provided, Claude will run a validation cy
 
 **Type:** `string` (path relative to workflow directory)
 
+
 ### max_cycles (optional)
 
 Maximum number of retry cycles if transformation fails.
 
 **Type:** `integer`
+
 **Default:** `3`
+
 
 ### on_failure (optional)
 
@@ -44,12 +48,15 @@ Action name to restart from if this action fails after all retry cycles.
 
 **Type:** `string` (action name)
 
+
 ### ai_commit (optional)
 
 Whether to use AI-generated commit messages for changes made by this action.
 
 **Type:** `boolean`
+
 **Default:** `true`
+
 
 ## Prompt Context
 

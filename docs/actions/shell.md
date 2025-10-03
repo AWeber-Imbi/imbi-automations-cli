@@ -21,6 +21,7 @@ The shell command to execute. Supports full Jinja2 template syntax for variable 
 
 **Type:** `string`
 
+
 **Template Variables Available:**
 - `workflow`: Workflow configuration object
 - `imbi_project`: Complete Imbi project data
@@ -34,14 +35,18 @@ The shell command to execute. Supports full Jinja2 template syntax for variable 
 Directory to execute the command in.
 
 **Type:** `ResourceUrl` (string path)
+
 **Default:** `repository:///` (the cloned repository directory)
+
 
 ### ignore_errors (optional)
 
 Whether to continue workflow execution if the command fails (non-zero exit code).
 
 **Type:** `boolean`
+
 **Default:** `false`
+
 
 ## Examples
 

@@ -23,6 +23,7 @@ Path to template file or directory. Can be:
 - Directory containing `.j2` files (recursively rendered)
 
 **Type:** `ResourceUrl` (string path)
+
 **Conventions:**
 - Template files should use `.j2` extension
 - Directory paths should NOT include wildcards
@@ -34,6 +35,7 @@ Path to template file or directory. Can be:
 Output location for rendered templates.
 
 **Type:** `ResourceUrl` (string path)
+
 **Behavior:**
 - For single file: Output file path
 - For directory: Output directory (structure mirrored)
