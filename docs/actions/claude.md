@@ -8,37 +8,28 @@ Claude actions leverage the Claude Code SDK for AI-powered code transformations,
 [[actions]]
 name = "action-name"
 type = "claude"
-prompt = "prompt-file-or-url"          # Required
-agent = "task"                         # Optional, default: "task"
-validator_prompt = "validator-prompt"  # Optional
-max_cycles = 3                         # Optional, default: 3
-on_failure = "cleanup-action"          # Optional
+prompt = "prompts/task.md"                      # Required
+validation_prompt = "prompts/validate.md"       # Optional
+max_cycles = 3                                  # Optional, default: 3
+on_failure = "cleanup-action"                   # Optional
+ai_commit = true                                # Optional, default: true
 ```
 
 ## Fields
 
 ### prompt (required)
 
-Path to Jinja2 template file containing the prompt for Claude.
+Path to Jinja2 template file containing the task prompt for Claude.
 
-**Type:** `ResourceUrl` (string path)
-**Format:** Jinja2 template with full workflow context
-**Location:** Usually in `workflow:///prompts/` directory
+**Type:** `string` (path relative to workflow directory)
+**Format:** Jinja2 template (`.j2` extension) or plain markdown
+**Location:** Relative to workflow directory (e.g., `prompts/update-python.md`)
 
-### agent (optional)
+### validation_prompt (optional)
 
-Agent type to use for the transformation.
+Path to validation prompt template. If provided, Claude will run a validation cycle after the task cycle.
 
-**Type:** `string`
-**Options:**
-- `task` (default): General-purpose transformation agent
-- `validator`: Validation-focused agent
-
-### validator_prompt (optional)
-
-Path to validation prompt template. Used to verify transformation success.
-
-**Type:** `ResourceUrl` (string path)
+**Type:** `string` (path relative to workflow directory)
 
 ### max_cycles (optional)
 
@@ -46,13 +37,19 @@ Maximum number of retry cycles if transformation fails.
 
 **Type:** `integer`
 **Default:** `3`
-**Range:** 1-10
 
 ### on_failure (optional)
 
 Action name to restart from if this action fails after all retry cycles.
 
 **Type:** `string` (action name)
+
+### ai_commit (optional)
+
+Whether to use AI-generated commit messages for changes made by this action.
+
+**Type:** `boolean`
+**Default:** `true`
 
 ## Prompt Context
 
@@ -80,7 +77,7 @@ Prompts have access to all workflow context variables:
 [[actions]]
 name = "update-python-version"
 type = "claude"
-prompt = "workflow:///prompts/update-python.md"
+prompt = "prompts/update-python.md"
 ```
 
 **Prompt (`prompts/update-python.md`):**
@@ -125,7 +122,7 @@ If you cannot complete this task, create a file named `ACTION_FAILED` with detai
 [[actions]]
 name = "refactor-codebase"
 type = "claude"
-prompt = "workflow:///prompts/refactor.md"
+prompt = "prompts/refactor.md"
 max_cycles = 5
 on_failure = "create-issue"  # Create GitHub issue if fails
 ```
@@ -137,9 +134,8 @@ on_failure = "create-issue"  # Create GitHub issue if fails
 [[actions]]
 name = "update-dependencies"
 type = "claude"
-prompt = "workflow:///prompts/update-deps.md"
-validator_prompt = "workflow:///prompts/validate-deps.md"
-agent = "task"
+prompt = "prompts/update-deps.md"
+validation_prompt = "prompts/validate-deps.md"
 ```
 
 **Validator prompt:**
@@ -163,7 +159,7 @@ Return success if validation passes, failure otherwise with specific errors.
 [[actions]]
 name = "migrate-to-pydantic-v2"
 type = "claude"
-prompt = "workflow:///prompts/pydantic-migration.md"
+prompt = "prompts/pydantic-migration.md"
 max_cycles = 10
 ```
 
@@ -336,7 +332,7 @@ MANUAL: Fix toml syntax error in pyproject.toml line 15
 [[actions]]
 name = "fragile-transformation"
 type = "claude"
-prompt = "workflow:///prompts/transform.md"
+prompt = "prompts/transform.md"
 max_cycles = 5        # Try up to 5 times
 on_failure = "cleanup" # Run cleanup action if all cycles fail
 ```
@@ -376,7 +372,7 @@ The errors for context are:
 [[actions]]
 name = "language-specific-update"
 type = "claude"
-prompt = "workflow:///prompts/{{ imbi_project.facts.get('Programming Language', 'unknown') | lower }}-update.md"
+prompt = "prompts/{{ imbi_project.facts.get('Programming Language', 'unknown') | lower }}-update.md"
 ```
 
 ### Multi-Stage Transformations
@@ -385,17 +381,17 @@ prompt = "workflow:///prompts/{{ imbi_project.facts.get('Programming Language', 
 [[actions]]
 name = "stage1-refactor"
 type = "claude"
-prompt = "workflow:///prompts/stage1.md"
+prompt = "prompts/stage1.md"
 
 [[actions]]
 name = "stage2-optimize"
 type = "claude"
-prompt = "workflow:///prompts/stage2.md"
+prompt = "prompts/stage2.md"
 
 [[actions]]
 name = "stage3-document"
 type = "claude"
-prompt = "workflow:///prompts/stage3.md"
+prompt = "prompts/stage3.md"
 ```
 
 ### With Pre/Post Actions
@@ -411,7 +407,7 @@ destination = "repository:///src.backup/"
 [[actions]]
 name = "ai-refactor"
 type = "claude"
-prompt = "workflow:///prompts/refactor.md"
+prompt = "prompts/refactor.md"
 on_failure = "restore-backup"
 
 [[actions]]
@@ -436,7 +432,7 @@ destination = "repository:///src/"
 [[actions]]
 name = "ai-code-update"
 type = "claude"
-prompt = "workflow:///prompts/update.md"
+prompt = "prompts/update.md"
 
 [[actions]]
 name = "verify-tests"
@@ -451,13 +447,13 @@ working_directory = "repository:///"
 [[actions]]
 name = "generate-base-config"
 type = "template"
-source_path = "workflow:///config.yaml.j2"
+source_path = "config.yaml.j2"
 destination_path = "repository:///config.yaml"
 
 [[actions]]
 name = "customize-config"
 type = "claude"
-prompt = "workflow:///prompts/customize-config.md"
+prompt = "prompts/customize-config.md"
 ```
 
 ### Claude + Git (Commit Verification)
@@ -466,7 +462,7 @@ prompt = "workflow:///prompts/customize-config.md"
 [[actions]]
 name = "ai-transformation"
 type = "claude"
-prompt = "workflow:///prompts/transform.md"
+prompt = "prompts/transform.md"
 
 [[actions]]
 name = "verify-commit"
