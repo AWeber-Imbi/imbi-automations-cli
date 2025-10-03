@@ -22,12 +22,12 @@ Extract a specific file from Git commit history. Useful for retrieving old versi
 
 - `source` (pathlib.Path): Path to the file in the repository
 - `destination` (ResourceUrl): Where to write the extracted file
-- `commit_keyword` (string, optional): Keyword to search for in commit messages
-- `search_strategy` (string, optional): How to find the commit (`before_first_match`, `before_last_match`)
 
 **Optional Fields:**
 
-- `ignore_errors` (bool): Continue if extraction fails (default: false)
+- `commit_keyword` (string): Keyword to search for in commit messages. If not provided, extracts from current HEAD (default: None)
+- `search_strategy` (string): How to find the commit - `before_first_match` or `before_last_match`. Only used when `commit_keyword` is provided (default: `before_last_match`)
+- `ignore_errors` (bool): Continue if extraction fails instead of raising RuntimeError (default: false)
 
 **Example:**
 ```toml
@@ -202,11 +202,12 @@ destination_path = "repository:///config/"
 ## Implementation Notes
 
 - **Extract command**:
-  - Searches git log for commits matching keyword
-  - Extracts file content from the commit **before** the match
+  - If `commit_keyword` provided: Searches git log for commits matching keyword and extracts from the commit **before** the match
+  - If no `commit_keyword`: Extracts file from current HEAD
   - Uses `git show COMMIT:PATH` to retrieve file contents
   - Returns false if file or commit not found (unless `ignore_errors` is true)
-  - Works within the cloned repository directory
+  - Works within the cloned repository directory (`{working_directory}/repository/`)
+  - File must exist at the target commit (raises RuntimeError if not found)
 
 - **Clone command**:
   - Uses `git clone` with optional branch and depth parameters
