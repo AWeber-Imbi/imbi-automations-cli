@@ -9,8 +9,8 @@ Shell actions execute arbitrary commands with full Jinja2 template support for d
 name = "action-name"
 type = "shell"
 command = "command to execute"
-working_directory = "path"  # Optional
-ignore_failure = false      # Optional, default: false
+working_directory = "path"  # Optional, default: repository:///
+ignore_errors = false       # Optional, default: false
 ```
 
 ## Fields
@@ -31,12 +31,12 @@ The shell command to execute. Supports full Jinja2 template syntax for variable 
 
 ### working_directory (optional)
 
-Directory to execute the command in. Defaults to the workflow's working directory.
+Directory to execute the command in.
 
 **Type:** `ResourceUrl` (string path)
-**Default:** `{working_directory}`
+**Default:** `repository:///` (the cloned repository directory)
 
-### ignore_failure (optional)
+### ignore_errors (optional)
 
 Whether to continue workflow execution if the command fails (non-zero exit code).
 
@@ -74,32 +74,31 @@ command = "git tag -a v{{ version }} -m 'Release {{ version }} for {{ imbi_proje
 working_directory = "repository:///"
 ```
 
-### Complex Multi-line Commands
+### Multi-Step Script Execution
+
+**Note:** Shell actions execute commands directly without a shell, so shell operators like `&&`, `||`, `;`, and `|` do not work. For multi-step operations, use a shell wrapper:
 
 ```toml
 [[actions]]
 name = "setup-and-test"
 type = "shell"
 command = """
-python -m venv .venv && \
-source .venv/bin/activate && \
-pip install -e .[dev] && \
-pytest tests/ --cov={{ imbi_project.slug }}
+bash -c 'python -m venv .venv && source .venv/bin/activate && pip install -e .[dev] && pytest tests/ --cov={{ imbi_project.slug }}'
 """
 working_directory = "{{ working_directory }}/repository"
 ```
 
-### Conditional Execution
+### Conditional Execution with Shell
 
 ```toml
 [[actions]]
 name = "npm-install-if-needed"
 type = "shell"
-command = "if [ -f package.json ]; then npm install; fi"
+command = "bash -c 'if [ -f package.json ]; then npm install; fi'"
 working_directory = "repository:///"
 ```
 
-### Ignore Failures
+### Ignore Errors
 
 ```toml
 [[actions]]
@@ -107,7 +106,7 @@ name = "optional-linting"
 type = "shell"
 command = "ruff check src/"
 working_directory = "repository:///"
-ignore_failure = true  # Don't fail workflow if linting fails
+ignore_errors = true  # Don't fail workflow if linting fails
 ```
 
 ## Common Use Cases
@@ -328,7 +327,7 @@ command = "important-operation"
 name = "optional-command"
 type = "shell"
 command = "optional-operation"
-ignore_failure = true  # Continues even if exit code != 0
+ignore_errors = true  # Continues even if exit code != 0
 ```
 
 ### Command Not Found
@@ -338,7 +337,7 @@ ignore_failure = true  # Continues even if exit code != 0
 name = "missing-command"
 type = "shell"
 command = "nonexistent-command"
-# Raises RuntimeError: Command 'nonexistent-command' not found
+# Raises FileNotFoundError: Command not found: nonexistent-command
 ```
 
 ## Security Considerations
@@ -363,31 +362,31 @@ command = "echo '{{ imbi_project.name }}'"
 
 ### Environment Variables
 
-Commands execute with the same environment as the workflow process:
+Commands execute with the same environment as the workflow process. Note that environment variables in the command string itself are NOT expanded (no shell):
 
 ```toml
 [[actions]]
 name = "use-env-var"
 type = "shell"
-command = "echo $HOME && echo $USER"
+command = "bash -c 'echo $HOME && echo $USER'"  # Need bash -c for shell features
 ```
 
 ## Performance Tips
 
 ### Chaining Commands
 
-Use `&&` for dependent commands (fail fast):
-```toml
-[[actions]]
-type = "shell"
-command = "cd repository && make build && make test"
-```
+**Important:** Shell operators require wrapping the command in `bash -c` or `sh -c`:
 
-Use `;` for independent commands (always run all):
 ```toml
+# Use && for dependent commands (fail fast):
 [[actions]]
 type = "shell"
-command = "make clean; make build; make test"
+command = "bash -c 'cd repository && make build && make test'"
+
+# Use ; for independent commands (always run all):
+[[actions]]
+type = "shell"
+command = "bash -c 'make clean; make build; make test'"
 ```
 
 ### Background Processes
@@ -396,9 +395,16 @@ Not recommended - commands block until completion. For long-running operations, 
 
 ## Implementation Notes
 
-- Commands execute in a subprocess using asyncio
-- Full shell features available (pipes, redirects, environment variables)
-- Working directory resolved before command execution
+- Commands execute in a subprocess using `asyncio.create_subprocess_exec`
+- **No shell by default**: Commands are parsed with `shlex.split()` and executed directly
+- **Shell features require explicit shell**: Use `bash -c '...'` or `sh -c '...'` for:
+  - Pipes (`|`), redirects (`>`, `<`), wildcards (`*`)
+  - Command chaining (`&&`, `||`, `;`)
+  - Environment variable expansion (`$VAR`)
+  - Built-in shell commands (`cd`, `export`, etc.)
+- Working directory resolved before command execution via `utils.resolve_path()`
 - Template rendering occurs before command execution
-- Timeout: Configurable (default varies by implementation)
-- Shell: Uses system default shell (`/bin/sh` on Unix, `cmd.exe` on Windows)
+- Commands are parsed as shell-like arguments (respecting quotes and escapes)
+- No timeout configured (commands run until completion)
+- stdout and stderr captured and logged at DEBUG level
+- Non-zero exit codes raise `subprocess.CalledProcessError` (unless `ignore_errors=true`)
