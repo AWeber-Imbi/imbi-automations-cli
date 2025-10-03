@@ -1,6 +1,8 @@
 # Utility Actions
 
-Utility actions provide helper operations for common workflow patterns like logging, state management, and flow control.
+⚠️ **ALL COMMANDS NOT IMPLEMENTED**: All utility commands currently raise `NotImplementedError`. This action type is a placeholder for future functionality.
+
+Utility actions are intended to provide helper operations for Docker tag parsing, Dockerfile analysis, semantic versioning comparison, and Python constraint parsing.
 
 ## Configuration
 
@@ -8,122 +10,138 @@ Utility actions provide helper operations for common workflow patterns like logg
 [[actions]]
 name = "action-name"
 type = "utility"
-operation = "log|wait|skip"
-# Operation-specific fields
+command = "docker_tag|dockerfile_from|compare_semver|parse_python_constraints"
+path = "repository:///path/to/file"  # Optional
+args = []      # Optional
+kwargs = {}    # Optional
 ```
 
-## Operations
+## Fields
 
-### log
+### command (required)
 
-Log messages during workflow execution.
+The utility operation to perform.
 
-**Fields:**
-- `message`: Message to log (supports templates)
-- `level`: Log level (`debug`, `info`, `warning`, `error`)
+**Type:** `string`
+**Options:**
+- `docker_tag` - Parse Docker image tags (not implemented)
+- `dockerfile_from` - Extract FROM directive from Dockerfile (not implemented)
+- `compare_semver` - Compare semantic version strings (not implemented)
+- `parse_python_constraints` - Parse Python version constraints (not implemented)
 
-**Example:**
+### path (optional)
+
+File path for operations that require file input.
+
+**Type:** `ResourceUrl` (string path)
+**Default:** None
+
+### args (optional)
+
+Positional arguments for the utility operation.
+
+**Type:** `list`
+**Default:** `[]`
+
+### kwargs (optional)
+
+Keyword arguments for the utility operation.
+
+**Type:** `dict`
+**Default:** `{}`
+
+## Commands
+
+### docker_tag
+
+**Status:** ❌ Not implemented (raises NotImplementedError)
+
+Parse and manipulate Docker image tags.
+
+**Intended Usage:**
 ```toml
 [[actions]]
-name = "log-progress"
+name = "parse-docker-tag"
 type = "utility"
-operation = "log"
-message = "Processing {{ imbi_project.name }}"
-level = "info"
+command = "docker_tag"
+args = ["python:3.12-slim"]
 ```
 
-### wait
+### dockerfile_from
 
-Pause workflow execution for a specified duration.
+**Status:** ❌ Not implemented (raises NotImplementedError)
 
-**Fields:**
-- `seconds`: Duration to wait
+Extract the base image FROM directive from a Dockerfile.
 
-**Example:**
+**Intended Usage:**
 ```toml
 [[actions]]
-name = "rate-limit-pause"
+name = "get-base-image"
 type = "utility"
-operation = "wait"
-seconds = 5
+command = "dockerfile_from"
+path = "repository:///Dockerfile"
 ```
 
-### skip
+### compare_semver
 
-Conditionally skip subsequent actions.
+**Status:** ❌ Not implemented (raises NotImplementedError)
 
-**Fields:**
-- `condition`: Jinja2 expression evaluating to boolean
+Compare two semantic version strings.
 
-**Example:**
+**Intended Usage:**
 ```toml
 [[actions]]
-name = "skip-if-api"
+name = "check-version"
 type = "utility"
-operation = "skip"
-condition = "{{ imbi_project.project_type == 'api' }}"
+command = "compare_semver"
+args = ["1.2.3", "1.2.4"]
 ```
 
-## Common Use Cases
+### parse_python_constraints
 
-### Progress Logging
+**Status:** ❌ Not implemented (raises NotImplementedError)
 
+Parse Python version constraint strings (e.g., `>=3.8,<4.0`).
+
+**Intended Usage:**
 ```toml
 [[actions]]
-name = "log-start"
+name = "parse-constraints"
 type = "utility"
-operation = "log"
-message = "Starting transformation for {{ imbi_project.slug }}"
-level = "info"
-
-[[actions]]
-name = "transform"
-type = "claude"
-prompt = "workflow:///prompts/transform.md"
-
-[[actions]]
-name = "log-complete"
-type = "utility"
-operation = "log"
-message = "Completed transformation"
-level = "info"
+command = "parse_python_constraints"
+args = [">=3.8,<4.0"]
 ```
 
-### Rate Limiting
+## Implementation Status
 
-```toml
-[[actions]]
-name = "api-call"
-type = "callable"
-client = "github"
-method = "create_pull_request"
-kwargs = {}
+Currently, all utility commands are defined but not implemented. The implementation in `src/imbi_automations/actions/utility.py` lines 24-43 shows:
 
-[[actions]]
-name = "rate-limit-wait"
-type = "utility"
-operation = "wait"
-seconds = 2
+```python
+async def execute(self, action: models.WorkflowUtilityAction) -> None:
+    match action.command:
+        case models.WorkflowUtilityCommands.docker_tag:
+            raise NotImplementedError('Utility docker_tag not yet supported')
+        case models.WorkflowUtilityCommands.dockerfile_from:
+            raise NotImplementedError('Utility dockerfile_from not yet supported')
+        case models.WorkflowUtilityCommands.compare_semver:
+            raise NotImplementedError('Utility compare_semver not yet supported')
+        case models.WorkflowUtilityCommands.parse_python_constraints:
+            raise NotImplementedError('Utility parse_python_constraints not yet supported')
 ```
 
-### Conditional Workflow
+**Workarounds:**
 
-```toml
-[[actions]]
-name = "check-type"
-type = "utility"
-operation = "skip"
-condition = "{{ imbi_project.project_type not in ['api', 'consumer'] }}"
+Until these utilities are implemented, use alternative approaches:
 
-[[actions]]
-name = "api-specific-action"
-type = "shell"
-command = "deploy-api.sh"
-```
+1. **Docker tag parsing**: Use shell action with `docker inspect` or regex
+2. **Dockerfile FROM**: Use file action with regex pattern or shell action with `grep`
+3. **Semver comparison**: Use shell action with `semver` CLI tool
+4. **Python constraints**: Use shell action with Python's `packaging` library
 
 ## Implementation Notes
 
-- Utility actions don't modify files or repositories
-- Log messages output to workflow logger
-- Wait operations are non-blocking for other workflows
-- Skip conditions evaluated at runtime
+- All commands currently raise `NotImplementedError`
+- Model defined in `src/imbi_automations/models/workflow.py:373-398`
+- Implementation skeleton in `src/imbi_automations/actions/utility.py:1-44`
+- Fields `path`, `args`, and `kwargs` are defined but unused
+- This action type exists as a placeholder for future functionality
