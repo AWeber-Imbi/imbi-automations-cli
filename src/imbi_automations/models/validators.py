@@ -41,6 +41,8 @@ class CommandRulesMixin:
     ignored_fields: typing.ClassVar[set[str]] = {
         'type',
         'name',
+        'ai_commit',
+        'commit_message',
         'conditions',
         'condition_type',
         'committable',

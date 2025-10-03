@@ -82,9 +82,10 @@ class Committer(mixins.WorkflowLoggerMixin):
         await git.add_files(working_directory=repo_dir, files=['--all'])
 
         # Build commit message
-        slug = context.workflow.slug or ''
+        body = f'{action.commit_message}\n\n' if action.commit_message else ''
         message = (
-            f'imbi-automations: {slug} {action.name}\n\n'
+            f'imbi-automations: {context.workflow.configuration.name} '
+            f'- {action.name}\n\n{body}'
             '🤖 Generated with [Imbi Automations]'
             '(https://github.com/AWeber-Imbi/).'
         )

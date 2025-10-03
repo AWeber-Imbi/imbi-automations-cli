@@ -201,6 +201,55 @@ class WorkflowLoadingTestCase(unittest.TestCase):
             f'Expected at least 6 validation errors, found {found_errors}',
         )
 
+    def test_commit_message_validation(self) -> None:
+        """Test that commit_message validation works correctly."""
+        from imbi_automations.models.workflow import WorkflowFileAction
+
+        # Valid: commit_message with ai_commit=False and committable=True
+        valid_action = WorkflowFileAction(
+            name='test-action',
+            type='file',
+            command='copy',
+            source='file:///src',
+            destination='file:///dst',
+            ai_commit=False,
+            committable=True,
+            commit_message='Manual commit message',
+        )
+        self.assertIsNotNone(valid_action.commit_message)
+
+        # Invalid: commit_message with ai_commit=True
+        with self.assertRaises(pydantic.ValidationError) as exc_context:
+            WorkflowFileAction(
+                name='test-action',
+                type='file',
+                command='copy',
+                source='file:///src',
+                destination='file:///dst',
+                ai_commit=True,
+                commit_message='Should fail',
+            )
+        self.assertIn(
+            'commit_message cannot be set when ai_commit is True',
+            str(exc_context.exception),
+        )
+
+        # Invalid: commit_message with committable=False
+        with self.assertRaises(pydantic.ValidationError) as exc_context:
+            WorkflowFileAction(
+                name='test-action',
+                type='file',
+                command='copy',
+                source='file:///src',
+                destination='file:///dst',
+                committable=False,
+                commit_message='Should fail',
+            )
+        self.assertIn(
+            'commit_message cannot be set when committable is False',
+            str(exc_context.exception),
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

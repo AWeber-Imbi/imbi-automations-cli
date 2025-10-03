@@ -92,6 +92,7 @@ class WorkflowAction(pydantic.BaseModel):
     name: str
     type: WorkflowActionTypes = WorkflowActionTypes.callable
     ai_commit: bool = False
+    commit_message: str | None = None
     conditions: list['WorkflowCondition'] = pydantic.Field(
         default_factory=list
     )
@@ -102,6 +103,23 @@ class WorkflowAction(pydantic.BaseModel):
     on_failure: str | None = None
     timeout: int = 3600
     data: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
+
+    @pydantic.model_validator(mode='after')
+    def validate_commit_message(self) -> 'WorkflowAction':
+        """Validate that commit_message is only set when ai_commit=False
+        and committable=True.
+
+        """
+        if self.commit_message is not None:
+            if self.ai_commit:
+                raise ValueError(
+                    'commit_message cannot be set when ai_commit is True'
+                )
+            if not self.committable:
+                raise ValueError(
+                    'commit_message cannot be set when committable is False'
+                )
+        return self
 
 
 class WorkflowCallableAction(WorkflowAction):
