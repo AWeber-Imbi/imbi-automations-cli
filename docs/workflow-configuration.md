@@ -408,6 +408,46 @@ type = "claude"
 ai_commit = true  # AI-generated commit message
 ```
 
+#### commit_message (optional)
+
+Specify a custom commit message for this action's changes. Only valid when `ai_commit` is `false` (or unset) and `committable` is `true`.
+
+**Type:** `string`
+
+**Default:** `null` (uses auto-generated message)
+
+**Validation:**
+
+- Cannot be set when `ai_commit = true`
+- Cannot be set when `committable = false`
+
+**Auto-generated format when not specified:**
+
+```
+imbi-automations: workflow-name - action-name
+
+🤖 Generated with [Imbi Automations](https://github.com/AWeber-Imbi/).
+```
+
+**Custom message example:**
+
+```toml
+[[actions]]
+name = "update-dependencies"
+type = "file"
+command = "copy"
+source = "workflow:///requirements.txt"
+destination = "repository:///requirements.txt"
+commit_message = "Update Python dependencies to latest versions"
+```
+
+**Use cases:**
+
+- Semantic commit messages for specific changes
+- Conventional commit format enforcement
+- Custom formatting for automated changelogs
+- Descriptive messages for significant updates
+
 #### committable (optional)
 
 Whether this action's changes should be included in git commits.
