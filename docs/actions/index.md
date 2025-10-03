@@ -12,6 +12,7 @@ Workflow actions are the core building blocks of automation in Imbi Automations.
 | [File](file.md) | File manipulation | Copy, move, delete, append, write files |
 | [Git](git.md) | Version control operations | Extract commits, branch management |
 | [GitHub](github.md) | GitHub-specific operations | Environment sync, workflow management |
+| [Imbi](imbi.md) | Imbi project management | Update project facts and metadata |
 | [Shell](shell.md) | Command execution | Run tests, build processes, scripts |
 | [Template](template.md) | Jinja2 file generation | Generate configs, documentation |
 | [Utility](utility.md) | Helper operations | Logging, state management |

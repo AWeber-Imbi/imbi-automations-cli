@@ -17,6 +17,7 @@ nav:
     - File: actions/file.md
     - Git: actions/git.md
     - GitHub: actions/github.md
+    - Imbi: actions/imbi.md
     - Shell: actions/shell.md
     - Template: actions/template.md
     - Utility: actions/utility.md
