@@ -88,9 +88,9 @@ The tool includes 25+ pre-built workflows for common tasks:
 ## Documentation
 
 - **[Architecture Guide](architecture.md)**: Comprehensive technical documentation
-- **[Developer Guide](AGENTS.md)**: Implementation details and development standards
-- **[Workflow Configuration](workflows/)**: Examples and configuration patterns
-- **[API Reference](api/)**: Detailed API documentation
+- **[Workflow Actions](actions/index.md)**: Complete action types reference
+- **Workflow Configuration**: See workflows directory in repository
+- **Developer Guide**: See AGENTS.md in repository
 
 ## Requirements
 
