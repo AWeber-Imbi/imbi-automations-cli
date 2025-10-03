@@ -61,8 +61,10 @@ pre-commit run --all-files
 #### Primary Architecture
 - **CLI Interface** (`cli.py`): Argument parsing, colored logging configuration, entry point with workflow validation
 - **Controller** (`controller.py`): Main automation controller implementing iterator pattern for different target types
-- **Workflow Engine** (`engine.py`): Executes workflow actions with context management and temporary directory handling
+- **Workflow Engine** (`workflow_engine.py`): Executes workflow actions with context management and temporary directory handling
+- **Actions Dispatcher** (`actions/__init__.py`): Centralized action execution using match/case pattern routing
 - **Claude Integration** (`claude.py`): Claude Code SDK integration for AI-powered transformations
+- **Committer** (`committer.py`): Handles both AI-powered and manual git commits with proper formatting
 
 #### Client Layer (under `clients/`)
 - **HTTP Client** (`clients/http.py`): Base async HTTP client with authentication and error handling
@@ -73,7 +75,7 @@ pre-commit run --all-files
 #### Models (under `models/`)
 - **Configuration** (`models/configuration.py`): TOML-based configuration with Pydantic validation
 - **Workflow** (`models/workflow.py`): Comprehensive workflow definition with actions, conditions, and filters
-  - **Action Types**: `callable`, `claude`, `docker`, `git`, `file`, `shell`, `utility`, `templates`
+  - **Action Types**: `callable`, `claude`, `docker`, `git`, `file`, `shell`, `utility`, `template`, `github`
 - **GitHub** (`models/github.py`): GitHub repository and API response models
 - **GitLab** (`models/gitlab.py`): GitLab project and API response models
 - **Imbi** (`models/imbi.py`): Imbi project management system models
@@ -83,18 +85,29 @@ pre-commit run --all-files
 - **Base** (`models/base.py`): Common base models and utilities
 - **Validators** (`models/validators.py`): Pydantic field validators
 
+#### Actions Layer (under `actions/`)
+- **Callable Actions** (`actions/callablea.py`): Direct method calls on client instances with dynamic kwargs
+- **Claude Actions** (`actions/claude.py`): AI-powered transformations using Claude Code SDK
+- **Docker Actions** (`actions/docker.py`): Docker container operations and file extractions
+- **File Actions** (`actions/filea.py`): File manipulation (copy with glob support, move, regex replacement)
+- **Git Actions** (`actions/git.py`): Git operations (revert, extract, branch management)
+- **GitHub Actions** (`actions/github.py`): GitHub-specific operations and integrations
+- **Shell Actions** (`actions/shell.py`): Shell command execution with templating support
+- **Template Actions** (`actions/template.py`): Jinja2 template rendering with full workflow context
+- **Utility Actions** (`actions/utility.py`): Helper operations for common workflow tasks
+
 #### Supporting Components
-- **Git Operations** (`git.py`): Repository cloning and Git operations
-- **Docker Integration** (`docker.py`): Docker container operations and extractions
+- **Git Operations** (`git.py`): Repository cloning, committing, and Git operations
 - **Environment Sync** (`environment_sync.py`): GitHub environment synchronization logic
-- **File Actions** (`file_actions.py`): File manipulation operations (copy with glob support, move, regex replacement)
-- **Shell Integration** (`shell.py`): Shell command execution with templating support
 - **Condition Checker** (`condition_checker.py`): Workflow condition evaluation system
+- **Per-Project Logging** (`per_project_logging.py`): Project-specific log file management
 - **Utilities** (`utils.py`): Configuration loading, directory management, URL sanitization
 - **Error Handling** (`errors.py`): Custom exception classes
 - **Mixins** (`mixins.py`): Reusable workflow logging functionality
-- **Prompts** (`prompts.py`): AI prompt management and templates
+- **Prompts** (`prompts.py`): AI prompt management and Jinja2 template rendering
 - **Prompts Templates** (`prompts/`): Jinja2 template files for Claude Code prompts and PR generation
+- **Claude Code Standards** (`claude-code/CLAUDE.md`): Standards and conventions for Claude Code actions
+- **Claude Code Agents** (`claude-code/agents/`): Agent discovery and configuration files
 - **Workflow Filter** (`workflow_filter.py`): Project filtering and targeting logic
 
 ### Configuration Structure
@@ -118,14 +131,17 @@ executable = "claude"  # Optional, defaults to 'claude'
 
 The system supports multiple transformation types through the workflow action system:
 
-1. **Callable Actions**: Direct method calls on client instances with dynamic kwargs
-2. **Claude Code Integration**: Complex multi-file analysis and transformation using Claude Code SDK
-3. **Docker Operations**: Container-based file extraction and manipulation
-4. **Git Operations**: Version control operations (revert, extract, branch management)
-5. **File Operations**: Direct file manipulation (copy with glob patterns, move, regex replacement)
-6. **Shell Commands**: Arbitrary command execution with templated variables
-7. **Utility Actions**: Helper operations for common workflow tasks
-8. **Template System**: Jinja2-based file generation with full project context
+1. **Callable Actions** (`actions/callablea.py`): Direct method calls on client instances with dynamic kwargs
+2. **Claude Actions** (`actions/claude.py`): Complex multi-file analysis and transformation using Claude Code SDK
+3. **Docker Actions** (`actions/docker.py`): Container-based file extraction and manipulation
+4. **File Actions** (`actions/filea.py`): Direct file manipulation (copy with glob patterns, move, regex replacement)
+5. **Git Actions** (`actions/git.py`): Version control operations (revert, extract, branch management)
+6. **GitHub Actions** (`actions/github.py`): GitHub-specific operations and API integrations
+7. **Shell Actions** (`actions/shell.py`): Arbitrary command execution with templated variables
+8. **Template Actions** (`actions/template.py`): Jinja2-based file generation with full project context
+9. **Utility Actions** (`actions/utility.py`): Helper operations for common workflow tasks
+
+All actions are dispatched through the centralized `Actions` class (`actions/__init__.py`) which uses Python 3.12's match/case pattern for type-safe routing.
 
 #### File Action Usage
 
@@ -412,9 +428,9 @@ All Claude Code actions follow standards defined in the `prompts/CLAUDE.md` file
 
 ## Available Workflows
 
-The system includes 18 pre-built workflows organized by category:
+The system includes 20 pre-built workflows organized by category:
 
-### Infrastructure and Tooling (8 workflows)
+### Infrastructure and Tooling (9 workflows)
 - **docker-image-update**: Update base images and container configurations
 - **docker-healthchecker**: Add health check configurations to Docker containers
 - **dockerfile-wheel-fix**: Fix wheel installation patterns in Dockerfiles
@@ -423,6 +439,7 @@ The system includes 18 pre-built workflows organized by category:
 - **compose-volume-fix**: Fix Docker Compose volume mount issues
 - **infrastructure-services**: Infrastructure service configuration updates
 - **frontend-actions**: Frontend build and deployment action updates
+- **terraform-ci**: Terraform CI/CD pipeline configurations
 
 ### Code Quality and Standards (4 workflows)
 - **enforce-ci-pipelines**: Ensure CI pipeline configurations are present
@@ -430,9 +447,10 @@ The system includes 18 pre-built workflows organized by category:
 - **failing-sonarqube**: Fix failing SonarQube quality gates
 - **remove-extra-ci-files**: Clean up redundant CI configuration files
 
-### Project Maintenance (6 workflows)
+### Project Maintenance (7 workflows)
 - **backend-gitignore**: Apply standard backend .gitignore templates
 - **frontend-gitignore**: Apply standard frontend .gitignore templates
+- **restore-gitignore**: Restore .gitignore files from templates
 - **ensure-github-teams**: Synchronize GitHub team access with Imbi
 - **sync-project-environments**: Synchronize GitHub environments with Imbi
 - **validate-github-identifier**: Validate GitHub identifier consistency
@@ -469,15 +487,21 @@ The system includes 18 pre-built workflows organized by category:
 
 **Major Changes Made**:
 - Replaced `AutomationEngine` with `Automation` controller pattern
-- Reorganized code into logical modules (`clients/`, `models/`)
+- Reorganized code into logical modules (`clients/`, `models/`, `actions/`)
+- Extracted action implementations into dedicated `actions/` module with individual files per action type
+- Created centralized `Actions` dispatcher class using Python 3.12 match/case pattern
+- Separated commit logic into dedicated `Committer` class supporting both AI and manual commits
 - Enhanced workflow engine with comprehensive action support
 - Added `async_lru` dependency for improved caching performance
 - Implemented robust error handling and recovery mechanisms
 - Added comprehensive type safety throughout the codebase
+- Introduced per-project logging for better troubleshooting
 
 **Architecture Benefits**:
-- Cleaner separation of concerns between controller and engine
-- More maintainable client abstraction layer
-- Enhanced testability with modular structure
-- Better performance with async optimizations
+- Cleaner separation of concerns between controller, engine, actions, and committer
+- More maintainable action implementations with single-responsibility principle
+- Centralized action routing makes it easier to add new action types
+- Enhanced testability with modular structure and isolated action classes
+- Better performance with async optimizations and LRU caching
 - Improved developer experience with comprehensive type hints
+- Easier to extend with new action types through match/case dispatcher pattern
