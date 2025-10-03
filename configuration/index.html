@@ -2164,8 +2164,8 @@
 </code></pre></div>
 <h3 id="error_dir">error_dir<a class="headerlink" href="#error_dir" title="Permanent link">&para;</a></h3>
 <p>Directory to store error logs and debugging information when workflows fail.</p>
-<p><strong>Type:</strong> <code>path</code>
-<strong>Default:</strong> <code>"./errors"</code></p>
+<p><strong>Type:</strong> <code>path</code></p>
+<p><strong>Default:</strong> <code>"./errors"</code></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-4-1" name="__codelineno-4-1" href="#__codelineno-4-1"></a><span class="n">error_dir</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/var/log/imbi-automations/errors&quot;</span>
 </code></pre></div>
 <h3 id="preserve_on_error">preserve_on_error<a class="headerlink" href="#preserve_on_error" title="Permanent link">&para;</a></h3>
@@ -2200,10 +2200,12 @@
 <p>Claude model to use for API requests.</p>
 <p><strong>Type:</strong> <code>string</code>
 <strong>Default:</strong> <code>"claude-3-5-haiku-latest"</code></p>
-<p><strong>Available Models:</strong>
-- <code>claude-3-5-sonnet-latest</code> - Most capable, higher cost
-- <code>claude-3-5-haiku-latest</code> - Fast and efficient (default)
-- <code>claude-3-opus-latest</code> - Highest capability, highest cost</p>
+<p><strong>Available Models:</strong></p>
+<ul>
+<li><code>claude-3-5-sonnet-latest</code> - Most capable, higher cost</li>
+<li><code>claude-3-5-haiku-latest</code> - Fast and efficient (default)</li>
+<li><code>claude-3-opus-latest</code> - Highest capability, highest cost</li>
+</ul>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a><span class="k">[anthropic]</span>
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a><span class="n">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;claude-3-5-sonnet-latest&quot;</span>
 </code></pre></div>
@@ -2226,8 +2228,8 @@
 </code></pre></div>
 <h3 id="claude_codebase_prompt">[claude_code].base_prompt<a class="headerlink" href="#claude_codebase_prompt" title="Permanent link">&para;</a></h3>
 <p>Custom base prompt file for Claude Code sessions.</p>
-<p><strong>Type:</strong> <code>path</code>
-<strong>Default:</strong> <code>src/imbi_automations/prompts/claude.md</code></p>
+<p><strong>Type:</strong> <code>path</code></p>
+<p><strong>Default:</strong> <code>src/imbi_automations/prompts/claude.md</code></p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-12-1" name="__codelineno-12-1" href="#__codelineno-12-1"></a><span class="k">[claude_code]</span>
 <a id="__codelineno-12-2" name="__codelineno-12-2" href="#__codelineno-12-2"></a><span class="n">base_prompt</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;/path/to/custom-prompt.md&quot;</span>
 </code></pre></div>
