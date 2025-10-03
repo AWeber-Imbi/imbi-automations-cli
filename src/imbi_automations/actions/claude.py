@@ -88,6 +88,7 @@ class ClaudeAction(mixins.WorkflowLoggerMixin):
             run = await self.claude.agent_query(prompt)
             self.logger.debug('Execute agent result: %r', run)
             if run.result == models.AgentRunResult.failure:
+                self.last_error = run
                 self.logger.error(
                     'Claude Code %s agent %s failed in cycle %d',
                     agent,

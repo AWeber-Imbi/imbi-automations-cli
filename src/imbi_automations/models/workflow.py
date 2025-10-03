@@ -19,9 +19,9 @@ from . import github, gitlab, imbi, validators
 
 def _ensure_file_scheme(v: str | pathlib.Path | pydantic.AnyUrl) -> str:
     if isinstance(v, pathlib.Path):
-        return f'file://{v}'
+        return f'file:///{v}'
     if isinstance(v, str) and '://' not in v:
-        return f'file://{v}'
+        return f'file:///{v}'
     return v
 
 

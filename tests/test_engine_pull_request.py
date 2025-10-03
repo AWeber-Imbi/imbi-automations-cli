@@ -79,6 +79,7 @@ class WorkflowEnginePullRequestTestCase(base.AsyncTestCase):
         super().tearDown()
         self.temp_dir.cleanup()
 
+    @mock.patch('imbi_automations.workflow_engine.claude.Claude')
     @mock.patch('imbi_automations.git.get_commits_since')
     @mock.patch('imbi_automations.git.create_branch')
     @mock.patch('imbi_automations.git.push_changes')
@@ -87,12 +88,18 @@ class WorkflowEnginePullRequestTestCase(base.AsyncTestCase):
         mock_push: mock.AsyncMock,
         mock_create_branch: mock.AsyncMock,
         mock_get_commits: mock.AsyncMock,
+        mock_claude_class: mock.Mock,
     ) -> None:
         """Test successful pull request branch creation and push."""
         # Provide a minimal commit summary to satisfy prompt rendering
         mock_get_commits.return_value = models.GitCommitSummary(
             total_commits=0, commits=[], files_affected=[], commit_range=''
         )
+
+        # Mock Claude instance and anthropic_query method
+        mock_claude_instance = mock.AsyncMock()
+        mock_claude_instance.anthropic_query.return_value = 'Generated PR body'
+        mock_claude_class.return_value = mock_claude_instance
 
         await self.engine._create_pull_request(self.context)
 
