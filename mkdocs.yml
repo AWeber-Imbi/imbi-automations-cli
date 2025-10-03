@@ -13,6 +13,7 @@ nav:
     - Configuration: workflow-configuration.md
     - Filters: workflow-filters.md
     - Conditions: workflow-conditions.md
+    - Actions: actions/index.md
     - Debugging: debugging.md
   - Actions:
     - actions/index.md
