@@ -97,6 +97,7 @@ class ClaudeAction(mixins.WorkflowLoggerMixin):
                     cycle,
                 )
                 return False
+            self.last_error = None
         return True
 
     def _get_prompt(
