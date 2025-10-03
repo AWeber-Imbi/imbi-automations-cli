@@ -99,7 +99,7 @@ class FileActions(mixins.WorkflowLoggerMixin):
         """Copy a single file or directory."""
         source_path = utils.resolve_path(context, source)
 
-        self._log_verbose_info('Copying %s to %s', source_path, dest_path)
+        self.logger.debug('Copying %s to %s', source_path, dest_path)
 
         if not source_path.exists():
             raise RuntimeError(f'Source file does not exist: {source_path}')
@@ -116,7 +116,7 @@ class FileActions(mixins.WorkflowLoggerMixin):
                 f'Source path is neither file nor directory: {source_path}'
             )
 
-        self._log_verbose_info(
+        self.logger.debug(
             'Successfully copied %s to %s', source_path, dest_path
         )
 
@@ -158,7 +158,7 @@ class FileActions(mixins.WorkflowLoggerMixin):
                 self.logger.debug('Copied %s to %s', match, dest_file)
                 copied_count += 1
 
-        self._log_verbose_info(
+        self.logger.debug(
             'Successfully copied %d files to %s', copied_count, dest_path
         )
 
