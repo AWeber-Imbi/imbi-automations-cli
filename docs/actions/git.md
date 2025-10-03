@@ -21,7 +21,7 @@ Extract a specific file from Git commit history. Useful for retrieving old versi
 **Required Fields:**
 
 
-- `source` (pathlib.Path): Path to the file in the repository
+- `source` ([pathlib.Path][]): Path to the file in the repository
 - `destination` ([`ResourceUrl`](index.md#resourceurl-path-system)): Where to write the extracted file
 
 **Optional Fields:**

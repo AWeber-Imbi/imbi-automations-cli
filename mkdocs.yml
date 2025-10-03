@@ -79,6 +79,8 @@ plugins:
       handlers:
         python:
           paths: [src]
+          import:
+            - https://docs.python.org/3/objects.inv
           options:
             docstring_style: google
             show_root_heading: true

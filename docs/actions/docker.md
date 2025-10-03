@@ -24,7 +24,7 @@ Extract files from a Docker container image.
 **Required Fields:**
 
 - `image` (string): Docker image name (tag can be separate or in format `image:tag`)
-- `source` (pathlib.Path): Path inside container to extract from
+- `source` ([pathlib.Path][]): Path inside container to extract from
 - `destination` ([`ResourceUrl`](index.md#resourceurl-path-system)): Local path to extract to (typically `extracted:///`)
 
 **Optional Fields:**
