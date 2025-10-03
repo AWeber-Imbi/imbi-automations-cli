@@ -8,13 +8,29 @@ Imbi Automations is a comprehensive CLI framework that enables bulk automation a
 
 ## Installation
 
+### From PyPI
+
 ```bash
-# Development setup
+pip install imbi-automations
+```
+
+### Development Setup
+
+```bash
+git clone https://github.com/AWeber-Imbi/imbi-automations.git
+cd imbi-automations
 pip install -e .[dev]
 pre-commit install
+```
 
+## Quick Start
+
+```bash
 # Run workflows
 imbi-automations config.toml workflows/workflow-name --all-projects
+
+# Resume from a specific project
+imbi-automations config.toml workflows/workflow-name --all-projects --start-from-project my-project-slug
 ```
 
 ## Key Features
