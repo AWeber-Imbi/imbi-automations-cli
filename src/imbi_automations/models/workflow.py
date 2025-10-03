@@ -39,6 +39,9 @@ class WorkflowFilter(pydantic.BaseModel):
 
     Supports filtering by project IDs, types, facts, environments, and GitHub
     workflow status to efficiently target subsets of projects.
+
+    Note: project_facts keys are automatically normalized to slug format
+    (lowercase with underscores) to match OpenSearch data format.
     """
 
     project_ids: set[int] = pydantic.Field(default_factory=set)
@@ -49,6 +52,24 @@ class WorkflowFilter(pydantic.BaseModel):
     github_workflow_status_exclude: set[str] = pydantic.Field(
         default_factory=set
     )
+
+    @pydantic.model_validator(mode='after')
+    def normalize_project_fact_keys(self) -> 'WorkflowFilter':
+        """Normalize project_facts keys to slug format for OpenSearch.
+
+        Converts fact names like "Programming Language" to
+        "programming_language" to match Imbi's OpenSearch API format.
+        """
+        if self.project_facts:
+            # Import here to avoid circular dependency
+            from imbi_automations import fact_registry
+
+            normalized = {}
+            for key, value in self.project_facts.items():
+                slug = fact_registry.FactRegistry.normalize_name(key)
+                normalized[slug] = value
+            self.project_facts = normalized
+        return self
 
 
 class WorkflowActionTypes(enum.StrEnum):
