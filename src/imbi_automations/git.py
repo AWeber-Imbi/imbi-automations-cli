@@ -299,7 +299,7 @@ async def commit_changes(
 
     # Add author information if provided
     if commit_author:
-        command.extend(['--author', commit_author])
+        command.extend(['--author', f'"{commit_author}"'])
 
     command += ['--all']
 
