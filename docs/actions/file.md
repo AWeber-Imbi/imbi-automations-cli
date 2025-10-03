@@ -153,6 +153,7 @@ destination = "repository:///src/new_module.py"
 Delete files or directories, with regex pattern matching support.
 
 **Required Fields:** One of:
+
 - `path`: Specific file/directory path
 - `pattern`: Regex pattern for matching files
 
