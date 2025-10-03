@@ -9,7 +9,9 @@ import argparse
 import asyncio
 import collections
 import enum
+import json
 import logging
+import pathlib
 
 import async_lru
 
@@ -205,10 +207,56 @@ class Automation(mixins.WorkflowLoggerMixin):
         return await self._process_workflow_from_imbi_project(project)
 
     async def _process_imbi_project_type(self) -> bool:
+        # Validate project type slug if cache available
+        self._validate_project_type_slug(self.args.project_type)
+
         client = clients.Imbi.get_instance(config=self.configuration.imbi)
         projects = await client.get_projects_by_type(self.args.project_type)
         self.logger.debug('Found %d total active projects', len(projects))
         return await self._process_imbi_projects_common(projects)
+
+    def _validate_project_type_slug(self, slug: str) -> None:
+        """Validate project type slug against cache if available.
+
+        Args:
+            slug: Project type slug to validate
+
+        Raises:
+            ValueError: If slug is invalid
+
+        """
+        cache_file = (
+            pathlib.Path.home() / '.imbi-automations' / 'fact-cache.json'
+        )
+
+        if not cache_file.exists():
+            return  # Skip validation if no cache
+
+        try:
+            from imbi_automations import fact_registry
+
+            registry = fact_registry.FactRegistry()
+            registry._cache_file = cache_file
+            registry._load_from_cache()
+
+            if not registry.project_type_slugs:
+                return
+
+            if slug not in registry.project_type_slugs:
+                # Find similar for suggestions
+                similar = [
+                    s
+                    for s in registry.project_type_slugs
+                    if s.startswith(slug[:3])
+                ][:3]
+                error_msg = f'Invalid project type slug: "{slug}"'
+                if similar:
+                    error_msg += f'. Did you mean: {", ".join(similar)}?'
+                raise ValueError(error_msg)
+
+        except (OSError, json.JSONDecodeError, KeyError):
+            # Cache error, skip validation
+            pass
 
     async def _process_imbi_projects(self) -> bool:
         client = clients.Imbi.get_instance(config=self.configuration.imbi)

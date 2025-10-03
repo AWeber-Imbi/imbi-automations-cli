@@ -12,7 +12,7 @@ import typing
 
 import pydantic
 
-from imbi_automations import models
+from imbi_automations import clients, models
 
 LOGGER = logging.getLogger(__name__)
 
@@ -148,13 +148,14 @@ class FactRegistry:
     normalization and value validation.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, cache_file: str = 'fact-cache.json') -> None:
         self.facts_by_id: dict[int, FactTypeDefinition] = {}
         self.facts_by_slug: dict[str, list[FactTypeDefinition]] = {}
         self.slug_to_name: dict[str, str] = {}
         self.name_to_slug: dict[str, str] = {}
+        self.project_type_slugs: set[str] = set()
         self._cache_dir = pathlib.Path.home() / '.imbi-automations'
-        self._cache_file = self._cache_dir / 'fact-cache.json'
+        self._cache_file = self._cache_dir / cache_file
         self._hostname: str | None = None
 
     @classmethod
@@ -215,21 +216,28 @@ class FactRegistry:
             age = datetime.datetime.now(datetime.UTC) - cached_at
             return age.total_seconds() < (ttl_hours * 3600)
 
-        except (json.JSONDecodeError, KeyError, ValueError) as exc:
+        except (KeyError, ValueError) as exc:
             LOGGER.warning('Invalid cache file: %s', exc)
             return False
 
     def _load_from_cache(self) -> None:
-        """Load fact types from cache file."""
+        """Load fact types and project types from cache file."""
         with open(self._cache_file) as f:
             cache_data = json.load(f)
+
+        # Load project type slugs
+        self.project_type_slugs = set(cache_data.get('project_type_slugs', []))
 
         for fact_data in cache_data['fact_types']:
             fact_def = FactTypeDefinition.model_validate(fact_data)
             self._register_fact(fact_def)
 
-    async def _load_from_api(self, imbi_client: 'models.Imbi') -> None:
-        """Load fact types from Imbi API."""
+    async def _load_from_api(self, imbi_client: clients.Imbi) -> None:
+        """Load fact types and project types from Imbi API."""
+        # Load project types
+        project_types = await imbi_client.get_project_types()
+        self.project_type_slugs = {pt.slug for pt in project_types}
+
         # Load fact types
         fact_types = await imbi_client.get_fact_types()
 
@@ -290,6 +298,7 @@ class FactRegistry:
             'version': 1,
             'hostname': self._hostname,
             'cached_at': datetime.datetime.now(datetime.UTC).isoformat(),
+            'project_type_slugs': sorted(self.project_type_slugs),
             'fact_types': [
                 fact.model_dump() for fact in self.facts_by_id.values()
             ],
