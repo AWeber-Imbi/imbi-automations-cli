@@ -185,7 +185,7 @@ pattern = ".*\\.(tmp|bak|swp)$"
 - For `path`: Deletes specific file or directory (recursive)
 - For `pattern`: Searches recursively and deletes all matching files
 - Does not error if path doesn't exist
-- Pattern matching uses Python regex syntax
+- Pattern matching uses Python regex syntax (string in TOML, compiled at runtime)
 
 ---
 
@@ -242,7 +242,7 @@ encoding = "utf-16"
 - Creates file if it doesn't exist
 - Creates parent directories automatically
 - Appends to end of existing files
-- Supports both text and binary content
+- Text mode only (bytes are decoded using specified encoding)
 
 ---
 
@@ -267,14 +267,14 @@ type = "file"
 command = "write"
 path = "repository:///README.md"
 content = """
-# {{ imbi_project.name }}
+# My Project
 
-{{ imbi_project.description }}
+Description here
 
 ## Installation
 
 ```bash
-pip install {{ imbi_project.name }}
+pip install my-project
 ```
 """
 
@@ -286,9 +286,9 @@ command = "write"
 path = "repository:///config.json"
 content = """
 {
-  "name": "{{ imbi_project.name }}",
+  "name": "my-project",
   "version": "1.0.0",
-  "type": "{{ imbi_project.project_type }}"
+  "type": "library"
 }
 """
 
@@ -300,22 +300,14 @@ command = "write"
 path = "repository:///data.txt"
 content = "Unicode content: 你好"
 encoding = "utf-16"
-
-# Write binary content
-[[actions]]
-name = "write-binary"
-type = "file"
-command = "write"
-path = "repository:///image.dat"
-content = "{{ binary_data }}"  # Must be bytes
 ```
 
 **Behavior:**
 - Overwrites existing files
 - Creates file if it doesn't exist
 - Creates parent directories automatically
-- Supports both text and binary content
-- Content supports Jinja2 template variables
+- Text mode (string) or binary mode (bytes) - detected automatically
+- Does NOT support Jinja2 templating (use `template` action instead)
 
 ---
 
@@ -379,7 +371,11 @@ name = "write-new-config"
 type = "file"
 command = "write"
 path = "repository:///config.yaml"
-content = "{{ new_config }}"
+content = """
+database:
+  host: localhost
+  port: 5432
+"""
 ```
 
 ### Template Deployment Pattern
@@ -444,8 +440,11 @@ File actions raise `RuntimeError` in these situations:
 ## Implementation Notes
 
 - All operations create parent directories automatically
-- File metadata (permissions, timestamps) preserved in copy operations
+- File metadata (permissions, timestamps) preserved in copy operations via `shutil.copy2`
 - Glob patterns resolved relative to source base directory
 - Empty glob results raise `RuntimeError`
-- Binary content detected automatically (bytes vs string)
-- Encoding applies only to text operations
+- Binary content detected automatically (bytes vs string) in `write` command
+- `append` command converts bytes to text using encoding (text mode only)
+- Encoding applies only to text operations (default: `utf-8`)
+- Pattern field accepts regex strings in TOML, compiled to `re.Pattern` at runtime
+- Content does NOT support Jinja2 templating - use `template` action type for that
