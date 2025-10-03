@@ -5,7 +5,8 @@ import tempfile
 import unittest
 from unittest import mock
 
-from imbi_automations import docker, models
+from imbi_automations import models
+from imbi_automations.actions import docker
 from tests import base
 
 
@@ -50,13 +51,24 @@ class DockerTestCase(base.AsyncTestCase):
             working_directory=self.working_directory,
         )
 
-        self.docker_executor = docker.Docker(verbose=True)
+        self.configuration = models.Configuration(
+            github=models.GitHubConfiguration(api_key='test-key'),
+            imbi=models.ImbiConfiguration(
+                api_key='test-key', hostname='imbi.example.com'
+            ),
+        )
+
+        self.docker_executor = docker.DockerActions(
+            self.configuration, self.context, verbose=True
+        )
 
     def tearDown(self) -> None:
         super().tearDown()
         self.temp_dir.cleanup()
 
-    @mock.patch('imbi_automations.docker.Docker._run_docker_command')
+    @mock.patch(
+        'imbi_automations.actions.docker.DockerActions._run_docker_command'
+    )
     async def test_execute_extract_success(
         self, mock_run_docker: mock.AsyncMock
     ) -> None:
@@ -79,7 +91,7 @@ class DockerTestCase(base.AsyncTestCase):
             destination=pathlib.Path('passwd'),
         )
 
-        await self.docker_executor.execute(self.context, action)
+        await self.docker_executor.execute(action)
 
         # Verify docker commands were called correctly
         self.assertEqual(mock_run_docker.call_count, 4)
@@ -117,7 +129,9 @@ class DockerTestCase(base.AsyncTestCase):
             rm_call[0][0], ['docker', 'rm', f'imbi-extract-{id(action)}']
         )
 
-    @mock.patch('imbi_automations.docker.Docker._run_docker_command')
+    @mock.patch(
+        'imbi_automations.actions.docker.DockerActions._run_docker_command'
+    )
     async def test_execute_extract_no_tag(
         self, mock_run_docker: mock.AsyncMock
     ) -> None:
@@ -139,7 +153,7 @@ class DockerTestCase(base.AsyncTestCase):
             destination=pathlib.Path('nginx.conf'),
         )
 
-        await self.docker_executor.execute(self.context, action)
+        await self.docker_executor.execute(action)
 
         # Verify docker pull and create use nginx:latest
         pull_call = mock_run_docker.call_args_list[0]
@@ -157,7 +171,9 @@ class DockerTestCase(base.AsyncTestCase):
             ],
         )
 
-    @mock.patch('imbi_automations.docker.Docker._run_docker_command')
+    @mock.patch(
+        'imbi_automations.actions.docker.DockerActions._run_docker_command'
+    )
     async def test_execute_extract_create_failure(
         self, mock_run_docker: mock.AsyncMock
     ) -> None:
@@ -179,11 +195,13 @@ class DockerTestCase(base.AsyncTestCase):
         )
 
         with self.assertRaises(RuntimeError) as exc_context:
-            await self.docker_executor.execute(self.context, action)
+            await self.docker_executor.execute(action)
 
         self.assertIn('Docker create failed', str(exc_context.exception))
 
-    @mock.patch('imbi_automations.docker.Docker._run_docker_command')
+    @mock.patch(
+        'imbi_automations.actions.docker.DockerActions._run_docker_command'
+    )
     async def test_execute_extract_copy_failure(
         self, mock_run_docker: mock.AsyncMock
     ) -> None:
@@ -206,14 +224,16 @@ class DockerTestCase(base.AsyncTestCase):
         )
 
         with self.assertRaises(RuntimeError) as exc_context:
-            await self.docker_executor.execute(self.context, action)
+            await self.docker_executor.execute(action)
 
         self.assertIn('Docker cp failed', str(exc_context.exception))
 
         # Verify cleanup was still attempted (including initial pull)
         self.assertEqual(mock_run_docker.call_count, 4)
 
-    @mock.patch('imbi_automations.docker.Docker._run_docker_command')
+    @mock.patch(
+        'imbi_automations.actions.docker.DockerActions._run_docker_command'
+    )
     async def test_execute_extract_cleanup_failure(
         self, mock_run_docker: mock.AsyncMock
     ) -> None:
@@ -236,7 +256,7 @@ class DockerTestCase(base.AsyncTestCase):
         )
 
         # Should not raise exception - cleanup failure shouldn't fail operation
-        await self.docker_executor.execute(self.context, action)
+        await self.docker_executor.execute(action)
 
     @mock.patch('asyncio.create_subprocess_exec')
     async def test_run_docker_command_success(

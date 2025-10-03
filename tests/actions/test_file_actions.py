@@ -5,7 +5,8 @@ import re
 import tempfile
 import unittest
 
-from imbi_automations import file_actions, models, utils
+from imbi_automations import models, utils
+from imbi_automations.actions import filea
 from tests import base
 
 
@@ -62,7 +63,16 @@ class FileActionsTestCase(base.AsyncTestCase):
             working_directory=self.working_directory,
         )
 
-        self.file_executor = file_actions.FileActions(verbose=True)
+        self.configuration = models.Configuration(
+            github=models.GitHubConfiguration(api_key='test-key'),
+            imbi=models.ImbiConfiguration(
+                api_key='test-key', hostname='imbi.example.com'
+            ),
+        )
+
+        self.file_executor = filea.FileActions(
+            self.configuration, self.context, verbose=True
+        )
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -78,7 +88,7 @@ class FileActionsTestCase(base.AsyncTestCase):
             content='\n## New Section\nAdded content\n',
         )
 
-        await self.file_executor.execute(self.context, action)
+        await self.file_executor.execute(action)
 
         # Verify content was appended
         readme_path = self.working_directory / 'README.md'
@@ -97,7 +107,7 @@ class FileActionsTestCase(base.AsyncTestCase):
             content='New file content\n',
         )
 
-        await self.file_executor.execute(self.context, action)
+        await self.file_executor.execute(action)
 
         # Verify new file was created
         new_file = self.working_directory / 'new_file.txt'
@@ -115,7 +125,7 @@ class FileActionsTestCase(base.AsyncTestCase):
             encoding='utf-16',
         )
 
-        await self.file_executor.execute(self.context, action)
+        await self.file_executor.execute(action)
 
         # Verify file was written with correct encoding
         unicode_file = self.working_directory / 'unicode.txt'
@@ -132,7 +142,7 @@ class FileActionsTestCase(base.AsyncTestCase):
             destination=pathlib.Path('docs/README_copy.md'),
         )
 
-        await self.file_executor.execute(self.context, action)
+        await self.file_executor.execute(action)
 
         # Verify file was copied
         copy_path = self.working_directory / 'docs/README_copy.md'
@@ -149,7 +159,7 @@ class FileActionsTestCase(base.AsyncTestCase):
             destination=pathlib.Path('backup/src'),
         )
 
-        await self.file_executor.execute(self.context, action)
+        await self.file_executor.execute(action)
 
         # Verify directory was copied
         backup_path = self.working_directory / 'backup/src'
@@ -168,7 +178,7 @@ class FileActionsTestCase(base.AsyncTestCase):
         )
 
         with self.assertRaises(RuntimeError) as exc_context:
-            await self.file_executor.execute(self.context, action)
+            await self.file_executor.execute(action)
 
         self.assertIn('Source file does not exist', str(exc_context.exception))
 
@@ -185,7 +195,7 @@ class FileActionsTestCase(base.AsyncTestCase):
             path=pathlib.Path('to_delete.txt'),
         )
 
-        await self.file_executor.execute(self.context, action)
+        await self.file_executor.execute(action)
 
         # Verify file was deleted
         self.assertFalse(test_file.exists())
@@ -204,7 +214,7 @@ class FileActionsTestCase(base.AsyncTestCase):
             path=pathlib.Path('to_delete_dir'),
         )
 
-        await self.file_executor.execute(self.context, action)
+        await self.file_executor.execute(action)
 
         # Verify directory was deleted
         self.assertFalse(test_dir.exists())
@@ -219,7 +229,7 @@ class FileActionsTestCase(base.AsyncTestCase):
         )
 
         # Should not raise exception
-        await self.file_executor.execute(self.context, action)
+        await self.file_executor.execute(action)
 
     async def test_execute_delete_pattern_success(self) -> None:
         """Test deletion with pattern matching."""
@@ -235,7 +245,7 @@ class FileActionsTestCase(base.AsyncTestCase):
             pattern=re.compile(r'.*\.tmp$'),
         )
 
-        await self.file_executor.execute(self.context, action)
+        await self.file_executor.execute(action)
 
         # Verify .tmp files were deleted but .txt file remains
         self.assertFalse((self.working_directory / 'temp1.tmp').exists())
@@ -252,7 +262,7 @@ class FileActionsTestCase(base.AsyncTestCase):
             destination=pathlib.Path('docs/README.md'),
         )
 
-        await self.file_executor.execute(self.context, action)
+        await self.file_executor.execute(action)
 
         # Verify file was moved
         old_path = self.working_directory / 'README.md'
@@ -272,7 +282,7 @@ class FileActionsTestCase(base.AsyncTestCase):
         )
 
         with self.assertRaises(RuntimeError) as exc_context:
-            await self.file_executor.execute(self.context, action)
+            await self.file_executor.execute(action)
 
         self.assertIn('Source file does not exist', str(exc_context.exception))
 
@@ -286,7 +296,7 @@ class FileActionsTestCase(base.AsyncTestCase):
             destination=pathlib.Path('README_renamed.md'),
         )
 
-        await self.file_executor.execute(self.context, action)
+        await self.file_executor.execute(action)
 
         # Verify file was renamed
         old_path = self.working_directory / 'README.md'
@@ -306,7 +316,7 @@ class FileActionsTestCase(base.AsyncTestCase):
         )
 
         with self.assertRaises(RuntimeError) as exc_context:
-            await self.file_executor.execute(self.context, action)
+            await self.file_executor.execute(action)
 
         self.assertIn('Source file does not exist', str(exc_context.exception))
 
@@ -320,7 +330,7 @@ class FileActionsTestCase(base.AsyncTestCase):
             content='{"name": "test", "version": "1.0.0"}',
         )
 
-        await self.file_executor.execute(self.context, action)
+        await self.file_executor.execute(action)
 
         # Verify file was written
         config_path = self.working_directory / 'config.json'
@@ -341,7 +351,7 @@ class FileActionsTestCase(base.AsyncTestCase):
             content=binary_content,
         )
 
-        await self.file_executor.execute(self.context, action)
+        await self.file_executor.execute(action)
 
         # Verify binary file was written
         image_path = self.working_directory / 'image.png'
@@ -359,7 +369,7 @@ class FileActionsTestCase(base.AsyncTestCase):
             encoding='utf-16',
         )
 
-        await self.file_executor.execute(self.context, action)
+        await self.file_executor.execute(action)
 
         # Verify file was written with correct encoding
         unicode_file = self.working_directory / 'unicode.txt'
@@ -376,7 +386,7 @@ class FileActionsTestCase(base.AsyncTestCase):
             content='nested content',
         )
 
-        await self.file_executor.execute(self.context, action)
+        await self.file_executor.execute(action)
 
         # Verify nested directories were created
         nested_file = self.working_directory / 'deep/nested/path/file.txt'

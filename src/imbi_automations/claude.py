@@ -36,9 +36,9 @@ class Claude(mixins.WorkflowLoggerMixin):
         self.context = context
         self.logger: logging.Logger = LOGGER
         self.session_id: str | None = None
-        commit_author = email_utils.parseaddr(self.config.commit_author)
+        commit_author = email_utils.parseaddr(self.configuration.commit_author)
         self.prompt_kwargs = {
-            'commit_author': self.config.commit_author,
+            'commit_author': self.configuration.commit_author,
             'commit_author_name': commit_author[0],
             'commit_author_address': commit_author[1],
             'workflow_name': context.workflow.configuration.name,

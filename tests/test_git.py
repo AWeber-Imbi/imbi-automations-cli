@@ -1416,7 +1416,7 @@ class WorkflowEngineGitTestCase(base.AsyncTestCase):
     async def test_execute_action_git_extract_integration(
         self, mock_extract: mock.AsyncMock
     ) -> None:
-        """Test integration of _execute_action_git with extract command."""
+        """Test integration of git action with extract command."""
         action = models.WorkflowGitAction(
             name='extract-integration',
             type='git',
@@ -1427,7 +1427,7 @@ class WorkflowEngineGitTestCase(base.AsyncTestCase):
             search_strategy='before_first_match',
         )
 
-        await self.engine._execute_action_git(self.context, action)
+        await self.engine.actions.execute(self.context, action)
 
         # Verify git.extract_file_from_commit was called correctly
         mock_extract.assert_called_once_with(
@@ -1453,7 +1453,7 @@ class WorkflowEngineGitTestCase(base.AsyncTestCase):
             # No search_strategy specified
         )
 
-        await self.engine._execute_action_git(self.context, action)
+        await self.engine.actions.execute(self.context, action)
 
         # Should use default strategy
         mock_extract.assert_called_once_with(

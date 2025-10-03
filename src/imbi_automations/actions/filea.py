@@ -53,7 +53,7 @@ class FileActions(mixins.WorkflowLoggerMixin):
 
     async def _execute_append(self, action: models.WorkflowFileAction) -> None:
         """Execute append file action."""
-        file_path = utils.resolve_path(action.path)
+        file_path = utils.resolve_path(self.context, action.path)
 
         self._log_verbose_info('Appending to file: %s', file_path)
 
@@ -75,7 +75,7 @@ class FileActions(mixins.WorkflowLoggerMixin):
         dest_path = utils.resolve_path(self.context, action.destination)
 
         # Check if source contains glob patterns
-        if any(char in source_path for char in ['*', '?', '[']):
+        if any(char in str(source_path) for char in ['*', '?', '[']):
             await self._execute_copy_glob(source_path, dest_path)
         else:
             await self._execute_copy_single(source_path, dest_path)
@@ -169,7 +169,7 @@ class FileActions(mixins.WorkflowLoggerMixin):
         self, action: models.WorkflowFileAction
     ) -> None:
         """Delete files matching a regex pattern."""
-        base_path = utils.resolve_path(self.context, action.path)
+        base_path = self.context.working_directory
 
         self._log_verbose_info(
             'Deleting files matching pattern: %s', action.pattern

@@ -9,7 +9,8 @@ from unittest import mock
 
 import jinja2
 
-from imbi_automations import models, prompts, shell
+from imbi_automations import models, prompts
+from imbi_automations.actions import shell
 from tests import base
 
 
@@ -54,7 +55,16 @@ class ShellTestCase(base.AsyncTestCase):
             working_directory=self.working_directory,
         )
 
-        self.shell_executor = shell.Shell(verbose=True)
+        self.configuration = models.Configuration(
+            github=models.GitHubConfiguration(api_key='test-key'),
+            imbi=models.ImbiConfiguration(
+                api_key='test-key', hostname='imbi.example.com'
+            ),
+        )
+
+        self.shell_executor = shell.ShellAction(
+            self.configuration, self.context, verbose=True
+        )
 
     def tearDown(self) -> None:
         super().tearDown()
@@ -75,7 +85,7 @@ class ShellTestCase(base.AsyncTestCase):
             name='test-echo', type='shell', command='echo "Hello World"'
         )
 
-        await self.shell_executor.execute(self.context, action)
+        await self.shell_executor.execute(action)
 
         # Verify subprocess was called correctly
         mock_subprocess.assert_called_once_with(
@@ -102,7 +112,7 @@ class ShellTestCase(base.AsyncTestCase):
         )
 
         with self.assertRaises(subprocess.CalledProcessError) as exc_context:
-            await self.shell_executor.execute(self.context, action)
+            await self.shell_executor.execute(action)
 
         self.assertEqual(exc_context.exception.returncode, 1)
 
@@ -125,7 +135,7 @@ class ShellTestCase(base.AsyncTestCase):
         )
 
         # Should not raise exception when ignore_errors=True
-        await self.shell_executor.execute(self.context, action)
+        await self.shell_executor.execute(action)
 
     @mock.patch('asyncio.create_subprocess_exec')
     async def test_execute_command_not_found(
@@ -143,7 +153,7 @@ class ShellTestCase(base.AsyncTestCase):
         )
 
         with self.assertRaises(FileNotFoundError) as exc_context:
-            await self.shell_executor.execute(self.context, action)
+            await self.shell_executor.execute(action)
 
         self.assertIn(
             'Command not found: nonexistent-command',
@@ -167,7 +177,7 @@ class ShellTestCase(base.AsyncTestCase):
             command='echo "Project: {{ imbi_project.name }}"',
         )
 
-        await self.shell_executor.execute(self.context, action)
+        await self.shell_executor.execute(action)
 
         # Verify the command was templated and executed
         mock_subprocess.assert_called_once_with(
@@ -198,7 +208,7 @@ class ShellTestCase(base.AsyncTestCase):
             ),
         )
 
-        await self.shell_executor.execute(self.context, action)
+        await self.shell_executor.execute(action)
 
         # Verify the command was properly templated
         expected_args = [
@@ -276,7 +286,7 @@ class ShellTestCase(base.AsyncTestCase):
             name='test-cwd-fallback', type='shell', command='pwd'
         )
 
-        await self.shell_executor.execute(self.context, action)
+        await self.shell_executor.execute(action)
 
         # Should use repository_dir (resolved from repository://)
         mock_subprocess.assert_called_once_with(
@@ -286,37 +296,9 @@ class ShellTestCase(base.AsyncTestCase):
             cwd=self.repository_dir,
         )
 
-    @mock.patch('asyncio.create_subprocess_exec')
-    async def test_execute_no_working_directory(
-        self, mock_subprocess: mock.AsyncMock
-    ) -> None:
-        """Test execution when no working directory is set."""
-        mock_process = mock.AsyncMock()
-        mock_process.returncode = 0
-        mock_process.communicate.return_value = (b'', b'')
-        mock_subprocess.return_value = mock_process
-
-        # Create context without working_directory
-        context_no_wd = models.WorkflowContext(
-            workflow=self.workflow,
-            imbi_project=self.context.imbi_project,
-            working_directory=None,
-        )
-
-        action = models.WorkflowShellAction(
-            name='test-no-wd', type='shell', command='echo test'
-        )
-
-        await self.shell_executor.execute(context_no_wd, action)
-
-        # Should execute without cwd parameter
-        mock_subprocess.assert_called_once_with(
-            'echo',
-            'test',
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=None,
-        )
+    # Removed test_execute_no_working_directory - context.working_directory
+    # is always required in the refactored architecture since
+    # action.working_directory defaults to repository:// which needs resolution
 
     def test_invalid_command_syntax(self) -> None:
         """Test invalid shell command syntax."""
@@ -326,7 +308,7 @@ class ShellTestCase(base.AsyncTestCase):
         )
 
         with self.assertRaises(ValueError) as exc_context:
-            asyncio.run(self.shell_executor.execute(self.context, action))
+            asyncio.run(self.shell_executor.execute(action))
 
         self.assertIn(
             'Invalid shell command syntax', str(exc_context.exception)
@@ -341,7 +323,7 @@ class ShellTestCase(base.AsyncTestCase):
         )
 
         with self.assertRaises(ValueError) as exc_context:
-            asyncio.run(self.shell_executor.execute(self.context, action))
+            asyncio.run(self.shell_executor.execute(action))
 
         self.assertIn(
             'Empty command after template rendering',
