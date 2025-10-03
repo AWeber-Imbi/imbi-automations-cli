@@ -136,10 +136,10 @@ class GitModuleTestCase(base.AsyncTestCase):
         """Test successful file addition to git."""
         mock_run_git.return_value = (0, '', '')
 
-        await git.add_files(self.working_directory, ['file1.txt', 'file2.py'])
+        await git.add_files(self.working_directory)
 
         mock_run_git.assert_called_once_with(
-            ['git', 'add', 'file1.txt', 'file2.py'],
+            ['git', 'add', '--all'],
             cwd=self.working_directory,
             timeout_seconds=60,
         )
@@ -156,7 +156,7 @@ class GitModuleTestCase(base.AsyncTestCase):
         )
 
         with self.assertRaises(RuntimeError) as exc_context:
-            await git.add_files(self.working_directory, ['nonexistent.txt'])
+            await git.add_files(self.working_directory)
 
         self.assertIn('Git add failed', str(exc_context.exception))
 

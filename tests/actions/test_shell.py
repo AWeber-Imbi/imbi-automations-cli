@@ -70,7 +70,7 @@ class ShellTestCase(base.AsyncTestCase):
         super().tearDown()
         self.temp_dir.cleanup()
 
-    @mock.patch('asyncio.create_subprocess_exec')
+    @mock.patch('asyncio.create_subprocess_shell')
     async def test_execute_simple_command_success(
         self, mock_subprocess: mock.AsyncMock
     ) -> None:
@@ -89,14 +89,13 @@ class ShellTestCase(base.AsyncTestCase):
 
         # Verify subprocess was called correctly
         mock_subprocess.assert_called_once_with(
-            'echo',
-            'Hello World',
+            'echo "Hello World"',
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=self.repository_dir,
         )
 
-    @mock.patch('asyncio.create_subprocess_exec')
+    @mock.patch('asyncio.create_subprocess_shell')
     async def test_execute_command_failure(
         self, mock_subprocess: mock.AsyncMock
     ) -> None:
@@ -116,7 +115,7 @@ class ShellTestCase(base.AsyncTestCase):
 
         self.assertEqual(exc_context.exception.returncode, 1)
 
-    @mock.patch('asyncio.create_subprocess_exec')
+    @mock.patch('asyncio.create_subprocess_shell')
     async def test_execute_command_failure_ignored(
         self, mock_subprocess: mock.AsyncMock
     ) -> None:
@@ -137,7 +136,7 @@ class ShellTestCase(base.AsyncTestCase):
         # Should not raise exception when ignore_errors=True
         await self.shell_executor.execute(action)
 
-    @mock.patch('asyncio.create_subprocess_exec')
+    @mock.patch('asyncio.create_subprocess_shell')
     async def test_execute_command_not_found(
         self, mock_subprocess: mock.AsyncMock
     ) -> None:
@@ -160,7 +159,7 @@ class ShellTestCase(base.AsyncTestCase):
             str(exc_context.exception),
         )
 
-    @mock.patch('asyncio.create_subprocess_exec')
+    @mock.patch('asyncio.create_subprocess_shell')
     async def test_execute_templated_command(
         self, mock_subprocess: mock.AsyncMock
     ) -> None:
@@ -181,14 +180,13 @@ class ShellTestCase(base.AsyncTestCase):
 
         # Verify the command was templated and executed
         mock_subprocess.assert_called_once_with(
-            'echo',
-            'Project: test-project',
+            'echo "Project: test-project"',
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=self.repository_dir,
         )
 
-    @mock.patch('asyncio.create_subprocess_exec')
+    @mock.patch('asyncio.create_subprocess_shell')
     async def test_execute_complex_templated_command(
         self, mock_subprocess: mock.AsyncMock
     ) -> None:
@@ -211,14 +209,12 @@ class ShellTestCase(base.AsyncTestCase):
         await self.shell_executor.execute(action)
 
         # Verify the command was properly templated
-        expected_args = [
-            'curl',
-            '-H',
-            'Authorization: Bearer token',
-            'https://api.example.com/projects/123/test-project',
-        ]
+        expected_command = (
+            'curl -H "Authorization: Bearer token" '
+            '"https://api.example.com/projects/123/test-project"'
+        )
         mock_subprocess.assert_called_once_with(
-            *expected_args,
+            expected_command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
             cwd=self.repository_dir,
@@ -269,7 +265,7 @@ class ShellTestCase(base.AsyncTestCase):
         with self.assertRaises(jinja2.exceptions.UndefinedError):
             self.shell_executor._render_command(command, self.context)
 
-    @mock.patch('asyncio.create_subprocess_exec')
+    @mock.patch('asyncio.create_subprocess_shell')
     async def test_execute_working_directory_fallback(
         self, mock_subprocess: mock.AsyncMock
     ) -> None:
@@ -289,46 +285,36 @@ class ShellTestCase(base.AsyncTestCase):
         await self.shell_executor.execute(action)
 
         # Should use repository_dir (resolved from repository://)
-        mock_subprocess.assert_called_once_with(
-            'pwd',
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE,
-            cwd=self.repository_dir,
-        )
+        mock_subprocess.assert_called_once()
+        call_args = mock_subprocess.call_args
+        self.assertEqual(call_args.args[0], 'pwd')
+        self.assertEqual(call_args.kwargs['cwd'], self.repository_dir)
 
     # Removed test_execute_no_working_directory - context.working_directory
     # is always required in the refactored architecture since
     # action.working_directory defaults to repository:// which needs resolution
 
-    def test_invalid_command_syntax(self) -> None:
-        """Test invalid shell command syntax."""
-        # Test command with invalid shell syntax
+    async def test_invalid_command_syntax(self) -> None:
+        """Test invalid shell command syntax handled by shell."""
+        # Test command with invalid shell syntax - shell will return error
         action = models.WorkflowShellAction(
             name='test-invalid', type='shell', command='echo "unclosed quote'
         )
 
-        with self.assertRaises(ValueError) as exc_context:
-            asyncio.run(self.shell_executor.execute(action))
+        # Shell processes the command and returns non-zero exit code
+        with self.assertRaises(subprocess.CalledProcessError):
+            await self.shell_executor.execute(action)
 
-        self.assertIn(
-            'Invalid shell command syntax', str(exc_context.exception)
-        )
-
-    def test_empty_command_after_rendering(self) -> None:
-        """Test empty command after template rendering."""
+    async def test_empty_command_after_rendering(self) -> None:
+        """Test empty command after template rendering succeeds."""
         action = models.WorkflowShellAction(
             name='test-empty',
             type='shell',
             command='{% if false %}echo test{% endif %}',
         )
 
-        with self.assertRaises(ValueError) as exc_context:
-            asyncio.run(self.shell_executor.execute(action))
-
-        self.assertIn(
-            'Empty command after template rendering',
-            str(exc_context.exception),
-        )
+        # Empty command is valid in shell - it just does nothing
+        await self.shell_executor.execute(action)
 
 
 if __name__ == '__main__':
