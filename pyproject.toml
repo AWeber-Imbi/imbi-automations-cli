@@ -69,7 +69,7 @@ docs = [
 imbi-automations = "imbi_automations.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/AWeber-Imbi/imbi-automations"
+Homepage =  "https://AWeber-Imbi.github.io/imbi-automations/"
 Repository = "https://github.com/AWeber-Imbi/imbi-automations"
 "Bug Tracker" = "https://github.com/AWeber-Imbi/imbi-automations/issues"
 
