@@ -355,7 +355,7 @@ class WorkflowShellAction(WorkflowAction):
     type: typing.Literal['shell'] = 'shell'
     command: str
     ignore_errors: bool = False
-    working_directory: ResourceUrl = ResourceUrl('repository://')
+    working_directory: ResourceUrl = ResourceUrl('repository:///')
 
 
 class WorkflowTemplateAction(WorkflowAction):

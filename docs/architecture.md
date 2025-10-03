@@ -214,6 +214,7 @@ working_directory = "{{ repository_path }}"
 
 #### Remote Conditions (Pre-Clone)
 Evaluated using provider APIs before repository cloning:
+
 - **Performance Benefit**: Skip cloning for non-matching repositories
 - **Bandwidth Efficient**: Reduce network usage for large batch operations
 - **Early Filtering**: Fail fast before expensive operations
@@ -229,6 +230,7 @@ remote_file = "pyproject.toml"
 
 #### Local Conditions (Post-Clone)
 Evaluated after repository cloning for complex analysis:
+
 - **Full Access**: Complete repository content available
 - **Complex Patterns**: Multi-file analysis and cross-references
 - **File Content Analysis**: Deep inspection of file contents
@@ -247,6 +249,7 @@ file = "Dockerfile"
 Jinja2-based template engine with full project context:
 
 #### Available Variables
+
 - `{{ imbi_project }}`: Complete Imbi project data
 - `{{ github_repository }}`: GitHub repository information
 - `{{ workflow_name }}`: Current workflow identifier
@@ -254,6 +257,7 @@ Jinja2-based template engine with full project context:
 - `{{ timestamp }}`: Execution timestamp
 
 #### Template Files
+
 ```jinja2
 # Pull Request Template
 ## Summary
@@ -280,11 +284,13 @@ max_retries = 3
 ```
 
 ### Failure Indication
+
 - **Failure Files**: Create specific failure files to signal workflow abortion
 - **Detailed Logging**: Include actionable error information
 - **Recovery Strategies**: Configurable retry and rollback mechanisms
 
 ### Resource Management
+
 - **Temporary Directory Cleanup**: Automatic cleanup on success or failure
 - **Connection Pooling**: Efficient HTTP connection reuse
 - **Memory Management**: LRU caching for expensive operations
@@ -292,16 +298,19 @@ max_retries = 3
 ## Performance Optimizations
 
 ### Concurrent Processing
+
 - **Batch Operations**: Process multiple projects concurrently
 - **Connection Pooling**: Reuse HTTP connections across requests
 - **Async Operations**: Non-blocking I/O throughout the system
 
 ### Caching Strategy
+
 - **LRU Caching**: Cache expensive API calls and computations
 - **Repository State**: Cache repository metadata between operations
 - **Template Compilation**: Pre-compile Jinja2 templates
 
 ### Early Filtering
+
 - **Remote Conditions**: Filter projects before cloning
 - **Project Filtering**: Apply filters before workflow execution
 - **Resumption**: Skip already processed projects
@@ -309,17 +318,20 @@ max_retries = 3
 ## Testing Architecture
 
 ### Test Infrastructure
+
 - **Base Class**: `AsyncTestCase` for async test support
 - **HTTP Mocking**: `httpx.MockTransport` with JSON fixtures
 - **Test Isolation**: Clean state between test runs
 - **Coverage Requirements**: Comprehensive test coverage with exclusions
 
 ### Mock Data Strategy
+
 - **Path-Based Fixtures**: JSON files matching URL patterns
 - **Realistic Data**: Production-like test data
 - **Edge Cases**: Comprehensive error condition testing
 
 ### Integration Testing
+
 - **End-to-End Workflows**: Complete workflow execution tests
 - **Provider Integration**: Real API integration tests (optional)
 - **Performance Testing**: Load and concurrency testing
@@ -327,16 +339,19 @@ max_retries = 3
 ## Security Considerations
 
 ### Credential Management
+
 - **Secret Strings**: Automatic credential masking in logs
 - **Configuration Validation**: Secure handling of API keys
 - **Environment Variables**: Support for environment-based configuration
 
 ### API Security
+
 - **Authentication**: Proper token and key management
 - **Rate Limiting**: Respect provider API limits
 - **SSL/TLS**: Secure communication with all external services
 
 ### Repository Security
+
 - **Temporary Directories**: Secure cleanup of cloned repositories
 - **File Permissions**: Proper permission handling
 - **Branch Protection**: Safe branch and tag operations

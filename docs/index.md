@@ -15,6 +15,20 @@ Imbi Automations enables bulk automation across your software projects with inte
 - **Batch Processing**: Concurrent processing with resumption capabilities
 - **Template System**: Jinja2-based file generation with full project context
 
+### Use Cases
+
+Across all of your software projects and repositories, Imbi Automations can automate the following tasks:
+
+- **Project Updates**: Upgrade projects to the latest syntax, update dependencies, and fix CI/CD pipelines
+- **Project Migrations**: Convert all projects from a language like JavaScript to TypeScript
+- **Standards Compliance**: Identify and report on places where project standards are not being followed
+- **Project Analysis**: Update Imbi Project Facts based on project analysis results
+- **Code Quality Improvements**: Apply linting, formatting, and pre-commit hooks
+- **Infrastructure Updates**: Modernize project configurations and tooling
+- **Project Reviews**: Automated code reviews and code quality analysis
+- **Security Updates**: Update dependencies with security patches
+- **Software Upgrades**: Upgrade projects to newer software versions
+
 ### Action Types
 
 The framework supports multiple transformation types:
@@ -22,8 +36,9 @@ The framework supports multiple transformation types:
 - **Callable Actions**: Direct API method calls with dynamic parameters
 - **Claude Code Integration**: Complex multi-file analysis and AI transformations
 - **Docker Operations**: Container-based file extraction and manipulation
-- **Git Operations**: Version control operations and branch management
 - **File Actions**: Copy, move, delete, and regex replacement operations
+- **Git Operations**: Extract files from previous commits, clone repositories, etc.
+- **Imbi Actions**: Update project facts
 - **Shell Commands**: Execute arbitrary commands with template variables
 - **Utility Actions**: Helper operations for common workflow patterns
 
@@ -88,13 +103,12 @@ The tool includes 25+ pre-built workflows for common tasks:
 ## Documentation
 
 - **[Architecture Guide](architecture.md)**: Comprehensive technical documentation
+- **[Workflow Configuration](workflows.md)**: Creating and running workflows
 - **[Workflow Actions](actions/index.md)**: Complete action types reference
-- **Workflow Configuration**: See workflows directory in repository
-- **Developer Guide**: See AGENTS.md in repository
 
 ## Requirements
 
 - Python 3.12 or higher
+- Imbi project management system access
 - GitHub API access (for GitHub workflows)
 - GitLab API access (for GitLab workflows)
-- Imbi project management system access
