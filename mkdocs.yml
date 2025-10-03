@@ -6,9 +6,7 @@ edit_uri: edit/main/docs/
 
 nav:
   - Home: index.md
-  - CLI Reference: cli.md
   - Configuration: configuration.md
-  - Debugging: debugging.md
   - Architecture: architecture.md
   - Actions:
     - actions/index.md
@@ -21,6 +19,8 @@ nav:
     - Shell: actions/shell.md
     - Template: actions/template.md
     - Utility: actions/utility.md
+  - CLI Reference: cli.md
+  - Debugging: debugging.md
 
 theme:
   name: material
