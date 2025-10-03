@@ -62,11 +62,22 @@ class Filter(mixins.WorkflowLoggerMixin):
         ):
             return None
 
-        if workflow_filter.project_facts and not all(
-            project.facts.get(k) == v
-            for k, v in workflow_filter.project_facts.items()
-        ):
-            return None
+        if workflow_filter.project_facts:
+            # Check all fact filters with detailed logging
+            for fact_key, fact_value in workflow_filter.project_facts.items():
+                project_value = (
+                    project.facts.get(fact_key) if project.facts else None
+                )
+                if project_value != fact_value:
+                    self.logger.debug(
+                        'Project %s filtered out: fact "%s" = "%s" '
+                        '(expected "%s")',
+                        project.slug,
+                        fact_key,
+                        project_value,
+                        fact_value,
+                    )
+                    return None
 
         if (
             workflow_filter.project_types

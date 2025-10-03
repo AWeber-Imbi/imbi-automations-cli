@@ -7,6 +7,7 @@ execution state management.
 """
 
 import enum
+import json
 import pathlib
 import typing
 
@@ -54,20 +55,73 @@ class WorkflowFilter(pydantic.BaseModel):
     )
 
     @pydantic.model_validator(mode='after')
-    def normalize_project_fact_keys(self) -> 'WorkflowFilter':
-        """Normalize project_facts keys to slug format for OpenSearch.
+    def normalize_and_validate_project_facts(self) -> 'WorkflowFilter':
+        """Normalize and validate project_facts keys against FactRegistry.
 
         Converts fact names like "Programming Language" to
         "programming_language" to match Imbi's OpenSearch API format.
+
+        If a FactRegistry cache exists, validates that fact names are known.
+        This catches typos early during workflow loading.
+
+        Raises:
+            ValueError: If fact name not found in registry cache
         """
         if self.project_facts:
             # Import here to avoid circular dependency
+            import pathlib
+
             from imbi_automations import fact_registry
+
+            # Try to load registry from cache (no API calls)
+            cache_file = (
+                pathlib.Path.home() / '.imbi-automations' / 'fact-cache.json'
+            )
+
+            registry = None
+            if cache_file.exists():
+                try:
+                    registry = fact_registry.FactRegistry()
+                    registry._cache_file = cache_file
+                    registry._load_from_cache()
+                except (OSError, json.JSONDecodeError, KeyError):
+                    # Cache load failed, skip validation
+                    registry = None
 
             normalized = {}
             for key, value in self.project_facts.items():
                 slug = fact_registry.FactRegistry.normalize_name(key)
+
+                # Validate against cache if available
+                if registry and registry.facts:
+                    fact_def = registry.get_fact(slug)
+                    if not fact_def:
+                        # Try to find similar names for helpful error
+                        similar = [
+                            name
+                            for name in registry.slug_to_name.values()
+                            if name.lower().startswith(key.lower()[:3])
+                        ][:3]
+                        error_msg = (
+                            f'Unknown fact name in filter: "{key}" '
+                            f'(normalized to "{slug}")'
+                        )
+                        if similar:
+                            error_msg += (
+                                f'. Did you mean: {", ".join(similar)}?'
+                            )
+                        raise ValueError(error_msg)
+
+                    # Validate value for enum facts
+                    if fact_def.fact_type == 'enum' and fact_def.enum_values:
+                        is_valid, error = fact_def.validate_value(value)
+                        if not is_valid:
+                            raise ValueError(
+                                f'Invalid value for fact "{key}": {error}'
+                            )
+
                 normalized[slug] = value
+
             self.project_facts = normalized
         return self
 
