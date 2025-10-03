@@ -53,7 +53,9 @@ In addition to the `--project-id`, `--project-type`, and `--all-projects` comman
 Target specific project subsets using Imbi metadata (project IDs, types, facts, GitHub requirements).
 
 **When:** Before any workflow processing begins
+
 **Effect:** Projects that don't match are never processed
+
 **Use for:** Broad targeting (e.g., "only Python APIs")
 
 ### 2. **Workflow Conditions** - Skip entire workflow
@@ -61,7 +63,9 @@ Target specific project subsets using Imbi metadata (project IDs, types, facts, 
 Check repository state (remote or local) to determine if workflow should run.
 
 **When:** Once per project, before any actions execute
+
 **Effect:** If conditions fail, entire workflow is skipped for that project
+
 **Use for:** Workflow applicability (e.g., "only if Dockerfile exists")
 
 ### 3. **Action Conditions** - Skip individual actions
@@ -69,7 +73,9 @@ Check repository state (remote or local) to determine if workflow should run.
 Check repository state before each action to conditionally execute.
 
 **When:** Before each action executes
+
 **Effect:** If conditions fail, only that specific action is skipped
+
 **Use for:** Conditional behavior (e.g., "update setup.py only if it exists")
 
 ### Evaluation Flow
