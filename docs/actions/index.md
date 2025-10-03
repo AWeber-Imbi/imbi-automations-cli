@@ -66,27 +66,39 @@ destination = "repository:///.gitignore"     # To repository
 
 The `workflow:///` prefix maps to `{working_directory}/workflow/` where workflow resources are staged.
 
-#### `extracted:///` - Docker Extracted Files
-Files extracted from Docker containers via docker actions:
+#### `extracted:///` - Extracted Files
+Files extracted from Docker containers or Git repositories via git/docker actions:
 
 ```toml
+# Extract from Docker container
 [[actions]]
-name = "extract-from-image"
+name = "extract-from-docker"
 type = "docker"
 command = "extract"
 image = "myapp:latest"
 source = "/app/config/"
-destination = "extracted:///configs/"
+destination = "extracted:///docker-configs/"
 
+# Extract file from Git history
+[[actions]]
+name = "extract-from-git"
+type = "git"
+command = "extract"
+source = "config.yaml"
+destination = "extracted:///old-config.yaml"
+commit_keyword = "breaking change"
+search_strategy = "before_last_match"
+
+# Use extracted files
 [[actions]]
 name = "copy-extracted"
 type = "file"
 command = "copy"
-source = "extracted:///configs/app.yaml"
+source = "extracted:///docker-configs/app.yaml"
 destination = "repository:///config/app.yaml"
 ```
 
-The `extracted:///` prefix maps to `{working_directory}/extracted/` where Docker-extracted files are stored.
+The `extracted:///` prefix maps to `{working_directory}/extracted/` where extracted files from Docker containers and Git history are stored.
 
 ### Path Resolution Examples
 

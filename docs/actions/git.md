@@ -1,6 +1,6 @@
 # Git Actions
 
-Git actions provide version control operations for extracting Git history and managing branches.
+Git actions provide version control operations for extracting files from Git history and cloning repositories.
 
 ## Configuration
 
@@ -8,7 +8,7 @@ Git actions provide version control operations for extracting Git history and ma
 [[actions]]
 name = "action-name"
 type = "git"
-command = "extract"
+command = "extract"  # or "clone"
 # Command-specific fields below
 ```
 
@@ -16,75 +16,209 @@ command = "extract"
 
 ### extract
 
-Extract Git commit history from a specific commit range.
+Extract a specific file from Git commit history. Useful for retrieving old versions of files from before certain changes were made.
 
 **Required Fields:**
-- `starting_commit`: Starting commit SHA or ref
-- `match_strategy`: How to find commits (`first_parent`, `all`)
+
+- `source` (pathlib.Path): Path to the file in the repository
+- `destination` (ResourceUrl): Where to write the extracted file
+- `commit_keyword` (string, optional): Keyword to search for in commit messages
+- `search_strategy` (string, optional): How to find the commit (`before_first_match`, `before_last_match`)
 
 **Optional Fields:**
-- `destination`: Where to store commit data (ResourceUrl)
+
+- `ignore_errors` (bool): Continue if extraction fails (default: false)
 
 **Example:**
 ```toml
 [[actions]]
-name = "extract-recent-commits"
+name = "extract-old-config"
 type = "git"
 command = "extract"
-starting_commit = "{{ starting_commit }}"
-match_strategy = "first_parent"
-destination = "extracted:///commits/"
+source = "config.yaml"
+destination = "extracted:///old-config.yaml"
+commit_keyword = "update config"
+search_strategy = "before_last_match"
 ```
 
-**Match Strategies:**
-- `first_parent`: Follow only first parent commits (linear history)
-- `all`: Include all commits in the range (including merges)
+**Search Strategies:**
+
+- `before_first_match`: Extract file from commit before the first match of keyword
+- `before_last_match` (default): Extract file from commit before the last match of keyword
+
+### clone
+
+Clone a Git repository to a specific location.
+
+**Required Fields:**
+
+- `url` (string): Git repository URL to clone
+- `destination` (ResourceUrl): Where to clone the repository
+
+**Optional Fields:**
+
+- `branch` (string): Specific branch to clone
+- `depth` (int): Shallow clone depth (for faster clones)
+
+**Example:**
+```toml
+[[actions]]
+name = "clone-external-repo"
+type = "git"
+command = "clone"
+url = "https://github.com/example/repo.git"
+destination = "extracted:///external-repo/"
+branch = "main"
+depth = 1
+```
 
 ## Common Use Cases
 
-### Extract Commit Range
+### Extract File Before Breaking Change
 
 ```toml
 [[actions]]
-name = "get-changes"
+name = "get-old-dockerfile"
 type = "git"
 command = "extract"
-starting_commit = "{{ starting_commit }}"
-match_strategy = "first_parent"
-destination = "commits.json"
+source = "Dockerfile"
+destination = "extracted:///Dockerfile.old"
+commit_keyword = "breaking"
+search_strategy = "before_last_match"
+ignore_errors = true
 ```
 
-### Analyze Commit History
+### Extract Config from Before Migration
 
 ```toml
 [[actions]]
-name = "extract-commits"
+name = "backup-old-config"
 type = "git"
 command = "extract"
-starting_commit = "HEAD~10"
-match_strategy = "all"
+source = "config/settings.yaml"
+destination = "extracted:///settings.yaml.backup"
+commit_keyword = "migrate to new config"
+search_strategy = "before_first_match"
 
 [[actions]]
-name = "analyze-commits"
+name = "merge-configs"
 type = "shell"
-command = "python scripts/analyze-commits.py"
+command = "python scripts/merge-configs.py"
 working_directory = "{{ working_directory }}"
 ```
 
-## Commit Data Structure
+### Clone Template Repository
 
-Extracted commit data includes:
-- Commit SHA
-- Author name and email
-- Commit message
-- Timestamp
-- Changed files list
-- Parent commits
+```toml
+[[actions]]
+name = "clone-template"
+type = "git"
+command = "clone"
+url = "https://github.com/myorg/project-template.git"
+destination = "extracted:///template/"
+branch = "main"
+depth = 1
+
+[[actions]]
+name = "copy-template-files"
+type = "file"
+command = "copy"
+source = "extracted:///template/configs/*.yaml"
+destination = "repository:///configs/"
+```
+
+### Extract Multiple Historical Files
+
+```toml
+[[actions]]
+name = "extract-old-requirements"
+type = "git"
+command = "extract"
+source = "requirements.txt"
+destination = "extracted:///requirements.old.txt"
+commit_keyword = "update dependencies"
+search_strategy = "before_last_match"
+
+[[actions]]
+name = "extract-old-dockerfile"
+type = "git"
+command = "extract"
+source = "Dockerfile"
+destination = "extracted:///Dockerfile.old"
+commit_keyword = "update base image"
+search_strategy = "before_last_match"
+
+[[actions]]
+name = "compare-versions"
+type = "shell"
+command = "diff -u extracted/requirements.old.txt repository/requirements.txt || true"
+working_directory = "{{ working_directory }}"
+```
+
+## Integration with Other Actions
+
+### Git Extract + File Copy Pattern
+
+```toml
+# Extract old version from git history
+[[actions]]
+name = "get-legacy-config"
+type = "git"
+command = "extract"
+source = ".github/workflows/ci.yml"
+destination = "extracted:///ci.yml.legacy"
+commit_keyword = "migrate to v2"
+search_strategy = "before_first_match"
+
+# Copy to repository for comparison
+[[actions]]
+name = "save-for-reference"
+type = "file"
+command = "copy"
+source = "extracted:///ci.yml.legacy"
+destination = "repository:///.github/workflows/ci.yml.legacy"
+```
+
+### Git Clone + Template Pattern
+
+```toml
+# Clone shared configuration repo
+[[actions]]
+name = "clone-shared-configs"
+type = "git"
+command = "clone"
+url = "https://github.com/myorg/shared-configs.git"
+destination = "extracted:///shared/"
+branch = "main"
+
+# Render templates from cloned repo
+[[actions]]
+name = "render-config"
+type = "template"
+source_path = "extracted:///shared/templates/"
+destination_path = "repository:///config/"
+```
 
 ## Implementation Notes
 
-- Uses `git log` for commit extraction
-- Commit data stored as JSON
-- Respects `.gitignore` for file operations
-- Works with current repository state
-- Starting commit must exist in history
+- **Extract command**:
+  - Searches git log for commits matching keyword
+  - Extracts file content from the commit **before** the match
+  - Uses `git show COMMIT:PATH` to retrieve file contents
+  - Returns false if file or commit not found (unless `ignore_errors` is true)
+  - Works within the cloned repository directory
+
+- **Clone command**:
+  - Uses `git clone` with optional branch and depth parameters
+  - Shallow clones (`depth=1`) are faster for large repositories
+  - Cloned repository placed at destination path
+  - Full git history available unless depth is specified
+
+- **Search strategies**:
+  - `before_first_match`: Useful for finding original version before any changes
+  - `before_last_match`: Useful for finding most recent version before latest change
+
+- **Path resolution**:
+  - `source` paths are relative to repository root
+  - `destination` supports all ResourceUrl schemes (`extracted:///`, `repository:///`, etc.)
+  - Destination directories created automatically if needed
