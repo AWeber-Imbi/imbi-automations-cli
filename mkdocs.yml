@@ -6,6 +6,7 @@ edit_uri: edit/main/docs/
 
 nav:
   - Home: index.md
+  - Configuration: configuration.md
   - Architecture: architecture.md
   - Actions:
     - actions/index.md
