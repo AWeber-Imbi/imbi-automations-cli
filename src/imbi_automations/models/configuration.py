@@ -102,7 +102,9 @@ class Configuration(pydantic.BaseModel):
     anthropic: AnthropicConfiguration = pydantic.Field(
         default_factory=AnthropicConfiguration
     )
-    claude_code: ClaudeCodeConfiguration | None = None
+    claude_code: ClaudeCodeConfiguration = pydantic.Field(
+        default_factory=ClaudeCodeConfiguration
+    )
     commit_author: str = 'Imbi Automations <noreply@aweber.com>'
     error_dir: pathlib.Path = pathlib.Path('./errors')
     github: GitHubConfiguration | None = None
