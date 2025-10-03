@@ -6,8 +6,9 @@ edit_uri: edit/main/docs/
 
 nav:
   - Home: index.md
-  - Configuration: configuration.md
   - Architecture: architecture.md
+  - Configuration: configuration.md
+  - Workflows: workflows.md
   - Actions:
     - actions/index.md
     - Callable: actions/callable.md
