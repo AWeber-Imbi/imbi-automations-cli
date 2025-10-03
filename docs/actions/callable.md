@@ -1,6 +1,8 @@
 # Callable Actions
 
-Callable actions invoke methods directly on client instances (GitHub, GitLab, Imbi), enabling dynamic API operations with template variable support.
+⚠️ **NOT IMPLEMENTED**: Callable actions raise `NotImplementedError`. This action type is currently a placeholder.
+
+Callable actions are intended to invoke Python callable objects (functions, methods, classes) dynamically with flexible arguments.
 
 ## Configuration
 
@@ -8,161 +10,157 @@ Callable actions invoke methods directly on client instances (GitHub, GitLab, Im
 [[actions]]
 name = "action-name"
 type = "callable"
-
-[actions.value]
-client = "github|gitlab|imbi"
-method = "method_name"
-
-[actions.value.kwargs]
-param1 = "value1"
-param2 = "{{ template_var }}"
+import = "module.path.to.callable"
+callable = "function_or_class_name"
+args = []      # Optional positional arguments
+kwargs = {}    # Optional keyword arguments
+ai_commit = true  # Optional, default: true
 ```
 
 ## Fields
 
-### client (required)
+### import (required)
 
-The client instance to call the method on.
+Python module path to import the callable from.
 
-**Options:** `github`, `gitlab`, `imbi`
+**Type:** `string`
+**Field Name:** `import` (model field: `import_name`)
 
-### method (required)
+**Example:** `"imbi_automations.clients.github"`
 
-The method name to invoke on the client.
+### callable (required)
 
-**Type:** `string` (method name)
+The callable object (function, method, or class) to invoke.
+
+**Type:** `Callable` (Python callable object)
+
+**Note:** The model expects an actual callable object, not a string. The TOML configuration likely needs to reference importable callables by name.
+
+### args (optional)
+
+Positional arguments to pass to the callable.
+
+**Type:** `list`
+**Default:** `[]`
 
 ### kwargs (optional)
 
-Dictionary of keyword arguments to pass to the method. Values support Jinja2 templates.
+Keyword arguments to pass to the callable.
 
-**Type:** `dict[str, any]`
+**Type:** `dict`
+**Default:** `{}`
 
-## Examples
+### ai_commit (optional)
 
-### GitHub Operations
+Whether to use AI-generated commit messages for changes.
 
-```toml
-[[actions]]
-name = "create-pr"
-type = "callable"
+**Type:** `boolean`
+**Default:** `true`
 
-[actions.value]
-client = "github"
-method = "create_pull_request"
+## Implementation Status
 
-[actions.value.kwargs]
-title = "Automated update for {{ imbi_project.name }}"
-body = "This PR updates configurations"
-head_branch = "automation/{{ workflow.slug }}"
-base_branch = "main"
+**Status:** ❌ Not implemented
+
+The implementation in `src/imbi_automations/actions/callablea.py` line 25 shows:
+
+```python
+async def execute(self, action: models.WorkflowCallableAction) -> None:
+    raise NotImplementedError('Callable actions not yet supported')
 ```
 
-### Imbi Updates
+**Model Definition:** `src/imbi_automations/models/workflow.py:107-120`
 
-```toml
-[[actions]]
-name = "update-project-fact"
-type = "callable"
-
-[actions.value]
-client = "imbi"
-method = "update_project_fact"
-
-[actions.value.kwargs]
-project_id = "{{ imbi_project.id }}"
-fact_name = "Last Updated"
-fact_value = "{{ now() }}"
+```python
+class WorkflowCallableAction(WorkflowAction):
+    type: typing.Literal['callable'] = 'callable'
+    import_name: str = pydantic.Field(alias='import')
+    callable: typing.Callable
+    args: list[typing.Any] = pydantic.Field(default_factory=list)
+    kwargs: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
+    ai_commit: bool = True
 ```
 
-### GitLab Operations
+## Intended Usage Examples
+
+**Note:** These examples show the intended usage once implemented. They will currently fail with `NotImplementedError`.
+
+### Call GitHub Client Method
 
 ```toml
 [[actions]]
-name = "create-merge-request"
+name = "create-github-issue"
 type = "callable"
+import = "imbi_automations.clients.github"
+callable = "GitHubClient.create_issue"
 
-[actions.value]
-client = "gitlab"
-method = "create_merge_request"
-
-[actions.value.kwargs]
-project_id = "{{ gitlab_project.id }}"
-source_branch = "feature/update"
-target_branch = "main"
-title = "Update {{ imbi_project.name }}"
+[[actions.kwargs]]
+title = "Automated issue"
+body = "Issue created by workflow"
 ```
 
-## Available Clients
-
-### GitHub Client
-
-Common methods:
-- `create_pull_request()`
-- `update_repository_settings()`
-- `sync_environments()`
-- `get_workflow_status()`
-
-### GitLab Client
-
-Common methods:
-- `create_merge_request()`
-- `update_project_settings()`
-- `get_pipeline_status()`
-
-### Imbi Client
-
-Common methods:
-- `update_project_fact()`
-- `add_project_link()`
-- `update_project_metadata()`
-
-## Common Patterns
-
-### Update After Transformation
+### Call Imbi Client Method
 
 ```toml
 [[actions]]
-name = "update-code"
-type = "claude"
-prompt = "workflow:///prompts/update.md"
-
-[[actions]]
-name = "mark-updated"
+name = "update-project"
 type = "callable"
+import = "imbi_automations.clients.imbi"
+callable = "ImbiClient.update_project_fact"
 
-[actions.value]
-client = "imbi"
-method = "update_project_fact"
-
-[actions.value.kwargs]
-project_id = "{{ imbi_project.id }}"
+[[actions.kwargs]]
+project_id = 123
 fact_name = "Automation Status"
 fact_value = "Updated"
 ```
 
-### Conditional API Call
+### Call Utility Function
 
 ```toml
-{% if github_repository %}
 [[actions]]
-name = "update-github"
+name = "parse-version"
 type = "callable"
+import = "semver"
+callable = "parse"
+args = ["1.2.3"]
+```
 
-[actions.value]
-client = "github"
-method = "update_repository_settings"
+## Design Questions
 
-[actions.value.kwargs]
-repository = "{{ github_repository.full_name }}"
-allow_squash_merge = true
-{% endif %}
+The current model definition has some unclear aspects:
+
+1. **Callable Type**: The `callable` field expects a `typing.Callable` object, but TOML configuration can only contain strings. How is this resolved?
+
+2. **Import Resolution**: How does `import` + `callable` get resolved to an actual callable object? Is `callable` a string name looked up in the imported module?
+
+3. **Client Access**: How would this access workflow clients (GitHub, GitLab, Imbi) that are already instantiated in the workflow context?
+
+4. **Context Passing**: How would the callable receive workflow context (repository, project data, etc.)?
+
+These design questions suggest the feature may need additional planning before implementation.
+
+## Workarounds
+
+Until callable actions are implemented, use alternative approaches:
+
+1. **Client Operations**: Use specific action types (github, imbi) when they exist
+2. **Custom Logic**: Use shell actions to call Python scripts
+3. **Claude Actions**: Use Claude for complex operations requiring decision-making
+
+### Shell Action Alternative
+
+```toml
+[[actions]]
+name = "custom-operation"
+type = "shell"
+command = "python -c 'from mymodule import func; func()'"
+working_directory = "repository:///"
 ```
 
 ## Implementation Notes
 
-- Methods called asynchronously
-- Kwargs support full Jinja2 template syntax
-- Client instances authenticated from config
-- Method return values logged at DEBUG level
-- Errors raised if method doesn't exist or call fails
+- Action type defined but not implemented
+- Raises `NotImplementedError` on execution
+- Model uses `typing.Callable` which may need runtime resolution
+- Field `import` aliased to `import_name` to avoid Python keyword
+- Intended for direct Python callable invocation with flexible arguments
+- AI commit enabled by default when implemented
