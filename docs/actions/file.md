@@ -19,6 +19,7 @@ command = "copy|move|rename|delete|append|write"
 Copy files or directories with glob pattern support.
 
 **Required Fields:**
+
 - `source`: Source file/directory path or glob pattern
 - `destination`: Destination path
 
@@ -59,12 +60,14 @@ destination = "repository:///scripts/"
 ```
 
 **Glob Pattern Support:**
+
 - `*` - Matches any characters within a filename
 - `?` - Matches single character
 - `[...]` - Matches character ranges
 - `**/` - Recursive directory matching
 
 **Behavior:**
+
 - Creates destination parent directories automatically
 - For glob patterns, destination must be a directory
 - Preserves file metadata (timestamps, permissions)
@@ -77,6 +80,7 @@ destination = "repository:///scripts/"
 Move (rename across directories) files or directories.
 
 **Required Fields:**
+
 - `source`: Source file/directory path
 - `destination`: Destination path
 
@@ -101,6 +105,7 @@ destination = "repository:///tests/"
 ```
 
 **Behavior:**
+
 - Source file/directory is removed after move
 - Creates destination parent directories automatically
 - Fails if source doesn't exist
@@ -112,6 +117,7 @@ destination = "repository:///tests/"
 Rename files within the same directory or move to different location.
 
 **Required Fields:**
+
 - `source`: Source file path
 - `destination`: Destination file path
 
@@ -136,6 +142,7 @@ destination = "repository:///src/new_module.py"
 ```
 
 **Behavior:**
+
 - Similar to `move` but semantically for file renaming
 - Creates destination parent directories automatically
 
@@ -182,6 +189,7 @@ pattern = ".*\\.(tmp|bak|swp)$"
 ```
 
 **Behavior:**
+
 - For `path`: Deletes specific file or directory (recursive)
 - For `pattern`: Searches recursively and deletes all matching files
 - Does not error if path doesn't exist
@@ -194,10 +202,12 @@ pattern = ".*\\.(tmp|bak|swp)$"
 Append content to existing files or create new files.
 
 **Required Fields:**
+
 - `path`: Target file path
 - `content`: Content to append (string or bytes)
 
 **Optional Fields:**
+
 - `encoding`: Character encoding (default: `utf-8`)
 
 **Examples:**
@@ -239,6 +249,7 @@ encoding = "utf-16"
 ```
 
 **Behavior:**
+
 - Creates file if it doesn't exist
 - Creates parent directories automatically
 - Appends to end of existing files
@@ -251,10 +262,12 @@ encoding = "utf-16"
 Write content to files, overwriting if they exist.
 
 **Required Fields:**
+
 - `path`: Target file path
 - `content`: Content to write (string or bytes)
 
 **Optional Fields:**
+
 - `encoding`: Character encoding (default: `utf-8`)
 
 **Examples:**
@@ -303,6 +316,7 @@ encoding = "utf-16"
 ```
 
 **Behavior:**
+
 - Overwrites existing files
 - Creates file if it doesn't exist
 - Creates parent directories automatically

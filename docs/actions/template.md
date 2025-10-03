@@ -37,6 +37,7 @@ Output location for rendered templates.
 **Type:** `ResourceUrl` (string path)
 
 **Behavior:**
+
 - For single file: Output file path
 - For directory: Output directory (structure mirrored)
 - Parent directories created automatically

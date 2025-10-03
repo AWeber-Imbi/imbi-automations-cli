@@ -22,11 +22,13 @@ Extract files from a Docker container image.
 **Status:** ✅ Implemented
 
 **Required Fields:**
+
 - `image` (string): Docker image name (tag can be separate or in format `image:tag`)
 - `source` (pathlib.Path): Path inside container to extract from
 - `destination` (ResourceUrl): Local path to extract to (typically `extracted:///`)
 
 **Optional Fields:**
+
 - `tag` (string): Image tag (default: `latest`) - only used if image doesn't contain `:tag`
 
 **Example:**
@@ -42,6 +44,7 @@ destination = "extracted:///python-libs/"
 ```
 
 **Behavior:**
+
 1. Pulls the image if not available locally (`docker pull`)
 2. Creates temporary container from image (`docker create`)
 3. Copies files from container to local filesystem (`docker cp`)
@@ -55,10 +58,12 @@ destination = "extracted:///python-libs/"
 Build a Docker image from a Dockerfile.
 
 **Required Fields:**
+
 - `image`: Image name to create
 - `path`: Path to Dockerfile directory (ResourceUrl)
 
 **Optional Fields:**
+
 - `tag`: Image tag (default: `latest`)
 
 ### pull
@@ -68,9 +73,11 @@ Build a Docker image from a Dockerfile.
 Pull a Docker image from registry.
 
 **Required Fields:**
+
 - `image`: Image name to pull
 
 **Optional Fields:**
+
 - `tag`: Image tag (default: `latest`)
 
 ### push
@@ -80,9 +87,11 @@ Pull a Docker image from registry.
 Push a Docker image to registry.
 
 **Required Fields:**
+
 - `image`: Image name to push
 
 **Optional Fields:**
+
 - `tag`: Image tag (default: `latest`)
 
 ## Common Use Cases

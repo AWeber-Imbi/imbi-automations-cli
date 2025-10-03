@@ -29,6 +29,7 @@ command = "sync_environments"
 ```
 
 **Planned Behavior:**
+
 - Read environments from Imbi project
 - Create/update GitHub repository environments
 - Synchronize environment variables and secrets

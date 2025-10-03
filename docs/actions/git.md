@@ -20,10 +20,12 @@ Extract a specific file from Git commit history. Useful for retrieving old versi
 
 **Required Fields:**
 
+
 - `source` (pathlib.Path): Path to the file in the repository
 - `destination` (ResourceUrl): Where to write the extracted file
 
 **Optional Fields:**
+
 
 - `commit_keyword` (string): Keyword to search for in commit messages. If not provided, extracts from current HEAD (default: None)
 - `search_strategy` (string): How to find the commit - `before_first_match` or `before_last_match`. Only used when `commit_keyword` is provided (default: `before_last_match`)
@@ -52,10 +54,12 @@ Clone a Git repository to a specific location.
 
 **Required Fields:**
 
+
 - `url` (string): Git repository URL to clone
 - `destination` (ResourceUrl): Where to clone the repository
 
 **Optional Fields:**
+
 
 - `branch` (string): Specific branch to clone
 - `depth` (int): Shallow clone depth (for faster clones)

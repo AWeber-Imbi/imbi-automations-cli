@@ -1,6 +1,6 @@
 # Claude Actions
 
-Claude actions leverage the Claude Code SDK for AI-powered code transformations, enabling complex multi-file analysis and intelligent code modifications that would be difficult or error-prone with traditional approaches.
+Claude actions leverage the [Claude Agent SDK](https://docs.claude.com/en/api/agent-sdk/overview) for AI-powered code transformations, enabling complex multi-file analysis and intelligent code modifications that would be difficult or error-prone with traditional approaches.
 
 ## Configuration
 
@@ -498,9 +498,6 @@ working_directory = "repository:///"
 
 ## Implementation Notes
 
-- Uses Claude Code SDK with MCP tool support
-- Supports both agent-based and direct API queries
-- Custom agents defined in `claude-code/agents/` directory
 - Working directory isolated per execution
 - Automatic cleanup on success or failure
 - Full logging of Claude interactions at DEBUG level

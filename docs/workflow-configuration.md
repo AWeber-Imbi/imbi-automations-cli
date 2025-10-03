@@ -2,6 +2,8 @@
 
 Complete field reference for workflow `config.toml` files with detailed descriptions, types, defaults, and examples.
 
+**Tip:** Workflow configuration syntax is validated on startup
+
 ## Configuration Structure
 
 A complete workflow configuration includes:
