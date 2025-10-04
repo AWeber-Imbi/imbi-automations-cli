@@ -29,25 +29,23 @@ class Claude(mixins.WorkflowLoggerMixin):
 
     def __init__(
         self,
-        configuration: models.Configuration,
+        config: models.Configuration,
         context: models.WorkflowContext,
         verbose: bool = False,
     ) -> None:
         super().__init__(verbose)
-        if configuration.anthropic.bedrock:
+        if config.anthropic.bedrock:
             self.anthropic = anthropic.AsyncAnthropicBedrock()
         else:
-            if isinstance(configuration.anthropic.api_key, str):
-                api_key = configuration.anthropic.api_key
-            elif isinstance(
-                configuration.anthropic.api_key, pydantic.SecretStr
-            ):
-                api_key = configuration.anthropic.api_key.get_secret_value()
+            if isinstance(config.anthropic.api_key, str):
+                api_key = config.anthropic.api_key
+            elif isinstance(config.anthropic.api_key, pydantic.SecretStr):
+                api_key = config.anthropic.api_key.get_secret_value()
             else:
                 api_key = None
             self.anthropic = anthropic.AsyncAnthropic(api_key=api_key)
         self.agents: dict[str, types.AgentDefinition] = {}
-        self.configuration = configuration
+        self.configuration = config
         self.context = context
         self.logger: logging.Logger = LOGGER
         self.session_id: str | None = None
@@ -270,11 +268,7 @@ class Claude(mixins.WorkflowLoggerMixin):
                     message='Claude Error',
                     errors=[message.result],
                 )
-            if message.result.startswith('```json'):
-                message.result = message.result[7:]
-            if message.result.endswith('```'):
-                message.result = message.result[:-3]
-
+            # Don't pre-strip code fences - let extract_json handle it
             LOGGER.debug('Result (%s): %r', message.session_id, message.result)
 
             try:
