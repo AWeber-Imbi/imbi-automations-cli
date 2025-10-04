@@ -51,6 +51,8 @@ class ClaudeAction(mixins.WorkflowLoggerMixin):
         """Execute the Claude Code action."""
         success = False
         self.last_error = None
+        warning_threshold = int(action.max_cycles * 0.6)
+
         for cycle in range(1, action.max_cycles + 1):
             self._log_verbose_info(
                 'Claude Code cycle %d/%d for action %s',
@@ -58,6 +60,16 @@ class ClaudeAction(mixins.WorkflowLoggerMixin):
                 action.max_cycles,
                 action.name,
             )
+
+            # Warn when approaching max cycles
+            if cycle >= warning_threshold and cycle < action.max_cycles:
+                self.logger.warning(
+                    'Action %s has used %d/%d cycles - approaching limit',
+                    action.name,
+                    cycle,
+                    action.max_cycles,
+                )
+
             if await self._execute_cycle(action, cycle):
                 self.logger.debug(
                     'Claude Code %s cycle %d successful', action.name, cycle
@@ -66,10 +78,20 @@ class ClaudeAction(mixins.WorkflowLoggerMixin):
                 break
 
         if not success:
-            raise RuntimeError(
+            # Categorize failure for better diagnostics
+            failure_category = self._categorize_failure()
+            error_msg = (
                 f'Claude Code action {action.name} failed after '
                 f'{action.max_cycles} cycles'
             )
+            if failure_category:
+                error_msg += f' (category: {failure_category})'
+                self.logger.error(
+                    'Failure categorized as: %s - consider adjusting '
+                    'workflow constraints',
+                    failure_category,
+                )
+            raise RuntimeError(error_msg)
 
     async def _execute_cycle(
         self, action: models.WorkflowClaudeAction, cycle: int
@@ -144,3 +166,53 @@ class ClaudeAction(mixins.WorkflowLoggerMixin):
             )
 
         return prompt
+
+    def _categorize_failure(self) -> str | None:
+        """Categorize the failure type based on last error message.
+
+        Returns:
+            Failure category string or None if no clear category
+
+        """
+        if not self.last_error or not self.last_error.message:
+            return None
+
+        error_msg = self.last_error.message.lower()
+
+        # Define failure patterns and categories
+        failure_patterns = {
+            'dependency_unavailable': [
+                'not found',
+                'could not find',
+                'no matching distribution',
+                'no version found',
+                'not available',
+            ],
+            'constraint_conflict': [
+                'conflict',
+                'incompatible',
+                'requires',
+                'resolution impossible',
+                'cannot install',
+            ],
+            'prohibited_action': [
+                'prohibited',
+                'do not modify',
+                'not allowed',
+                'cannot complete',
+                'constraints prohibit',
+            ],
+            'test_failure': [
+                'test failed',
+                'assertion error',
+                'tests are failing',
+                'exit code',
+            ],
+        }
+
+        # Check each category for matches
+        for category, keywords in failure_patterns.items():
+            if any(keyword in error_msg for keyword in keywords):
+                return category
+
+        return 'unknown'
