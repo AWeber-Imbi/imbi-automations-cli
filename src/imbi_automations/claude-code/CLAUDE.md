@@ -61,7 +61,7 @@ Failure with errors:
   "result": "failure",
   "errors": [
     "Missing 'requests' in [project.dependencies]",
-    "Build backend should be 'setuptools.build_meta'"
+    "Version configuration missing required 'pattern' field"
   ]
 }
 ```
