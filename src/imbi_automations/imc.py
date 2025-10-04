@@ -48,7 +48,8 @@ class ImbiMetadataCache:
             / 'imbi-automations'
             / 'metadata.json'
         )
-        self.imbi_client = clients.Imbi.get_instance(config=config)
+        self.config = config
+        self.imbi_client: clients.Imbi | None = None
 
     @classmethod
     def get_instance(cls, config: configuration.Configuration) -> typing.Self:
@@ -72,10 +73,28 @@ class ImbiMetadataCache:
                             'Data will be loaded on first property access.'
                         )
                     except RuntimeError:
-                        # No event loop - safe to load synchronously
-                        # asyncio.run() manages loop lifecycle properly
-                        asyncio.run(cls.instance._load_data())
+                        # No event loop running - load from cache file only
+                        # This avoids event loop lifecycle conflicts
+                        cls.instance._load_from_file_sync()
         return cls.instance
+
+    def _load_from_file_sync(self) -> None:
+        """Load cache data from file synchronously (no API calls)."""
+        if self.cache_file.exists():
+            with self.cache_file.open('r') as file:
+                try:
+                    self.cache_data = CacheData.model_validate(json.load(file))
+                    LOGGER.debug('Loaded cached Imbi metadata from file')
+                except (json.JSONDecodeError, pydantic.ValidationError) as err:
+                    LOGGER.warning(
+                        'Cache file corrupted, will refresh on first async '
+                        'use: %s',
+                        err,
+                    )
+                    # Delete corrupted cache file
+                    self.cache_file.unlink(missing_ok=True)
+        else:
+            LOGGER.debug('No cache file found, will load on first async use')
 
     def is_cache_expired(self) -> bool:
         """Check if cache has expired (older than CACHE_TTL_MINUTES)."""
@@ -131,6 +150,10 @@ class ImbiMetadataCache:
                     if not self.is_cache_expired():
                         LOGGER.debug('Using cached Imbi metadata')
                         return
+
+        # Get or create Imbi client for this event loop
+        if not self.imbi_client:
+            self.imbi_client = clients.Imbi.get_instance(config=self.config)
 
         (
             environments,
