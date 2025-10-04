@@ -54,6 +54,7 @@ class Claude(mixins.WorkflowLoggerMixin):
             'commit_author': self.configuration.commit_author,
             'commit_author_name': commit_author[0],
             'commit_author_address': commit_author[1],
+            'configuration': self.configuration,
             'workflow_name': context.workflow.configuration.name,
             'working_directory': self.context.working_directory,
         }

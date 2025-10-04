@@ -27,6 +27,15 @@ class AnthropicConfiguration(pydantic.BaseModel):
     model: str = pydantic.Field(default='claude-3-5-haiku-latest')
 
 
+class GitConfiguration(pydantic.BaseModel):
+    """Git configuration for repository operations.
+
+    Controls git commit behavior including additional arguments for signing.
+    """
+
+    commit_args: str = ''
+
+
 class GitHubConfiguration(pydantic.BaseModel):
     """GitHub API configuration.
 
@@ -107,6 +116,7 @@ class Configuration(pydantic.BaseModel):
     )
     commit_author: str = 'Imbi Automations <noreply@aweber.com>'
     error_dir: pathlib.Path = pathlib.Path('./errors')
+    git: GitConfiguration = pydantic.Field(default_factory=GitConfiguration)
     github: GitHubConfiguration | None = None
     gitlab: GitLabConfiguration | None = None
     imbi: ImbiConfiguration | None = None
