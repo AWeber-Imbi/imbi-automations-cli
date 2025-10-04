@@ -3,6 +3,46 @@
 Executes shell commands with Jinja2 template variable substitution, working
 directory management, and proper async subprocess handling for workflow
 automation.
+
+SECURITY NOTE:
+--------------
+This module uses `asyncio.create_subprocess_shell()` to enable shell features
+like glob expansion, pipes, and environment variable expansion. This design
+choice is intentional but carries security implications:
+
+1. **Command Injection Risk**: Shell commands are rendered through Jinja2
+   templates with workflow context variables. If workflow configurations
+   contain untrusted input, malicious commands could be executed.
+
+2. **Mitigation Strategies**:
+   - Workflow TOML files should be treated as trusted code (like source code)
+   - Store workflows in version control with code review requirements
+   - Never dynamically generate workflow files from untrusted user input
+   - Jinja2 auto-escaping is disabled for command rendering (by design)
+
+3. **Safe Usage Patterns**:
+   - Use explicit paths: `/usr/bin/ls` instead of `ls`
+   - Quote variables in TOML: command = "ls '{{ directory }}'"
+   - Validate inputs in condition checks before shell actions
+
+4. **Examples**:
+   ```toml
+   # SAFE: Hardcoded command with controlled expansion
+   [[actions]]
+   type = "shell"
+   command = "rm -f .github/workflows/*.yml"
+
+   # SAFE: Template variable from trusted Imbi data
+   [[actions]]
+   type = "shell"
+   command = "echo 'Processing {{ imbi_project.name }}'"
+
+   # UNSAFE: Raw user input (avoid this pattern)
+   # command = "sh -c '{{ user_provided_script }}'"
+   ```
+
+For maximum security, consider using `file` or `git` action types instead of
+shell commands when possible.
 """
 
 import asyncio

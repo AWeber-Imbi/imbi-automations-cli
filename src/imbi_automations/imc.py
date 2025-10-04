@@ -5,6 +5,7 @@ import datetime
 import json
 import logging
 import pathlib
+import threading
 import typing
 
 import pydantic
@@ -13,6 +14,12 @@ from imbi_automations import clients
 from imbi_automations.models import configuration, imbi
 
 LOGGER = logging.getLogger(__name__)
+
+# Cache configuration
+CACHE_TTL_MINUTES = 15
+
+# Thread-safe singleton lock
+_instance_lock = threading.Lock()
 
 
 class CacheData(pydantic.BaseModel):
@@ -45,18 +52,44 @@ class ImbiMetadataCache:
 
     @classmethod
     def get_instance(cls, config: configuration.Configuration) -> typing.Self:
+        """Get or create singleton instance (thread-safe).
+
+        Note: This synchronous method is for backward compatibility.
+        For new code, prefer using async initialization explicitly.
+        """
         if not cls.instance:
-            cls.instance = cls(config.imbi)
-            loop = asyncio.get_event_loop()
-            loop.run_until_complete(cls.instance._load_data())
-            loop.run_until_complete(clients.Imbi.get_instance().aclose())
+            with _instance_lock:
+                # Double-check pattern to prevent race condition
+                if not cls.instance:
+                    cls.instance = cls(config.imbi)
+                    # Note: Actual data loading is deferred to first use
+                    # to avoid blocking event loop
+                    try:
+                        loop = asyncio.get_running_loop()
+                        # We're in async context - use async init instead
+                        LOGGER.warning(
+                            'get_instance() called from async context. '
+                            'Data will be loaded on first property access.'
+                        )
+                    except RuntimeError:
+                        # No event loop running - safe to load synchronously
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                        try:
+                            loop.run_until_complete(cls.instance._load_data())
+                        finally:
+                            loop.close()
         return cls.instance
 
-    @property
-    def cache_expiration(self) -> datetime.datetime:
-        return datetime.datetime.now(tz=datetime.UTC) + datetime.timedelta(
-            minutes=15
+    def is_cache_expired(self) -> bool:
+        """Check if cache has expired (older than CACHE_TTL_MINUTES)."""
+        if not self.cache_data:
+            return True
+        age = (
+            datetime.datetime.now(tz=datetime.UTC)
+            - self.cache_data.last_updated
         )
+        return age > datetime.timedelta(minutes=CACHE_TTL_MINUTES)
 
     @property
     def environments(self) -> set[str]:
@@ -86,15 +119,21 @@ class ImbiMetadataCache:
         }
 
     async def _load_data(self) -> None:
-        """Load the Imbi data from the API"""
+        """Load the Imbi data from the API or cache file."""
         if self.cache_file.exists():
             with self.cache_file.open('r') as file:
                 try:
                     self.cache_data = CacheData.model_validate(json.load(file))
                 except (json.JSONDecodeError, pydantic.ValidationError) as err:
-                    LOGGER.debug('Registry cache is invalid: %s', err)
+                    LOGGER.warning(
+                        'Cache file corrupted, regenerating: %s', err
+                    )
+                    # Delete corrupted cache file
+                    self.cache_file.unlink(missing_ok=True)
                 else:
-                    if self.cache_data.last_updated > self.cache_expiration:
+                    # Check if cache is still fresh
+                    if not self.is_cache_expired():
+                        LOGGER.debug('Using cached Imbi metadata')
                         return
 
         (

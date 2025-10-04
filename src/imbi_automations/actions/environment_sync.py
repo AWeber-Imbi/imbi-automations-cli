@@ -198,7 +198,7 @@ async def sync_project_environments(
 
         return result
 
-    except Exception as exc:  # noqa: BLE001
+    except (ValueError, RuntimeError, KeyError) as exc:
         error_msg = f'Unexpected error during environment sync: {exc}'
         LOGGER.error(error_msg)
         result['errors'].append(error_msg)

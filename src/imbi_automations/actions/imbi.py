@@ -1,5 +1,7 @@
 """Imbi actions for workflow execution."""
 
+import httpx
+
 from imbi_automations import clients, mixins, models
 
 
@@ -78,7 +80,7 @@ class ImbiActions(mixins.WorkflowLoggerMixin):
                 action.fact_name,
                 project_id,
             )
-        except Exception as exc:
+        except (httpx.HTTPError, ValueError, RuntimeError) as exc:
             self.logger.error(
                 'Failed to set fact "%s" for project %d: %s',
                 action.fact_name,
