@@ -5,7 +5,6 @@ types, environments, links, facts, and other project metadata used for
 workflow targeting and context enrichment.
 """
 
-import datetime
 import typing
 
 import pydantic
@@ -13,10 +12,18 @@ import pydantic
 from . import base
 
 
+class ImbiEnvironment(base.BaseModel):
+    """Imbi environment with metadata."""
+
+    name: str
+    icon_class: str
+    description: str | None = None
+
+
 class ImbiProjectLink(base.BaseModel):
     """External link associated with an Imbi project.
 
-    Represents links to external systems like GitHub, GitLab, PagerDuty, etc.
+    Represents links to external systems like GitHub, PagerDuty, etc.
     """
 
     id: int | None = None
@@ -52,23 +59,20 @@ class ImbiProject(base.BaseModel):
     imbi_url: str
 
 
-class ImbiProjectType(base.BaseModel):
-    """Project type definition in Imbi.
+class ImbiProjectFact(base.BaseModel):
+    """Individual fact value for a project.
 
-    Categorizes projects with metadata for icon display, environment URL
-    support, and GitLab project prefix configuration.
+    Represents a single fact value recorded for a project with scoring,
+    weighting, and audit information.
     """
 
-    id: int
-    created_by: str | None = None
-    last_modified_by: str | None = None
-    name: str
-    plural_name: str
-    description: str | None = None
-    slug: str
-    icon_class: str
-    environment_urls: bool = False
-    gitlab_project_prefix: str | None = None
+    fact_type_id: int
+    fact_name: str | None = None
+    recorded_at: str | None = None
+    recorded_by: str | None = None
+    value: bool | int | float | str | None = None
+    score: int | None = None
+    weight: int | None = None
 
 
 class ImbiProjectFactType(base.BaseModel):
@@ -83,10 +87,12 @@ class ImbiProjectFactType(base.BaseModel):
     created_by: str | None = None
     last_modified_by: str | None = None
     name: str
-    project_type_ids: list[int] = pydantic.Field(default_factory=list)
-    fact_type: str  # enum, free-form, range
     description: str | None = None
-    data_type: str  # boolean, integer, number, string
+    project_type_ids: list[int] = pydantic.Field(default_factory=list)
+    fact_type: typing.Literal['enum', 'range', 'free-form']
+    data_type: typing.Literal[
+        'boolean', 'date', 'decimal', 'integer', 'string', 'timestamp'
+    ]
     ui_options: list[str] = pydantic.Field(default_factory=list)
     weight: float = 0.0
 
@@ -107,18 +113,32 @@ class ImbiProjectFactTypeEnum(base.BaseModel):
     score: int
 
 
-class ImbiProjectFact(base.BaseModel):
-    """Individual fact value for a project.
+class ImbiProjectFactTypeRange(base.BaseModel):
+    """Range min/max values for range-type project facts."""
 
-    Represents a single fact value recorded for a project with scoring,
-    weighting, and audit information.
+    id: int
+    fact_type_id: int
+    created_by: str | None = None
+    last_modified_by: str | None = None
+    max_value: int | float
+    min_value: int | float
+    score: int
+
+
+class ImbiProjectType(base.BaseModel):
+    """Project type definition in Imbi.
+
+    Categorizes projects with metadata for icon display and environment URL
+    support.
     """
 
-    fact_type_id: int
+    id: int
+    created_by: str | None = None
+    last_modified_by: str | None = None
     name: str
-    recorded_at: datetime.datetime | None = None
-    recorded_by: str | None = None
-    value: bool | int | float | str | None = None
-    ui_options: list[str] = pydantic.Field(default_factory=list)
-    score: float | None = 0.0
-    weight: float = 0.0
+    plural_name: str
+    description: str | None = None
+    slug: str
+    icon_class: str
+    environment_urls: bool = False
+    gitlab_project_prefix: str | None = None

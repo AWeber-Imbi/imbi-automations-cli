@@ -35,9 +35,6 @@ class Imbi(http.BaseURLHTTPClient):
         super().__init__(transport=transport)
         self._base_url = f'https://{config.hostname}'
         self.add_header('Private-Token', config.api_key.get_secret_value())
-        self._project_types: list[models.ImbiProjectType] = []
-        self._fact_types: list[models.ImbiProjectFactType] = []
-        self._fact_type_enums: list[models.ImbiProjectFactTypeEnum] = []
 
     async def get_project(self, project_id: int) -> models.ImbiProject | None:
         result = await self._opensearch_projects(
@@ -263,6 +260,23 @@ class Imbi(http.BaseURLHTTPClient):
             LOGGER.error('Error deserializing the response: %s', err)
             raise err
 
+    async def get_environments(self) -> list[models.ImbiEnvironment]:
+        """Get all project fact types.
+
+        Returns:
+            List of all project fact types
+
+        Raises:
+            httpx.HTTPError: If API request fails
+
+        """
+        response = await self.get('/environments')
+        response.raise_for_status()
+        return [
+            models.ImbiEnvironment.model_validate(datum)
+            for datum in response.json()
+        ]
+
     async def get_fact_types(self) -> list[models.ImbiProjectFactType]:
         """Get all project fact types.
 
@@ -273,14 +287,12 @@ class Imbi(http.BaseURLHTTPClient):
             httpx.HTTPError: If API request fails
 
         """
-        if not self._fact_types:
-            response = await self.get('/project-fact-types')
-            response.raise_for_status()
-            self._fact_types = [
-                models.ImbiProjectFactType.model_validate(fact_type)
-                for fact_type in response.json()
-            ]
-        return self._fact_types
+        response = await self.get('/project-fact-types')
+        response.raise_for_status()
+        return [
+            models.ImbiProjectFactType.model_validate(fact_type)
+            for fact_type in response.json()
+        ]
 
     async def get_project_types(self) -> list[models.ImbiProjectType]:
         """Get all project types.
@@ -292,14 +304,12 @@ class Imbi(http.BaseURLHTTPClient):
             httpx.HTTPError: If API request fails
 
         """
-        if not self._project_types:
-            response = await self.get('/project-types')
-            response.raise_for_status()
-            self._project_types = [
-                models.ImbiProjectType.model_validate(project_type)
-                for project_type in response.json()
-            ]
-        return self._project_types
+        response = await self.get('/project-types')
+        response.raise_for_status()
+        return [
+            models.ImbiProjectType.model_validate(project_type)
+            for project_type in response.json()
+        ]
 
     async def get_fact_type_id_by_name(self, fact_name: str) -> int | None:
         """Get fact type ID by name.
@@ -329,14 +339,67 @@ class Imbi(http.BaseURLHTTPClient):
             httpx.HTTPError: If API request fails
 
         """
-        if not self._fact_type_enums:
-            response = await self.get('/project-fact-type-enums')
-            response.raise_for_status()
-            self._fact_type_enums = [
-                models.ImbiProjectFactTypeEnum.model_validate(enum)
-                for enum in response.json()
-            ]
-        return self._fact_type_enums
+        response = await self.get('/project-fact-type-enums')
+        response.raise_for_status()
+        return [
+            models.ImbiProjectFactTypeEnum.model_validate(enum)
+            for enum in response.json()
+        ]
+
+    async def get_project_fact_types(self) -> list[models.ImbiProjectFactType]:
+        """Get all of the project fact types.
+
+        Returns:
+            List of project fact types
+
+        Raises:
+            httpx.HTTPError: If API request fails
+
+        """
+        response = await self.get('/project-fact-types')
+        response.raise_for_status()
+        return [
+            models.ImbiProjectFactType.model_validate(fact)
+            for fact in response.json()
+        ]
+
+    async def get_project_fact_type_enums(
+        self,
+    ) -> list[models.ImbiProjectFactTypeEnum]:
+        """Get all of the project fact types.
+
+        Returns:
+            List of project fact type enums
+
+        Raises:
+            httpx.HTTPError: If API request fails
+
+        """
+        response = await self.get('/project-fact-type-enums')
+        response.raise_for_status()
+        return [
+            models.ImbiProjectFactTypeEnum.model_validate(fact)
+            for fact in response.json()
+        ]
+
+    async def get_project_fact_type_ranges(
+        self,
+    ) -> list[models.ImbiProjectFactTypeRange]:
+        """Get all of the project fact types.
+
+        Returns:
+            List of project fact type ranges
+
+        Raises:
+            httpx.HTTPError: If API request fails
+
+        """
+        response = await self.get('/project-fact-type-ranges')
+        response.raise_for_status()
+        return [
+            models.ImbiProjectFactTypeRange.model_validate(fact)
+            for fact in response.json()
+        ]
 
     async def get_project_facts(
         self, project_id: int
