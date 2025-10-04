@@ -23,6 +23,7 @@ The shell command to execute. Supports full Jinja2 template syntax for variable 
 
 
 **Template Variables Available:**
+
 - `workflow`: Workflow configuration object
 - `imbi_project`: Complete Imbi project data
 - `github_repository`: GitHub repository object (if applicable)

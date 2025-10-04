@@ -75,7 +75,7 @@ pre-commit run --all-files
 - **Configuration** (`models/configuration.py`): TOML-based configuration with Pydantic validation
 - **Workflow** (`models/workflow.py`): Comprehensive workflow definition with actions, conditions, and filters
   - **Action Types**: `callable`, `claude`, `docker`, `git`, `file`, `shell`, `utility`, `template`, `github`, `imbi`
-  - **Filter Validation**: Automatic validation of project_types and project_facts against Registry cache
+  - **Filter Validation**: Automatic validation of project_types and project_facts against ImbiMetadataCache
 - **GitHub** (`models/github.py`): GitHub repository and API response models
 - **Imbi** (`models/imbi.py`): Imbi project management system models including fact types, environments, and project types
 - **Claude** (`models/claude.py`): Claude Code integration models
@@ -97,7 +97,7 @@ pre-commit run --all-files
 - **Utility Actions** (`actions/utility.py`): Helper operations for common workflow tasks
 
 #### Supporting Components
-- **Registry** (`registry.py`): Singleton registry for caching Imbi metadata (fact types, project types, environments) with 15-minute TTL
+- **Imbi Metadata Cache** (`imc.py`): Singleton cache (`ImbiMetadataCache`) for Imbi metadata (fact types, project types, environments) with 15-minute TTL
 - **Git Operations** (`git.py`): Repository cloning, committing, and Git operations
 - **Environment Sync** (`environment_sync.py`): GitHub environment synchronization logic
 - **Condition Checker** (`condition_checker.py`): Workflow condition evaluation system
@@ -495,10 +495,10 @@ The system includes 20 pre-built workflows organized by category:
 
 ## Key Implementation Details
 
-### Registry System
-The `Registry` class (`registry.py`) provides singleton caching of Imbi metadata:
+### Imbi Metadata Cache System
+The `ImbiMetadataCache` class (`imc.py`) provides singleton caching of Imbi metadata:
 
-**Cached Data** (stored in `~/.cache/imbi-automations/registry.json`):
+**Cached Data** (stored in `~/.cache/imbi-automations/metadata.json`):
 - **Environments**: All Imbi environments for filter validation
 - **Project Types**: All project type slugs with IDs
 - **Fact Types**: Complete fact type definitions with project_type_ids
@@ -507,10 +507,10 @@ The `Registry` class (`registry.py`) provides singleton caching of Imbi metadata
 
 **Features**:
 - **15-minute TTL**: Auto-refreshes when expired
-- **Singleton Pattern**: One registry instance per process
+- **Singleton Pattern**: One cache instance per process
 - **Parse-Time Validation**: Validates filters before workflow execution
 - **Handles Duplicates**: Multiple fact types with same name (different project types)
-- **Property Access**: `registry.project_type_slugs`, `registry.environments`, `registry.project_fact_type_names`
+- **Property Access**: `imc.project_type_slugs`, `imc.environments`, `imc.project_fact_type_names`
 
 **Usage in Validation**:
 - WorkflowFilter validates project_types and project_facts at parse time
@@ -551,18 +551,18 @@ Shell actions use `subprocess_shell` instead of `subprocess_exec` to enable:
 
 **Major Changes**:
 - **GitLab Removal**: Removed all GitLab support (client, models, CLI args) - GitHub-only
-- **Registry Pattern**: Replaced FactRegistry with singleton Registry class
+- **IMC Pattern**: Introduced singleton ImbiMetadataCache class for metadata caching
 - **Filter Validation**: Added parse-time validation for project_types, project_facts, and environments
 - **Imbi Actions**: Implemented set_project_fact with full enum/range/free-form support
 - **Shell Execution Fix**: Changed from subprocess_exec to subprocess_shell for glob support
 - **Controller Simplification**: Removed GitLab iterator types, streamlined validation
-- **Imbi Client Updates**: Removed internal caching, simplified to use Registry
+- **Imbi Client Updates**: Removed internal caching, simplified to use ImbiMetadataCache
 - **Workflow Filter Refactor**: Split filter logic into helper methods for clarity
 
 **Architecture Benefits**:
 - **Simpler Codebase**: Removed ~2000 lines of unused GitLab code
-- **Faster Validation**: Registry cache enables instant filter validation
+- **Faster Validation**: ImbiMetadataCache enables instant filter validation
 - **Better UX**: Helpful error messages with fuzzy-matched suggestions
-- **Maintainability**: Cleaner separation with Registry handling all Imbi metadata
+- **Maintainability**: Cleaner separation with IMC handling all Imbi metadata
 - **Type Safety**: Comprehensive validation at parse time prevents runtime errors
 - **Performance**: 15-minute cache reduces API calls, subprocess_shell enables shell features

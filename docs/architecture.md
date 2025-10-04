@@ -32,7 +32,7 @@ Main automation controller implementing the iterator pattern:
 - Concurrent processing with proper resource management
 - Progress tracking and resumption capabilities
 
-#### Workflow Engine (`engine.py`)
+#### Workflow Engine (`workflow_engine.py`)
 Core execution engine that handles:
 - Action execution with context management
 - Temporary directory handling for repository operations
@@ -55,7 +55,7 @@ Base async HTTP client with:
 Integration with Imbi project management system:
 - Project data retrieval and filtering
 - Environment and metadata synchronization
-- Fact validation and updates
+- Fact validation and updates via ImbiMetadataCache
 - Pagination handling for large datasets
 
 #### GitHub Client (`clients/github.py`)
@@ -93,53 +93,66 @@ Comprehensive workflow definition including:
 
 ### Supporting Components
 
+#### Imbi Metadata Cache (`imc.py`)
+
+Singleton cache (`ImbiMetadataCache`) for Imbi metadata with 15-minute TTL:
+
+- Caches environments, project types, fact types
+- Enables parse-time validation of workflow filters
+- Stored in `~/.cache/imbi-automations/metadata.json`
+- Auto-refreshes when expired
+- Provides fuzzy-matched suggestions for typos
+
+#### Actions Dispatcher (`actions/__init__.py`)
+
+Centralized action execution using Python 3.12 match/case:
+
+- Type-safe action routing to specialized handlers
+- Callable, Claude, Docker, File, Git, GitHub, Imbi, Shell, Template, Utility actions
+- Consistent error handling across action types
+
 #### Git Operations (`git.py`)
 
 Comprehensive Git integration:
 
 - Repository cloning with authentication
 - Branch management and switching
-- Commit creation and history management
+- Commit creation via Committer class
+- Uses `git add --all` for staging
 - Tag and version handling
-- Conflict resolution strategies
 
-#### File Actions (`file_actions.py`)
+#### Committer (`committer.py`)
 
-File manipulation operations:
+Handles git commit operations:
 
-- Copy, move, and delete operations
-- Regex-based content replacement
-- Template file processing
-- Directory structure management
-- Backup and restore capabilities
-
-#### Shell Integration (`shell.py`)
-
-Command execution with:
-
-- Template variable substitution
-- Environment variable management
-- Output capture and logging
-- Error handling and exit code processing
-- Timeout and resource management
+- AI-powered commit message generation
+- Manual commit messages with templates
+- Proper author attribution
+- Commit message formatting standards
 
 #### Condition Checker (`condition_checker.py`)
 
 Workflow condition evaluation:
 
 - Local file system checks (post-clone)
-- Remote repository checks via API (pre-clone)
-- Regex pattern matching
+- Remote repository checks via GitHub API (pre-clone)
+- Regex pattern matching with string fallback
 - Performance optimization with early filtering
 
-#### Docker Integration (`docker.py`)
+#### Actions Layer (`actions/`)
 
-Container operations for:
--
-- Image extraction and analysis
-- File extraction from containers
-- Dockerfile parsing and manipulation
-- Registry operations
+Specialized action handlers:
+
+- **Callable** (`actions/callablea.py`): Direct method calls on clients
+- **Claude** (`actions/claude.py`): AI-powered transformations via Claude Code SDK
+- **Docker** (`actions/docker.py`): Container operations and file extraction
+- **File** (`actions/filea.py`): Copy (with globs), move, delete, regex replacement
+- **Git** (`actions/git.py`): Revert, extract, branch management
+- **GitHub** (`actions/github.py`): GitHub-specific operations
+- **Imbi** (`actions/imbi.py`): Project fact management with validation
+- **Shell** (`actions/shell.py`): Command execution via `subprocess_shell` (supports globs)
+- **Template** (`actions/template.py`): Jinja2 rendering with workflow context
+- **Utility** (`actions/utility.py`): Helper operations
 
 ## Workflow System
 

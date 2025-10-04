@@ -9,6 +9,7 @@ imbi-automations CONFIG WORKFLOW [OPTIONS]
 ```
 
 **Arguments:**
+
 - `CONFIG`: Path to configuration TOML file
 - `WORKFLOW`: Path to workflow directory containing config.toml
 
@@ -113,6 +114,7 @@ imbi-automations config.toml workflows/update-apis --project-type api
 ```
 
 **Common Project Types:**
+
 - `api` - API services
 - `consumer` - Message consumers
 - `scheduled-job` - Scheduled tasks
@@ -231,6 +233,7 @@ imbi-automations config.toml workflows/update-all \
 ```
 
 **Behavior:**
+
 - Skips all projects up to and including the specified project
 - Starts processing from the next project
 - Useful for resuming after interruption or failure
@@ -305,10 +308,12 @@ imbi-automations config.toml workflows/critical-update \
 ```
 
 **Behavior:**
+
 - **Without flag:** Logs error, continues to next project
 - **With flag:** Exits immediately with error code
 
 **Use Cases:**
+
 - CI/CD pipelines requiring atomic success
 - Testing workflows before batch runs
 - Critical updates that must succeed for all projects
@@ -344,6 +349,7 @@ imbi-automations config.toml workflows/failing-workflow \
 ```
 
 **What Gets Saved:**
+
 - Complete Git repository state
 - Workflow resource files
 - Docker extracted files
@@ -401,6 +407,7 @@ imbi-automations config.toml workflows/test \
 ```
 
 **Log Categories:**
+
 - Action execution details
 - HTTP requests/responses (API calls)
 - Git operations
@@ -432,6 +439,7 @@ imbi-automations config.toml workflows/update \
 ```
 
 **Difference from --debug:**
+
 - `--verbose`: Action-level progress (cleaner output)
 - `--debug`: Everything (very detailed)
 

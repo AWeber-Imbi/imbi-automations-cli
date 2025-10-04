@@ -30,10 +30,12 @@ fact_value = "3.12"
 ```
 
 **Fields:**
+
 - `fact_name` (string, required): Name of the fact to set
 - `fact_value` (string, required): Value to assign to the fact
 
 **Use Cases:**
+
 - Update project metadata after automated changes
 - Track migration status across projects
 - Record version upgrades or dependency changes

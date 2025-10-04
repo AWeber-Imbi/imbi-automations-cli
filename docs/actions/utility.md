@@ -25,6 +25,7 @@ The utility operation to perform.
 **Type:** `string`
 
 **Options:**
+
 - `docker_tag` - Parse Docker image tags (not implemented)
 - `dockerfile_from` - Extract FROM directive from Dockerfile (not implemented)
 - `compare_semver` - Compare semantic version strings (not implemented)

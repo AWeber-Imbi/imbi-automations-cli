@@ -92,7 +92,7 @@ imbi-automations config.toml workflows/workflow-name --all-projects --start-from
 
 ### 3. Available Workflows
 
-The tool includes 25+ pre-built workflows for common tasks:
+The tool includes 20 pre-built workflows for common tasks:
 
 - **Python Version Updates**: Upgrade projects to newer Python versions
 - **Docker Image Updates**: Update base images and dependencies

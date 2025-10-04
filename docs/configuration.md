@@ -205,6 +205,7 @@ GitHub personal access token or fine-grained token.
 **Required:** For GitHub workflows
 
 **Token Permissions Required:**
+
 - `repo` - Full repository access
 - `workflow` - Update GitHub Actions workflows
 - `admin:org` - Manage organization (for environment sync)
@@ -261,6 +262,7 @@ Project identifier field names in Imbi for external systems.
 
 **Type:** `string`
 **Defaults:**
+
 - `github_identifier = "github"`
 - `pagerduty_identifier = "pagerduty"`
 - `sonarqube_identifier = "sonarqube"`
@@ -279,6 +281,7 @@ Link type names in Imbi for external system URLs.
 
 **Type:** `string`
 **Defaults:**
+
 - `github_link = "GitHub Repository"`
 - `grafana_link = "Grafana Dashboard"`
 - `pagerduty_link = "PagerDuty"`
@@ -291,6 +294,52 @@ These specify the link type names used in Imbi to store external URLs:
 [imbi]
 github_link = "GitHub Repo"
 ```
+
+## Imbi Metadata Cache
+
+The ImbiMetadataCache system caches Imbi metadata locally for improved performance and parse-time validation.
+
+### Cache Location
+
+**Path:** `~/.cache/imbi-automations/metadata.json`
+
+**TTL:** 15 minutes
+
+**Contents:**
+
+- Environments
+- Project type slugs and IDs
+- Fact type definitions with enums and ranges
+- Enum values for fact validation
+
+### Cache Behavior
+
+The metadata cache is automatically managed:
+
+- **First run**: Fetches all metadata from Imbi API
+- **Subsequent runs**: Uses cached data if less than 15 minutes old
+- **Expired cache**: Auto-refreshes from API
+- **Validation**: Enables parse-time validation of workflow filters
+
+### Manual Cache Management
+
+```bash
+# View cache location
+ls -lah ~/.cache/imbi-automations/
+
+# Clear cache (forces refresh on next run)
+rm ~/.cache/imbi-automations/metadata.json
+
+# View cache contents
+cat ~/.cache/imbi-automations/metadata.json | jq .
+```
+
+### Benefits
+
+- **Parse-time validation**: Catches typos in `project_types` and `project_facts` before workflow execution
+- **Fuzzy suggestions**: Provides helpful suggestions for misspelled values
+- **Reduced API calls**: Avoids repeated metadata fetches
+- **Fast filter validation**: Instant validation without network calls
 
 ## Environment Variables
 

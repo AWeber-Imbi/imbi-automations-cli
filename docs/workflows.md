@@ -269,17 +269,20 @@ See the [CLI Reference](cli.md) for complete command-line options.
 Imbi Automations includes 25+ pre-built workflows for common tasks:
 
 **Infrastructure & Tooling:**
+
 - Docker image updates and health checks
 - Terraform CI/CD pipelines
 - Frontend build and deployment
 - Compose configuration fixes
 
 **Code Quality:**
+
 - CI/CD pipeline enforcement
 - GitHub Actions workflow fixes
 - SonarQube quality gate fixes
 
 **Project Maintenance:**
+
 - Standard .gitignore deployment
 - GitHub team synchronization
 - Environment synchronization

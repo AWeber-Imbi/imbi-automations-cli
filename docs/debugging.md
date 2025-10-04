@@ -16,6 +16,7 @@ imbi-automations config.toml workflows/failing-workflow \
 ```
 
 This will:
+
 - `--preserve-on-error`: Save working directory state on failures
 - `--error-dir ./debug`: Store error states in `./debug/`
 - `--debug`: Enable DEBUG level logging (all log messages)
@@ -41,6 +42,7 @@ imbi-automations config.toml workflows/my-workflow \
 **Default:** `false` (working directories are cleaned up)
 
 **When to Use:**
+
 - Investigating why a workflow failed
 - Examining repository state at time of failure
 - Debugging file operations
@@ -100,6 +102,7 @@ imbi-automations config.toml workflows/my-workflow \
 **Default:** `false` (INFO level)
 
 **What Gets Logged:**
+
 - All action executions with parameters
 - HTTP requests/responses
 - Git operations
@@ -131,6 +134,7 @@ imbi-automations config.toml workflows/my-workflow \
 **Default:** `false`
 
 **What Gets Logged:**
+
 - Action start messages
 - Action completion messages
 - Major workflow milestones
@@ -157,6 +161,7 @@ imbi-automations config.toml workflows/my-workflow \
 **Default:** `false` (continue with other projects)
 
 **When to Use:**
+
 - Testing workflows on small batches
 - CI/CD environments
 - When failures are critical
@@ -169,6 +174,7 @@ When `--preserve-on-error` is enabled, a `debug.log` file is automatically creat
 ### Contents
 
 The `debug.log` file includes:
+
 - Complete action execution trace
 - All HTTP API requests and responses
 - File operations with full paths
@@ -215,6 +221,7 @@ Complete clone of the Git repository at the point of failure:
 - Any files created by workflow actions
 
 **Use Cases:**
+
 - Examine file modifications made by actions
 - Check what Claude Code changed
 - Review git history and commits
@@ -236,6 +243,7 @@ Copy of workflow resources:
 - Any files copied from workflow directory
 
 **Use Cases:**
+
 - Verify template content
 - Check prompt files
 - Review workflow resources
@@ -248,6 +256,7 @@ Files extracted from Docker containers by docker actions:
 - Library files
 
 **Use Cases:**
+
 - Verify Docker extraction worked
 - Check extracted file contents
 - Debug docker action issues
@@ -588,6 +597,7 @@ ls -t | tail -n +6 | xargs rm -rf
 **Problem:** `--preserve-on-error` set but no directories in `errors/`
 
 **Causes:**
+
 - Workflow succeeded (no errors to preserve)
 - Insufficient permissions to create directories
 - Disk space full
@@ -610,6 +620,7 @@ df -h .
 **Problem:** Error directory created but `debug.log` missing
 
 **Causes:**
+
 - Failure occurred before logging started
 - Logging not properly initialized
 - Concurrent execution issue

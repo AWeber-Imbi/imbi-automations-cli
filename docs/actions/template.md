@@ -19,12 +19,14 @@ destination_path = "output-location"
 ### source_path (required)
 
 Path to template file or directory. Can be:
+
 - Single `.j2` template file
 - Directory containing `.j2` files (recursively rendered)
 
 **Type:** [`ResourceUrl`](index.md#resourceurl-path-system) (string path)
 
 **Conventions:**
+
 - Template files should use `.j2` extension
 - Directory paths should NOT include wildcards
 - Relative to working directory by default

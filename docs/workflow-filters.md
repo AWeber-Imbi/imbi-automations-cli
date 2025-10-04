@@ -8,7 +8,7 @@ Project filters reduce the scope of workflow execution by pre-filtering projects
 
 - Target specific project types (APIs, consumers, libraries, etc.)
 - Select projects with specific technology stacks
-- Require GitHub/GitLab integration
+- Require GitHub integration
 - Exclude projects with passing builds (target only failing ones)
 - Process only a specific subset of projects
 
@@ -160,7 +160,7 @@ github_identifier_required = true
 
 - GitHub-specific workflows (workflow fixes, PR automation)
 - Projects that must have CI/CD
-- Excluding archived or non-GitHub projects
+- Excluding archived projects without GitHub integration
 
 **Real-world example:**
 ```toml
