@@ -8,6 +8,7 @@ from . import configuration, imbi
 from .claude import AgentRun, AgentRunResult
 from .configuration import (
     AnthropicConfiguration,
+    ClaudeCodeConfiguration,
     Configuration,
     GitHubConfiguration,
     ImbiConfiguration,
@@ -76,6 +77,7 @@ __all__ = [
     'AgentRun',
     'AgentRunResult',
     'AnthropicConfiguration',
+    'ClaudeCodeConfiguration',
     'Configuration',
     'GitCommit',
     'GitCommitSummary',

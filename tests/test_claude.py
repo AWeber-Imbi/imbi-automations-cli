@@ -134,7 +134,7 @@ class ClaudeTestCase(base.AsyncTestCase):
         mock_client_class.return_value = mock_client_instance
 
         claude_instance = claude.Claude(
-            configuration=self.config, context=self.context, verbose=True
+            config=self.config, context=self.context, verbose=True
         )
 
         # Verify initialization
@@ -162,7 +162,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                configuration=self.config, context=self.context
+                config=self.config, context=self.context
             )
 
         # Test with plain JSON
@@ -193,7 +193,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                configuration=self.config, context=self.context
+                config=self.config, context=self.context
             )
 
         valid_result = {'result': 'success', 'message': 'Operation completed'}
@@ -224,7 +224,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                configuration=self.config, context=self.context
+                config=self.config, context=self.context
             )
 
         message = mock.MagicMock(spec=claude_agent_sdk.ResultMessage)
@@ -251,7 +251,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                configuration=self.config, context=self.context
+                config=self.config, context=self.context
             )
 
         message = mock.MagicMock(spec=claude_agent_sdk.ResultMessage)
@@ -283,7 +283,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                configuration=self.config, context=self.context
+                config=self.config, context=self.context
             )
 
         message = mock.MagicMock(spec=claude_agent_sdk.AssistantMessage)
@@ -307,7 +307,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                configuration=self.config, context=self.context
+                config=self.config, context=self.context
             )
 
         message = mock.MagicMock(spec=claude_agent_sdk.SystemMessage)
@@ -329,7 +329,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                configuration=self.config, context=self.context
+                config=self.config, context=self.context
             )
 
         message = mock.MagicMock(spec=claude_agent_sdk.UserMessage)
@@ -353,7 +353,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                configuration=self.config, context=self.context
+                config=self.config, context=self.context
             )
 
         text_block1 = mock.MagicMock(spec=claude_agent_sdk.TextBlock)
@@ -388,7 +388,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                configuration=self.config, context=self.context
+                config=self.config, context=self.context
             )
 
         with mock.patch.object(claude_instance.logger, 'debug') as mock_debug:
@@ -410,7 +410,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                configuration=self.config, context=self.context
+                config=self.config, context=self.context
             )
 
         # Create a mock unknown block type
@@ -437,7 +437,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                configuration=self.config, context=self.context
+                config=self.config, context=self.context
             )
 
         # Set initial session_id
@@ -467,7 +467,7 @@ class ClaudeTestCase(base.AsyncTestCase):
             ),
         ):
             claude_instance = claude.Claude(
-                configuration=self.config, context=self.context
+                config=self.config, context=self.context
             )
 
         # Set initial session_id

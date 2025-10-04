@@ -60,7 +60,6 @@ class TestImbiClient(base.AsyncTestCase):
         headers = client.http_client.headers
         self.assertIn('Private-Token', headers)
         self.assertEqual(headers['Private-Token'], 'uuid-test-token')
-        self.assertEqual(client._project_types, [])
 
     async def test_imbi_init_with_custom_transport(self) -> None:
         """Test Imbi client initialization with custom transport."""
@@ -607,7 +606,7 @@ class TestImbiClient(base.AsyncTestCase):
                 'name': 'Test Coverage',
                 'project_type_ids': [1],
                 'fact_type': 'range',
-                'data_type': 'number',
+                'data_type': 'decimal',
                 'description': 'Test coverage percentage',
             },
         ]
@@ -626,36 +625,6 @@ class TestImbiClient(base.AsyncTestCase):
         self.assertIsInstance(result[0], models.ImbiProjectFactType)
         self.assertEqual(result[0].name, 'Programming Language')
         self.assertEqual(result[1].name, 'Test Coverage')
-
-    async def test_get_fact_types_caching(self) -> None:
-        """Test that fact types are cached after first retrieval."""
-        # First call should make HTTP request
-        fact_types_data = [
-            {
-                'id': 1,
-                'name': 'Test Fact',
-                'project_type_ids': [1],
-                'fact_type': 'free-form',
-                'data_type': 'string',
-            }
-        ]
-
-        self.http_client_side_effect = httpx.Response(
-            http.HTTPStatus.OK,
-            json=fact_types_data,
-            request=httpx.Request(
-                'GET', 'https://imbi.example.com/project-fact-types'
-            ),
-        )
-
-        result1 = await self.instance.get_fact_types()
-
-        # Second call should use cached data (no new HTTP request)
-        self.http_client_side_effect = None  # Should not be called
-        result2 = await self.instance.get_fact_types()
-
-        self.assertEqual(result1, result2)
-        self.assertEqual(len(result2), 1)
 
     async def test_get_fact_type_id_by_name_found(self) -> None:
         """Test fact type ID lookup by name when found."""

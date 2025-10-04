@@ -65,7 +65,7 @@ class WorkflowEnginePullRequestTestCase(base.AsyncTestCase):
 
         # Create engine instance
         self.engine = workflow_engine.WorkflowEngine(
-            configuration=self.config, workflow=self.workflow
+            config=self.config, workflow=self.workflow
         )
         # Provide mocked Claude and GitHub clients to avoid external calls
         self.engine.claude = mock.AsyncMock()

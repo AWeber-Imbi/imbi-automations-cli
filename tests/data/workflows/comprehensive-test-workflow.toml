@@ -63,7 +63,7 @@ remote_client = "github"
 remote_file_exists = "README.md"
 
 [[conditions]]
-remote_client = "gitlab"
+remote_client = "github"
 remote_file_not_exists = ".travis.yml"
 
 [[conditions]]

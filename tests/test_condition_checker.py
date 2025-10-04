@@ -500,18 +500,6 @@ class ConditionCheckerTestCase(base.AsyncTestCase):
 
         self.assertIn('GitHub is not configured', str(exc_context.exception))
 
-    async def test_check_remote_client_gitlab_missing(self) -> None:
-        """Test _check_remote_client with missing GitLab configuration."""
-        condition = models.WorkflowCondition(
-            remote_file_exists='test.txt',
-            remote_client=models.WorkflowConditionRemoteClient.gitlab,
-        )
-
-        with self.assertRaises(RuntimeError) as exc_context:
-            await self.checker._check_remote_client(condition)
-
-        self.assertIn('GitLab is not configured', str(exc_context.exception))
-
     def test_check_file_contains_helper_success(self) -> None:
         """Test _check_file_contains helper method."""
         condition = models.WorkflowCondition(
