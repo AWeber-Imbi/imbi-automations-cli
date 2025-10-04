@@ -62,7 +62,7 @@ class ClaudeAction(mixins.WorkflowLoggerMixin):
             )
 
             # Warn when approaching max cycles
-            if cycle >= warning_threshold and cycle < action.max_cycles:
+            if warning_threshold <= cycle < action.max_cycles:
                 self.logger.warning(
                     'Action %s has used %d/%d cycles - approaching limit',
                     action.name,
