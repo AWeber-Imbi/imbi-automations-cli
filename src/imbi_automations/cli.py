@@ -172,21 +172,6 @@ def parse_args(args: list[str] | None = None) -> argparse.Namespace:
         action='store_true',
         help='Process all GitHub repositories across all organizations',
     )
-    target_group.add_argument(
-        '--gitlab-repository',
-        metavar='URL',
-        help='Process a single GitLab repository by URL',
-    )
-    target_group.add_argument(
-        '--gitlab-group',
-        metavar='GROUP',
-        help='Recursively process all repositories in a GitLab group',
-    )
-    target_group.add_argument(
-        '--all-gitlab-repositories',
-        action='store_true',
-        help='Process all GitLab repositories across all organizations',
-    )
 
     parser.add_argument(
         '--start-from-project',
