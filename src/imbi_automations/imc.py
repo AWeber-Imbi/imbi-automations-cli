@@ -65,20 +65,16 @@ class ImbiMetadataCache:
                     # Note: Actual data loading is deferred to first use
                     # to avoid blocking event loop
                     try:
-                        loop = asyncio.get_running_loop()
+                        asyncio.get_running_loop()
                         # We're in async context - use async init instead
                         LOGGER.warning(
                             'get_instance() called from async context. '
                             'Data will be loaded on first property access.'
                         )
                     except RuntimeError:
-                        # No event loop running - safe to load synchronously
-                        loop = asyncio.new_event_loop()
-                        asyncio.set_event_loop(loop)
-                        try:
-                            loop.run_until_complete(cls.instance._load_data())
-                        finally:
-                            loop.close()
+                        # No event loop - safe to load synchronously
+                        # asyncio.run() manages loop lifecycle properly
+                        asyncio.run(cls.instance._load_data())
         return cls.instance
 
     def is_cache_expired(self) -> bool:
