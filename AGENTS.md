@@ -6,7 +6,7 @@ This file provides guidance to AI Agents like Claude Code (claude.ai/code) when 
 
 ## Project Overview
 
-Imbi Automations is a CLI framework for executing dynamic workflows across software project repositories with deep integration to the Imbi project management system. The architecture is based on the proven g2g-migration tool which handled complex GitLab→GitHub migrations with AI-powered transformations.
+Imbi Automations is a CLI framework for executing dynamic workflows across software project repositories with deep integration to the Imbi project management system and GitHub. It provides AI-powered transformations using Claude Code SDK for complex multi-file changes, automated PR creation, and comprehensive project fact management.
 
 ## Development Commands
 
@@ -68,17 +68,16 @@ pre-commit run --all-files
 
 #### Client Layer (under `clients/`)
 - **HTTP Client** (`clients/http.py`): Base async HTTP client with authentication and error handling
-- **Imbi Client** (`clients/imbi.py`): Integration with Imbi project management API
+- **Imbi Client** (`clients/imbi.py`): Integration with Imbi project management API with caching
 - **GitHub Client** (`clients/github.py`): GitHub API integration with pattern-aware workflow file detection
-- **GitLab Client** (`clients/gitlab.py`): GitLab API integration for repository operations
 
 #### Models (under `models/`)
 - **Configuration** (`models/configuration.py`): TOML-based configuration with Pydantic validation
 - **Workflow** (`models/workflow.py`): Comprehensive workflow definition with actions, conditions, and filters
-  - **Action Types**: `callable`, `claude`, `docker`, `git`, `file`, `shell`, `utility`, `template`, `github`
+  - **Action Types**: `callable`, `claude`, `docker`, `git`, `file`, `shell`, `utility`, `template`, `github`, `imbi`
+  - **Filter Validation**: Automatic validation of project_types and project_facts against Registry cache
 - **GitHub** (`models/github.py`): GitHub repository and API response models
-- **GitLab** (`models/gitlab.py`): GitLab project and API response models
-- **Imbi** (`models/imbi.py`): Imbi project management system models
+- **Imbi** (`models/imbi.py`): Imbi project management system models including fact types, environments, and project types
 - **Claude** (`models/claude.py`): Claude Code integration models
 - **SonarQube** (`models/sonarqube.py`): SonarQube integration models
 - **Git** (`models/git.py`): Git operation models
@@ -89,14 +88,16 @@ pre-commit run --all-files
 - **Callable Actions** (`actions/callablea.py`): Direct method calls on client instances with dynamic kwargs
 - **Claude Actions** (`actions/claude.py`): AI-powered transformations using Claude Code SDK
 - **Docker Actions** (`actions/docker.py`): Docker container operations and file extractions
-- **File Actions** (`actions/filea.py`): File manipulation (copy with glob support, move, regex replacement)
+- **File Actions** (`actions/filea.py`): File manipulation (copy with glob support, move, delete, regex replacement)
 - **Git Actions** (`actions/git.py`): Git operations (revert, extract, branch management)
 - **GitHub Actions** (`actions/github.py`): GitHub-specific operations and integrations
-- **Shell Actions** (`actions/shell.py`): Shell command execution with templating support
+- **Imbi Actions** (`actions/imbi.py`): Imbi project fact management (set_project_fact command)
+- **Shell Actions** (`actions/shell.py`): Shell command execution with glob expansion via subprocess_shell
 - **Template Actions** (`actions/template.py`): Jinja2 template rendering with full workflow context
 - **Utility Actions** (`actions/utility.py`): Helper operations for common workflow tasks
 
 #### Supporting Components
+- **Registry** (`registry.py`): Singleton registry for caching Imbi metadata (fact types, project types, environments) with 15-minute TTL
 - **Git Operations** (`git.py`): Repository cloning, committing, and Git operations
 - **Environment Sync** (`environment_sync.py`): GitHub environment synchronization logic
 - **Condition Checker** (`condition_checker.py`): Workflow condition evaluation system
@@ -108,7 +109,7 @@ pre-commit run --all-files
 - **Prompts Templates** (`prompts/`): Jinja2 template files for Claude Code prompts and PR generation
 - **Claude Code Standards** (`claude-code/CLAUDE.md`): Standards and conventions for Claude Code actions
 - **Claude Code Agents** (`claude-code/agents/`): Agent discovery and configuration files
-- **Workflow Filter** (`workflow_filter.py`): Project filtering and targeting logic
+- **Workflow Filter** (`workflow_filter.py`): Project filtering with environment and fact validation
 
 ### Configuration Structure
 
@@ -134,12 +135,13 @@ The system supports multiple transformation types through the workflow action sy
 1. **Callable Actions** (`actions/callablea.py`): Direct method calls on client instances with dynamic kwargs
 2. **Claude Actions** (`actions/claude.py`): Complex multi-file analysis and transformation using Claude Code SDK
 3. **Docker Actions** (`actions/docker.py`): Container-based file extraction and manipulation
-4. **File Actions** (`actions/filea.py`): Direct file manipulation (copy with glob patterns, move, regex replacement)
+4. **File Actions** (`actions/filea.py`): Direct file manipulation (copy with glob patterns, move, delete, regex replacement)
 5. **Git Actions** (`actions/git.py`): Version control operations (revert, extract, branch management)
 6. **GitHub Actions** (`actions/github.py`): GitHub-specific operations and API integrations
-7. **Shell Actions** (`actions/shell.py`): Arbitrary command execution with templated variables
-8. **Template Actions** (`actions/template.py`): Jinja2-based file generation with full project context
-9. **Utility Actions** (`actions/utility.py`): Helper operations for common workflow tasks
+7. **Imbi Actions** (`actions/imbi.py`): Imbi project fact management with validated fact names and enum values
+8. **Shell Actions** (`actions/shell.py`): Shell command execution with glob expansion (uses subprocess_shell for pattern support)
+9. **Template Actions** (`actions/template.py`): Jinja2-based file generation with full project context
+10. **Utility Actions** (`actions/utility.py`): Helper operations for common workflow tasks
 
 All actions are dispatched through the centralized `Actions` class (`actions/__init__.py`) which uses Python 3.12's match/case pattern for type-safe routing.
 
@@ -198,7 +200,7 @@ destination_path = "repository/config/"     # Relative to working directory
 - `source_path` is relative to workflow directory
 - `destination_path` is relative to working directory (temp directory root)
 - For directories, use `"ci"` not `"ci/*"` (directory rendering is automatic)
-- Template context includes: `workflow`, `github_repository`, `gitlab_project`, `imbi_project`, `working_directory`, `starting_commit`
+- Template context includes: `workflow`, `github_repository`, `imbi_project`, `working_directory`, `starting_commit`
 
 ### Workflow Structure
 
@@ -327,10 +329,10 @@ project_ids = [123, 456, 789]
 # Filter by project types
 project_types = ["apis", "consumers", "scheduled-jobs"]
 
-# Filter by project facts (exact string matching)
+# Filter by project facts (supports real names or slugs, validated against Registry)
 project_facts = {
-    "Programming Language" = "Python 3.12"
-    "Framework" = "FastAPI"
+    "Programming Language" = "Python 3.12"  # Auto-normalized to "programming_language"
+    "Framework" = "FastAPI"                 # Enum values validated at parse time
 }
 
 # Require GitHub identifier to be present
@@ -344,6 +346,7 @@ exclude_github_workflow_status = ["success"]
 - **Pre-filtering**: Projects are filtered before processing, not during each iteration
 - **Batch efficiency**: "Found 664 total projects" → "Processing 50 filtered projects"
 - **Multiple criteria**: All filter criteria must match (AND logic)
+- **Early Validation**: Filter fields validated at parse time using Registry cache (catches typos before processing)
 
 **Common Use Cases:**
 ```toml
@@ -460,18 +463,25 @@ The system includes 20 pre-built workflows organized by category:
 
 ### Completed Features
 - **Workflow Engine**: Full workflow execution with action-based processing
-- **Multi-Provider Support**: GitHub and GitLab client implementations
+- **GitHub Integration**: GitHub API client with repository operations and workflow status detection
+- **Imbi Integration**: Project fact management with Registry-based validation and caching
 - **Batch Processing**: Concurrent processing with resumption from specific projects
-- **File Operations**: Copy with glob patterns, move, regex replacement, and template generation
-- **AI Integration**: Claude Code SDK integration with prompt management
-- **Git Operations**: Repository cloning, branch management, and version control
-- **Configuration System**: TOML-based configuration with comprehensive validation
-- **Error Handling**: Robust error recovery with action restart capabilities
-- **Testing Infrastructure**: Comprehensive test suite with async support and HTTP mocking
+- **File Operations**: Copy with glob patterns, move, delete, regex replacement, and template generation
+- **AI Integration**: Claude Code SDK integration with prompt management and multi-cycle validation
+- **Git Operations**: Repository cloning, branch management, and version control with git add --all
+- **Configuration System**: TOML-based configuration with comprehensive validation and filter checking
+- **Registry System**: Singleton cache for Imbi metadata (15-minute TTL) with parse-time validation
+- **Error Handling**: Robust error recovery with action restart capabilities and per-project logging
+- **Testing Infrastructure**: Comprehensive test suite (255 tests) with async support and HTTP mocking
 
-### Architecture Improvements Made
+### Recent Architecture Improvements (2025)
+- **GitLab Removal**: Removed GitLab client, models, and CLI arguments (GitHub-only integration)
+- **Registry System**: New singleton `Registry` class for Imbi metadata caching with 15-minute TTL
+- **Filter Validation**: Parse-time validation of project_types and project_facts against Registry
+- **Imbi Actions**: Implemented set_project_fact command with enum/range/free-form validation
+- **Shell Action Fix**: Changed to subprocess_shell for proper glob pattern expansion
 - **Controller Refactoring**: Replaced `AutomationEngine` with modern `Automation` controller
-- **Modular Structure**: Organized codebase into logical modules (`clients/`, `models/`)
+- **Modular Structure**: Organized codebase into logical modules (`clients/`, `models/`, `actions/`)
 - **Async Optimization**: Full async/await implementation with concurrency controls
 - **Memory Optimization**: LRU caching for expensive operations
 - **Type Safety**: Comprehensive type hints and Pydantic models throughout
@@ -483,25 +493,76 @@ The system includes 20 pre-built workflows organized by category:
 - **Monitoring Integration**: Enhanced logging and metrics collection
 - **Plugin System**: Extensible action types and client providers
 
-## Recent Refactoring Summary
+## Key Implementation Details
 
-**Major Changes Made**:
-- Replaced `AutomationEngine` with `Automation` controller pattern
-- Reorganized code into logical modules (`clients/`, `models/`, `actions/`)
-- Extracted action implementations into dedicated `actions/` module with individual files per action type
-- Created centralized `Actions` dispatcher class using Python 3.12 match/case pattern
-- Separated commit logic into dedicated `Committer` class supporting both AI and manual commits
-- Enhanced workflow engine with comprehensive action support
-- Added `async_lru` dependency for improved caching performance
-- Implemented robust error handling and recovery mechanisms
-- Added comprehensive type safety throughout the codebase
-- Introduced per-project logging for better troubleshooting
+### Registry System
+The `Registry` class (`registry.py`) provides singleton caching of Imbi metadata:
+
+**Cached Data** (stored in `~/.cache/imbi-automations/registry.json`):
+- **Environments**: All Imbi environments for filter validation
+- **Project Types**: All project type slugs with IDs
+- **Fact Types**: Complete fact type definitions with project_type_ids
+- **Fact Type Enums**: All enum values for enum-type facts
+- **Fact Type Ranges**: Min/max bounds for range-type facts
+
+**Features**:
+- **15-minute TTL**: Auto-refreshes when expired
+- **Singleton Pattern**: One registry instance per process
+- **Parse-Time Validation**: Validates filters before workflow execution
+- **Handles Duplicates**: Multiple fact types with same name (different project types)
+- **Property Access**: `registry.project_type_slugs`, `registry.environments`, `registry.project_fact_type_names`
+
+**Usage in Validation**:
+- WorkflowFilter validates project_types and project_facts at parse time
+- Controller validates --project-type CLI argument before processing
+- Provides helpful suggestions for typos
+
+### Imbi Fact Management
+Project facts support three validation modes:
+
+1. **Enum Facts**: Values validated against allowed enum list
+   - Example: "Programming Language" with values ["Python 3.9", "Python 3.12", "ES2015+", ...]
+   - Multiple definitions per name (different project types get different enums)
+   - Validation uses combined enum values from all definitions
+
+2. **Range Facts**: Numeric values validated against min/max bounds
+   - Example: "Test Coverage" range 0-100
+   - Requires decimal or integer data type
+
+3. **Free-Form Facts**: Type coercion only, no value constraints
+   - Example: Custom notes, timestamps, version strings
+
+**Data Types Supported**: boolean, date, decimal, integer, string, timestamp
+
+### Shell Actions
+Shell actions use `subprocess_shell` instead of `subprocess_exec` to enable:
+- **Glob pattern expansion**: `.github/workflows/*.yml` expands to actual files
+- **Environment variable expansion**: `$HOME`, `$PATH`, etc.
+- **Command chaining**: Pipes, redirects, and shell operators
+- **Template support**: Jinja2 templating with workflow context
+
+### Git Operations
+- **add_files()**: Uses `git add --all` (no file list parameter)
+- **Cloning**: Supports depth, branch, and SSH/HTTPS clone types
+- **Commits**: Handled by Committer class (AI-powered or manual)
+- **Branch Management**: Create, checkout, delete remote branches
+
+## Recent Refactoring Summary (October 2025)
+
+**Major Changes**:
+- **GitLab Removal**: Removed all GitLab support (client, models, CLI args) - GitHub-only
+- **Registry Pattern**: Replaced FactRegistry with singleton Registry class
+- **Filter Validation**: Added parse-time validation for project_types, project_facts, and environments
+- **Imbi Actions**: Implemented set_project_fact with full enum/range/free-form support
+- **Shell Execution Fix**: Changed from subprocess_exec to subprocess_shell for glob support
+- **Controller Simplification**: Removed GitLab iterator types, streamlined validation
+- **Imbi Client Updates**: Removed internal caching, simplified to use Registry
+- **Workflow Filter Refactor**: Split filter logic into helper methods for clarity
 
 **Architecture Benefits**:
-- Cleaner separation of concerns between controller, engine, actions, and committer
-- More maintainable action implementations with single-responsibility principle
-- Centralized action routing makes it easier to add new action types
-- Enhanced testability with modular structure and isolated action classes
-- Better performance with async optimizations and LRU caching
-- Improved developer experience with comprehensive type hints
-- Easier to extend with new action types through match/case dispatcher pattern
+- **Simpler Codebase**: Removed ~2000 lines of unused GitLab code
+- **Faster Validation**: Registry cache enables instant filter validation
+- **Better UX**: Helpful error messages with fuzzy-matched suggestions
+- **Maintainability**: Cleaner separation with Registry handling all Imbi metadata
+- **Type Safety**: Comprehensive validation at parse time prevents runtime errors
+- **Performance**: 15-minute cache reduces API calls, subprocess_shell enables shell features
