@@ -136,10 +136,11 @@ class ClaudeAction(mixins.WorkflowLoggerMixin):
             prompt_file = (
                 pathlib.Path(__file__).parent / 'prompts' / 'last-error.md.j2'
             )
-            prompt += prompts.render(
+            return prompts.render(
                 self.context,
                 prompt_file,
                 last_error=self.last_error.model_dump_json(indent=2),
+                original_prompt=prompt,
             )
 
         return prompt
