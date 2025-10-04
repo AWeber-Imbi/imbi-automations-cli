@@ -256,7 +256,7 @@ def main() -> None:
     LOGGER.info('Imbi Automations v%s starting', version)
     try:
         automation_controller = controller.Automation(
-            args=args, configuration=config, workflow=args.workflow
+            args=args, config=config, workflow=args.workflow
         )
     except RuntimeError as err:
         sys.stderr.write(f'ERROR: {err}\n')
