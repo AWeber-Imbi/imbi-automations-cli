@@ -1,17 +1,15 @@
 """Main automation controller for executing workflows across projects.
 
 The controller implements an iterator pattern for processing different
-target types (GitHub repositories, GitLab projects, Imbi projects) with
-workflow execution, concurrency control, and comprehensive error handling.
+target types (GitHub repositories, Imbi projects) with workflow execution,
+concurrency control, and comprehensive error handling.
 """
 
 import argparse
 import asyncio
 import collections
 import enum
-import json
 import logging
-import pathlib
 
 import async_lru
 
@@ -20,6 +18,7 @@ from imbi_automations import (
     mixins,
     models,
     per_project_logging,
+    registry,
     workflow_engine,
     workflow_filter,
 )
@@ -30,19 +29,16 @@ LOGGER = logging.getLogger(__name__)
 class AutomationIterator(enum.Enum):
     """Enumeration of automation target types.
 
-    Defines supported iteration patterns for GitHub repositories, GitLab
-    projects, and Imbi project types and projects.
+    Defines supported iteration patterns for GitHub repositories and Imbi
+    project types and projects.
     """
 
     github_repositories = 1
     github_organization = 2
     github_project = 3
-    gitlab_repositories = 4
-    gitlab_group = 5
-    gitlab_project = 6
-    imbi_project_type = 7
-    imbi_project = 8
-    imbi_projects = 9
+    imbi_project_type = 4
+    imbi_project = 5
+    imbi_projects = 6
 
 
 class Automation(mixins.WorkflowLoggerMixin):
@@ -56,25 +52,21 @@ class Automation(mixins.WorkflowLoggerMixin):
     def __init__(
         self,
         args: argparse.Namespace,
-        configuration: models.Configuration,
+        config: models.Configuration,
         workflow: models.Workflow,
     ) -> None:
         super().__init__(args.verbose)
         self.args = args
-        self.cache: dict[
-            str, dict[int, models.GitHubRepository | models.GitLabProject]
-        ] = {}
-        self.configuration = configuration
+        self.configuration = config
         self.counter = collections.Counter()
         self.logger = LOGGER
+        self.registry = registry.Registry.get_instance(config)
         self.workflow = workflow
         self.workflow_engine = workflow_engine.WorkflowEngine(
-            configuration=self.configuration,
-            workflow=workflow,
-            verbose=args.verbose,
+            config=self.configuration, workflow=workflow, verbose=args.verbose
         )
         self.workflow_filter = workflow_filter.Filter(
-            configuration, workflow, args.verbose
+            config, workflow, args.verbose
         )
         self._set_workflow_logger(workflow)
 
@@ -98,16 +90,11 @@ class Automation(mixins.WorkflowLoggerMixin):
             return AutomationIterator.github_organization
         elif self.args.all_github_repositories:
             return AutomationIterator.github_repositories
-        elif self.args.gitlab_repository:
-            return AutomationIterator.gitlab_project
-        elif self.args.gitlab_group:
-            return AutomationIterator.gitlab_group
-        elif self.args.all_gitlab_repositories:
-            return AutomationIterator.gitlab_repositories
         else:
             raise ValueError('No valid target argument provided')
 
     async def run(self) -> bool:
+        self._validate_workflow_filters()
         match self.iterator:
             case AutomationIterator.github_repositories:
                 return await self._process_github_repositories()
@@ -115,12 +102,6 @@ class Automation(mixins.WorkflowLoggerMixin):
                 return await self._process_github_organization()
             case AutomationIterator.github_project:
                 return await self._process_github_project()
-            case AutomationIterator.gitlab_repositories:
-                return await self._process_gitlab_repositories()
-            case AutomationIterator.gitlab_group:
-                return await self._process_gitlab_group()
-            case AutomationIterator.gitlab_project:
-                return await self._process_gitlab_project()
             case AutomationIterator.imbi_project_type:
                 return await self._process_imbi_project_type()
             case AutomationIterator.imbi_project:
@@ -180,26 +161,11 @@ class Automation(mixins.WorkflowLoggerMixin):
         client = clients.GitHub.get_instance(config=self.configuration)
         return await client.get_repository(project)
 
-    @async_lru.alru_cache(maxsize=1024)
-    async def _get_gitlab_project(
-        self, project: models.ImbiProject
-    ) -> models.GitLabProject | None:
-        if not self.configuration.gitlab:
-            return None
-        client = clients.GitLab.get_instance(config=self.configuration)
-        return await client.get_project(project)
-
     async def _process_github_repositories(self) -> bool: ...
 
     async def _process_github_organization(self) -> bool: ...
 
     async def _process_github_project(self) -> bool: ...
-
-    async def _process_gitlab_repositories(self) -> bool: ...
-
-    async def _process_gitlab_group(self) -> bool: ...
-
-    async def _process_gitlab_project(self) -> bool: ...
 
     async def _process_imbi_project(self) -> bool:
         client = clients.Imbi.get_instance(config=self.configuration.imbi)
@@ -215,6 +181,68 @@ class Automation(mixins.WorkflowLoggerMixin):
         self.logger.debug('Found %d total active projects', len(projects))
         return await self._process_imbi_projects_common(projects)
 
+    def _validate_workflow_filters(self) -> None:
+        """Validate workflow filters against cache if available."""
+        if not self.workflow.configuration.filter:
+            return
+        wfilter = self.workflow.configuration.filter
+        LOGGER.debug('Validating workflow filters: %r', wfilter.model_dump())
+
+        LOGGER.debug(
+            '%r > %r = %r',
+            wfilter.project_types,
+            self.registry.project_type_slugs,
+            wfilter.project_types <= self.registry.project_type_slugs,
+        )
+
+        if (
+            wfilter.project_types
+            and wfilter.project_types - self.registry.project_type_slugs
+        ):
+            missing = wfilter.project_types - self.registry.project_type_slugs
+            invalid = ', '.join(missing)
+            if len(missing) > 1:
+                raise RuntimeError(f'{invalid} are not valid project types')
+            raise RuntimeError(f'{invalid} is not a valid project type')
+
+        if (
+            wfilter.project_environments
+            and {env.lower() for env in wfilter.project_environments}
+            - self.registry.environments
+        ):
+            missing = {
+                env.lower() for env in wfilter.project_environments
+            } - self.registry.environments
+            invalid = ', '.join(missing)
+            if len(missing) > 1:
+                raise RuntimeError(f'{invalid} are not valid environments')
+            raise RuntimeError(f'{invalid} is not a valid environment')
+
+        # Skip out early if no project facts are specified
+        if not wfilter.project_facts:
+            return
+
+        # First check all the keys
+        fact_names = set(wfilter.project_facts.keys())
+        if fact_names - self.registry.project_fact_type_names:
+            missing = fact_names - self.registry.project_fact_type_names
+            invalid = ', '.join(missing)
+            if len(missing) > 1:
+                raise RuntimeError(
+                    f'{invalid} are not valid project fact types'
+                )
+            raise RuntimeError(f'{invalid} is not a valid project fact type')
+
+        # Check the values
+        for name in fact_names:
+            if wfilter.project_facts[
+                name
+            ] not in self.registry.project_fact_type_values(name):
+                raise RuntimeError(
+                    f'Invalid value for fact type {name}: '
+                    f'"{wfilter.project_facts[name]}"'
+                )
+
     def _validate_project_type_slug(self, slug: str) -> None:
         """Validate project type slug against cache if available.
 
@@ -222,41 +250,11 @@ class Automation(mixins.WorkflowLoggerMixin):
             slug: Project type slug to validate
 
         Raises:
-            ValueError: If slug is invalid
+            RuntimeError: If slug is invalid
 
         """
-        cache_file = (
-            pathlib.Path.home() / '.imbi-automations' / 'fact-cache.json'
-        )
-
-        if not cache_file.exists():
-            return  # Skip validation if no cache
-
-        try:
-            from imbi_automations import fact_registry
-
-            registry = fact_registry.FactRegistry()
-            registry._cache_file = cache_file
-            registry._load_from_cache()
-
-            if not registry.project_type_slugs:
-                return
-
-            if slug not in registry.project_type_slugs:
-                # Find similar for suggestions
-                similar = [
-                    s
-                    for s in registry.project_type_slugs
-                    if s.startswith(slug[:3])
-                ][:3]
-                error_msg = f'Invalid project type slug: "{slug}"'
-                if similar:
-                    error_msg += f'. Did you mean: {", ".join(similar)}?'
-                raise ValueError(error_msg)
-
-        except (OSError, json.JSONDecodeError, KeyError):
-            # Cache error, skip validation
-            pass
+        if slug not in self.registry.project_type_slugs:
+            raise RuntimeError(f'Invalid project type slug `{slug}`')
 
     async def _process_imbi_projects(self) -> bool:
         client = clients.Imbi.get_instance(config=self.configuration.imbi)
@@ -304,13 +302,12 @@ class Automation(mixins.WorkflowLoggerMixin):
 
         try:
             github_repository = await self._get_github_repository(project)
-            gitlab_project = await self._get_gitlab_project(project)
             self._log_verbose_info(
                 'Processing %s (%i)', project.name, project.id
             )
 
             success = await self.workflow_engine.execute(
-                project, github_repository, gitlab_project
+                project, github_repository
             )
 
             if not success:
