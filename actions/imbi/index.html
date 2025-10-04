@@ -1108,6 +1108,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../templating/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Templating
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../debugging/" class="md-nav__link">
         
   
@@ -1404,14 +1427,18 @@
 <a id="__codelineno-1-5" name="__codelineno-1-5" href="#__codelineno-1-5"></a><span class="n">fact_name</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;Python Version&quot;</span>
 <a id="__codelineno-1-6" name="__codelineno-1-6" href="#__codelineno-1-6"></a><span class="n">fact_value</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="s2">&quot;3.12&quot;</span>
 </code></pre></div></p>
-<p><strong>Fields:</strong>
-- <code>fact_name</code> (string, required): Name of the fact to set
-- <code>fact_value</code> (string, required): Value to assign to the fact</p>
-<p><strong>Use Cases:</strong>
-- Update project metadata after automated changes
-- Track migration status across projects
-- Record version upgrades or dependency changes
-- Maintain synchronization between repository state and Imbi</p>
+<p><strong>Fields:</strong></p>
+<ul>
+<li><code>fact_name</code> (string, required): Name of the fact to set</li>
+<li><code>fact_value</code> (string, required): Value to assign to the fact</li>
+</ul>
+<p><strong>Use Cases:</strong></p>
+<ul>
+<li>Update project metadata after automated changes</li>
+<li>Track migration status across projects</li>
+<li>Record version upgrades or dependency changes</li>
+<li>Maintain synchronization between repository state and Imbi</li>
+</ul>
 <h2 id="context-access">Context Access<a class="headerlink" href="#context-access" title="Permanent link">&para;</a></h2>
 <p>Imbi actions have access to the current project data through the workflow context:</p>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-2-1" name="__codelineno-2-1" href="#__codelineno-2-1"></a><span class="n">context</span><span class="o">.</span><span class="n">imbi_project</span><span class="o">.</span><span class="n">id</span>           <span class="c1"># Project ID</span>

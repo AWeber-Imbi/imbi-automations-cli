@@ -872,6 +872,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../templating/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Templating
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../debugging/" class="md-nav__link">
         
   
@@ -1061,33 +1084,6 @@
   <a href="#-all-github-repositories" class="md-nav__link">
     <span class="md-ellipsis">
       --all-github-repositories
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#-gitlab-repository-url" class="md-nav__link">
-    <span class="md-ellipsis">
-      --gitlab-repository URL
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#-gitlab-group-group" class="md-nav__link">
-    <span class="md-ellipsis">
-      --gitlab-group GROUP
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#-all-gitlab-repositories" class="md-nav__link">
-    <span class="md-ellipsis">
-      --all-gitlab-repositories
     </span>
   </a>
   
@@ -1613,33 +1609,6 @@
   
 </li>
         
-          <li class="md-nav__item">
-  <a href="#-gitlab-repository-url" class="md-nav__link">
-    <span class="md-ellipsis">
-      --gitlab-repository URL
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#-gitlab-group-group" class="md-nav__link">
-    <span class="md-ellipsis">
-      --gitlab-group GROUP
-    </span>
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#-all-gitlab-repositories" class="md-nav__link">
-    <span class="md-ellipsis">
-      --all-gitlab-repositories
-    </span>
-  </a>
-  
-</li>
-        
       </ul>
     </nav>
   
@@ -2035,9 +2004,11 @@
 <h2 id="basic-usage">Basic Usage<a class="headerlink" href="#basic-usage" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>imbi-automations<span class="w"> </span>CONFIG<span class="w"> </span>WORKFLOW<span class="w"> </span><span class="o">[</span>OPTIONS<span class="o">]</span>
 </code></pre></div>
-<p><strong>Arguments:</strong>
-- <code>CONFIG</code>: Path to configuration TOML file
-- <code>WORKFLOW</code>: Path to workflow directory containing config.toml</p>
+<p><strong>Arguments:</strong></p>
+<ul>
+<li><code>CONFIG</code>: Path to configuration TOML file</li>
+<li><code>WORKFLOW</code>: Path to workflow directory containing config.toml</li>
+</ul>
 <p><strong>Example:</strong>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-1-1" name="__codelineno-1-1" href="#__codelineno-1-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update-python<span class="w"> </span>--all-projects
 </code></pre></div></p>
@@ -2053,11 +2024,8 @@
 <a id="__codelineno-2-9" name="__codelineno-2-9" href="#__codelineno-2-9"></a><span class="w">                  </span>--all-projects<span class="w"> </span><span class="p">|</span>
 <a id="__codelineno-2-10" name="__codelineno-2-10" href="#__codelineno-2-10"></a><span class="w">                  </span>--github-repository<span class="w"> </span>URL<span class="w"> </span><span class="p">|</span>
 <a id="__codelineno-2-11" name="__codelineno-2-11" href="#__codelineno-2-11"></a><span class="w">                  </span>--github-organization<span class="w"> </span>ORG<span class="w"> </span><span class="p">|</span>
-<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">                  </span>--all-github-repositories<span class="w"> </span><span class="p">|</span>
-<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">                  </span>--gitlab-repository<span class="w"> </span>URL<span class="w"> </span><span class="p">|</span>
-<a id="__codelineno-2-14" name="__codelineno-2-14" href="#__codelineno-2-14"></a><span class="w">                  </span>--gitlab-group<span class="w"> </span>GROUP<span class="w"> </span><span class="p">|</span>
-<a id="__codelineno-2-15" name="__codelineno-2-15" href="#__codelineno-2-15"></a><span class="w">                  </span>--all-gitlab-repositories<span class="o">)</span>
-<a id="__codelineno-2-16" name="__codelineno-2-16" href="#__codelineno-2-16"></a><span class="w">                 </span>CONFIG<span class="w"> </span>WORKFLOW
+<a id="__codelineno-2-12" name="__codelineno-2-12" href="#__codelineno-2-12"></a><span class="w">                  </span>--all-github-repositories<span class="o">)</span>
+<a id="__codelineno-2-13" name="__codelineno-2-13" href="#__codelineno-2-13"></a><span class="w">                 </span>CONFIG<span class="w"> </span>WORKFLOW
 </code></pre></div>
 <h2 id="positional-arguments">Positional Arguments<a class="headerlink" href="#positional-arguments" title="Permanent link">&para;</a></h2>
 <h3 id="config">CONFIG<a class="headerlink" href="#config" title="Permanent link">&para;</a></h3>
@@ -2107,12 +2075,14 @@
 <p><strong>Example:</strong>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update-apis<span class="w"> </span>--project-type<span class="w"> </span>api
 </code></pre></div></p>
-<p><strong>Common Project Types:</strong>
-- <code>api</code> - API services
-- <code>consumer</code> - Message consumers
-- <code>scheduled-job</code> - Scheduled tasks
-- <code>frontend</code> - Frontend applications
-- <code>library</code> - Shared libraries</p>
+<p><strong>Common Project Types:</strong></p>
+<ul>
+<li><code>api</code> - API services</li>
+<li><code>consumer</code> - Message consumers</li>
+<li><code>scheduled-job</code> - Scheduled tasks</li>
+<li><code>frontend</code> - Frontend applications</li>
+<li><code>library</code> - Shared libraries</li>
+</ul>
 <p><strong>Output:</strong>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-9-1" name="__codelineno-9-1" href="#__codelineno-9-1"></a>Found 47 projects of type &#39;api&#39;
 <a id="__codelineno-9-2" name="__codelineno-9-2" href="#__codelineno-9-2"></a>Processing: api-service-1 (123)
@@ -2171,62 +2141,38 @@
 <a id="__codelineno-16-2" name="__codelineno-16-2" href="#__codelineno-16-2"></a><span class="w">  </span>--all-github-repositories
 </code></pre></div></p>
 <p><strong>Note:</strong> Discovers repositories from all organizations the API key has access to.</p>
-<h3 id="-gitlab-repository-url">--gitlab-repository URL<a class="headerlink" href="#-gitlab-repository-url" title="Permanent link">&para;</a></h3>
-<p>Process a single GitLab repository by URL.</p>
-<p><strong>Type:</strong> URL string
-<strong>Format:</strong> <code>https://gitlab.com/group/project</code></p>
-<p><strong>Use Case:</strong> Target specific GitLab project</p>
-<p><strong>Example:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update-ci<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a><span class="w">  </span>--gitlab-repository<span class="w"> </span>https://gitlab.com/mygroup/myproject
-</code></pre></div></p>
-<h3 id="-gitlab-group-group">--gitlab-group GROUP<a class="headerlink" href="#-gitlab-group-group" title="Permanent link">&para;</a></h3>
-<p>Recursively process all repositories in a GitLab group.</p>
-<p><strong>Type:</strong> String (group path)
-<strong>Use Case:</strong> Update all projects in a GitLab group</p>
-<p><strong>Example:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update-deps<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a><span class="w">  </span>--gitlab-group<span class="w"> </span>mygroup/subgroup
-</code></pre></div></p>
-<p><strong>Note:</strong> Processes group and all subgroups recursively.</p>
-<h3 id="-all-gitlab-repositories">--all-gitlab-repositories<a class="headerlink" href="#-all-gitlab-repositories" title="Permanent link">&para;</a></h3>
-<p>Process all GitLab repositories across all accessible groups.</p>
-<p><strong>Type:</strong> Flag (boolean)
-<strong>Use Case:</strong> Organization-wide GitLab updates</p>
-<p><strong>Example:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/security-scan<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a><span class="w">  </span>--all-gitlab-repositories
-</code></pre></div></p>
 <h2 id="execution-control-options">Execution Control Options<a class="headerlink" href="#execution-control-options" title="Permanent link">&para;</a></h2>
 <h3 id="-start-from-project-id_or_slug">--start-from-project ID_OR_SLUG<a class="headerlink" href="#-start-from-project-id_or_slug" title="Permanent link">&para;</a></h3>
 <p>Resume batch processing from a specific project.</p>
 <p><strong>Type:</strong> Integer (ID) or String (slug)
 <strong>Use Case:</strong> Resume interrupted batch runs</p>
 <p><strong>Example:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># By project ID</span>
-<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update-all<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a><span class="w">  </span>--start-from-project<span class="w"> </span><span class="m">456</span>
-<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a>
-<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a><span class="c1"># By project slug</span>
-<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update-all<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-20-8" name="__codelineno-20-8" href="#__codelineno-20-8"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-20-9" name="__codelineno-20-9" href="#__codelineno-20-9"></a><span class="w">  </span>--start-from-project<span class="w"> </span>my-project-slug
+<div class="highlight"><pre><span></span><code><a id="__codelineno-17-1" name="__codelineno-17-1" href="#__codelineno-17-1"></a><span class="c1"># By project ID</span>
+<a id="__codelineno-17-2" name="__codelineno-17-2" href="#__codelineno-17-2"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update-all<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-3" name="__codelineno-17-3" href="#__codelineno-17-3"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-4" name="__codelineno-17-4" href="#__codelineno-17-4"></a><span class="w">  </span>--start-from-project<span class="w"> </span><span class="m">456</span>
+<a id="__codelineno-17-5" name="__codelineno-17-5" href="#__codelineno-17-5"></a>
+<a id="__codelineno-17-6" name="__codelineno-17-6" href="#__codelineno-17-6"></a><span class="c1"># By project slug</span>
+<a id="__codelineno-17-7" name="__codelineno-17-7" href="#__codelineno-17-7"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update-all<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-8" name="__codelineno-17-8" href="#__codelineno-17-8"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-17-9" name="__codelineno-17-9" href="#__codelineno-17-9"></a><span class="w">  </span>--start-from-project<span class="w"> </span>my-project-slug
 </code></pre></div></p>
-<p><strong>Behavior:</strong>
-- Skips all projects up to and including the specified project
-- Starts processing from the next project
-- Useful for resuming after interruption or failure</p>
+<p><strong>Behavior:</strong></p>
+<ul>
+<li>Skips all projects up to and including the specified project</li>
+<li>Starts processing from the next project</li>
+<li>Useful for resuming after interruption or failure</li>
+</ul>
 <p><strong>Example Scenario:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a><span class="c1"># Initial run interrupted at project ID 456</span>
-<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/big-update<span class="w"> </span>--all-projects
-<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="c1"># ... processes projects 1-456, then interrupted</span>
-<a id="__codelineno-21-4" name="__codelineno-21-4" href="#__codelineno-21-4"></a>
-<a id="__codelineno-21-5" name="__codelineno-21-5" href="#__codelineno-21-5"></a><span class="c1"># Resume from where it left off</span>
-<a id="__codelineno-21-6" name="__codelineno-21-6" href="#__codelineno-21-6"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/big-update<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-21-7" name="__codelineno-21-7" href="#__codelineno-21-7"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-21-8" name="__codelineno-21-8" href="#__codelineno-21-8"></a><span class="w">  </span>--start-from-project<span class="w"> </span><span class="m">456</span>
-<a id="__codelineno-21-9" name="__codelineno-21-9" href="#__codelineno-21-9"></a><span class="c1"># ... starts from project 457</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-18-1" name="__codelineno-18-1" href="#__codelineno-18-1"></a><span class="c1"># Initial run interrupted at project ID 456</span>
+<a id="__codelineno-18-2" name="__codelineno-18-2" href="#__codelineno-18-2"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/big-update<span class="w"> </span>--all-projects
+<a id="__codelineno-18-3" name="__codelineno-18-3" href="#__codelineno-18-3"></a><span class="c1"># ... processes projects 1-456, then interrupted</span>
+<a id="__codelineno-18-4" name="__codelineno-18-4" href="#__codelineno-18-4"></a>
+<a id="__codelineno-18-5" name="__codelineno-18-5" href="#__codelineno-18-5"></a><span class="c1"># Resume from where it left off</span>
+<a id="__codelineno-18-6" name="__codelineno-18-6" href="#__codelineno-18-6"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/big-update<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-7" name="__codelineno-18-7" href="#__codelineno-18-7"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-18-8" name="__codelineno-18-8" href="#__codelineno-18-8"></a><span class="w">  </span>--start-from-project<span class="w"> </span><span class="m">456</span>
+<a id="__codelineno-18-9" name="__codelineno-18-9" href="#__codelineno-18-9"></a><span class="c1"># ... starts from project 457</span>
 </code></pre></div></p>
 <h3 id="-max-concurrency-n">--max-concurrency N<a class="headerlink" href="#-max-concurrency-n" title="Permanent link">&para;</a></h3>
 <p>Set maximum number of concurrent workflow executions.</p>
@@ -2234,10 +2180,10 @@
 <strong>Default:</strong> <code>1</code> (sequential)
 <strong>Range:</strong> 1-100 (practical limit depends on system resources)</p>
 <p><strong>Example:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1"># Process 5 projects simultaneously</span>
-<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update-deps<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="w">  </span>--max-concurrency<span class="w"> </span><span class="m">5</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-19-1" name="__codelineno-19-1" href="#__codelineno-19-1"></a><span class="c1"># Process 5 projects simultaneously</span>
+<a id="__codelineno-19-2" name="__codelineno-19-2" href="#__codelineno-19-2"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update-deps<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-19-3" name="__codelineno-19-3" href="#__codelineno-19-3"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-19-4" name="__codelineno-19-4" href="#__codelineno-19-4"></a><span class="w">  </span>--max-concurrency<span class="w"> </span><span class="m">5</span>
 </code></pre></div></p>
 <p><strong>Performance Considerations:</strong></p>
 <table>
@@ -2277,13 +2223,13 @@
 </tbody>
 </table>
 <p><strong>Example Performance:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a><span class="c1"># Sequential (slower, safer)</span>
-<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a>--max-concurrency<span class="w"> </span><span class="m">1</span>
-<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="c1"># ~1 project/minute = 664 projects in 11 hours</span>
-<a id="__codelineno-23-4" name="__codelineno-23-4" href="#__codelineno-23-4"></a>
-<a id="__codelineno-23-5" name="__codelineno-23-5" href="#__codelineno-23-5"></a><span class="c1"># Parallel (faster, more resources)</span>
-<a id="__codelineno-23-6" name="__codelineno-23-6" href="#__codelineno-23-6"></a>--max-concurrency<span class="w"> </span><span class="m">10</span>
-<a id="__codelineno-23-7" name="__codelineno-23-7" href="#__codelineno-23-7"></a><span class="c1"># ~10 projects/minute = 664 projects in 1.1 hours</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-20-1" name="__codelineno-20-1" href="#__codelineno-20-1"></a><span class="c1"># Sequential (slower, safer)</span>
+<a id="__codelineno-20-2" name="__codelineno-20-2" href="#__codelineno-20-2"></a>--max-concurrency<span class="w"> </span><span class="m">1</span>
+<a id="__codelineno-20-3" name="__codelineno-20-3" href="#__codelineno-20-3"></a><span class="c1"># ~1 project/minute = 664 projects in 11 hours</span>
+<a id="__codelineno-20-4" name="__codelineno-20-4" href="#__codelineno-20-4"></a>
+<a id="__codelineno-20-5" name="__codelineno-20-5" href="#__codelineno-20-5"></a><span class="c1"># Parallel (faster, more resources)</span>
+<a id="__codelineno-20-6" name="__codelineno-20-6" href="#__codelineno-20-6"></a>--max-concurrency<span class="w"> </span><span class="m">10</span>
+<a id="__codelineno-20-7" name="__codelineno-20-7" href="#__codelineno-20-7"></a><span class="c1"># ~10 projects/minute = 664 projects in 1.1 hours</span>
 </code></pre></div></p>
 <p><strong>Warning:</strong> Higher concurrency increases:
 - Memory usage (each workflow uses ~100-500MB)
@@ -2295,28 +2241,32 @@
 <p><strong>Type:</strong> Flag (boolean)
 <strong>Default:</strong> <code>false</code> (continue with other projects)</p>
 <p><strong>Example:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/critical-update<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="w">  </span>--exit-on-error
+<div class="highlight"><pre><span></span><code><a id="__codelineno-21-1" name="__codelineno-21-1" href="#__codelineno-21-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/critical-update<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-21-2" name="__codelineno-21-2" href="#__codelineno-21-2"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-21-3" name="__codelineno-21-3" href="#__codelineno-21-3"></a><span class="w">  </span>--exit-on-error
 </code></pre></div></p>
-<p><strong>Behavior:</strong>
-- <strong>Without flag:</strong> Logs error, continues to next project
-- <strong>With flag:</strong> Exits immediately with error code</p>
-<p><strong>Use Cases:</strong>
-- CI/CD pipelines requiring atomic success
-- Testing workflows before batch runs
-- Critical updates that must succeed for all projects
-- Debugging specific failure</p>
+<p><strong>Behavior:</strong></p>
+<ul>
+<li><strong>Without flag:</strong> Logs error, continues to next project</li>
+<li><strong>With flag:</strong> Exits immediately with error code</li>
+</ul>
+<p><strong>Use Cases:</strong></p>
+<ul>
+<li>CI/CD pipelines requiring atomic success</li>
+<li>Testing workflows before batch runs</li>
+<li>Critical updates that must succeed for all projects</li>
+<li>Debugging specific failure</li>
+</ul>
 <p><strong>Example Comparison:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a><span class="c1"># Default: continues on error</span>
-<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update<span class="w"> </span>--all-projects
-<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a><span class="c1"># Processes all 664 projects even if some fail</span>
-<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a><span class="c1"># Exit code: 0 if any succeeded</span>
-<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>
-<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a><span class="c1"># Exits on first error</span>
-<a id="__codelineno-25-7" name="__codelineno-25-7" href="#__codelineno-25-7"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update<span class="w"> </span>--all-projects<span class="w"> </span>--exit-on-error
-<a id="__codelineno-25-8" name="__codelineno-25-8" href="#__codelineno-25-8"></a><span class="c1"># Stops at first failure</span>
-<a id="__codelineno-25-9" name="__codelineno-25-9" href="#__codelineno-25-9"></a><span class="c1"># Exit code: 5 on failure</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-22-1" name="__codelineno-22-1" href="#__codelineno-22-1"></a><span class="c1"># Default: continues on error</span>
+<a id="__codelineno-22-2" name="__codelineno-22-2" href="#__codelineno-22-2"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update<span class="w"> </span>--all-projects
+<a id="__codelineno-22-3" name="__codelineno-22-3" href="#__codelineno-22-3"></a><span class="c1"># Processes all 664 projects even if some fail</span>
+<a id="__codelineno-22-4" name="__codelineno-22-4" href="#__codelineno-22-4"></a><span class="c1"># Exit code: 0 if any succeeded</span>
+<a id="__codelineno-22-5" name="__codelineno-22-5" href="#__codelineno-22-5"></a>
+<a id="__codelineno-22-6" name="__codelineno-22-6" href="#__codelineno-22-6"></a><span class="c1"># Exits on first error</span>
+<a id="__codelineno-22-7" name="__codelineno-22-7" href="#__codelineno-22-7"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update<span class="w"> </span>--all-projects<span class="w"> </span>--exit-on-error
+<a id="__codelineno-22-8" name="__codelineno-22-8" href="#__codelineno-22-8"></a><span class="c1"># Stops at first failure</span>
+<a id="__codelineno-22-9" name="__codelineno-22-9" href="#__codelineno-22-9"></a><span class="c1"># Exit code: 5 on failure</span>
 </code></pre></div></p>
 <h2 id="debugging-options">Debugging Options<a class="headerlink" href="#debugging-options" title="Permanent link">&para;</a></h2>
 <h3 id="-preserve-on-error">--preserve-on-error<a class="headerlink" href="#-preserve-on-error" title="Permanent link">&para;</a></h3>
@@ -2324,16 +2274,18 @@
 <p><strong>Type:</strong> Flag (boolean)
 <strong>Default:</strong> <code>false</code></p>
 <p><strong>Example:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/failing-workflow<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="w">  </span>--project-id<span class="w"> </span><span class="m">123</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="w">  </span>--preserve-on-error
+<div class="highlight"><pre><span></span><code><a id="__codelineno-23-1" name="__codelineno-23-1" href="#__codelineno-23-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/failing-workflow<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-2" name="__codelineno-23-2" href="#__codelineno-23-2"></a><span class="w">  </span>--project-id<span class="w"> </span><span class="m">123</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-23-3" name="__codelineno-23-3" href="#__codelineno-23-3"></a><span class="w">  </span>--preserve-on-error
 </code></pre></div></p>
-<p><strong>What Gets Saved:</strong>
-- Complete Git repository state
-- Workflow resource files
-- Docker extracted files
-- All temporary files
-- <code>debug.log</code> with complete execution trace</p>
+<p><strong>What Gets Saved:</strong></p>
+<ul>
+<li>Complete Git repository state</li>
+<li>Workflow resource files</li>
+<li>Docker extracted files</li>
+<li>All temporary files</li>
+<li><code>debug.log</code> with complete execution trace</li>
+</ul>
 <p><strong>Storage Location:</strong> <code>./errors/workflow-name/project-slug-timestamp/</code></p>
 <p><strong>See Also:</strong> <a href="../debugging/">Debugging Documentation</a></p>
 <h3 id="-error-dir-dir">--error-dir DIR<a class="headerlink" href="#-error-dir-dir" title="Permanent link">&para;</a></h3>
@@ -2341,127 +2293,131 @@
 <p><strong>Type:</strong> Directory path
 <strong>Default:</strong> <code>./errors</code></p>
 <p><strong>Example:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/test<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a><span class="w">  </span>--project-id<span class="w"> </span><span class="m">123</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a><span class="w">  </span>--preserve-on-error<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-27-4" name="__codelineno-27-4" href="#__codelineno-27-4"></a><span class="w">  </span>--error-dir<span class="w"> </span>/tmp/workflow-errors
+<div class="highlight"><pre><span></span><code><a id="__codelineno-24-1" name="__codelineno-24-1" href="#__codelineno-24-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/test<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-24-2" name="__codelineno-24-2" href="#__codelineno-24-2"></a><span class="w">  </span>--project-id<span class="w"> </span><span class="m">123</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-24-3" name="__codelineno-24-3" href="#__codelineno-24-3"></a><span class="w">  </span>--preserve-on-error<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-24-4" name="__codelineno-24-4" href="#__codelineno-24-4"></a><span class="w">  </span>--error-dir<span class="w"> </span>/tmp/workflow-errors
 </code></pre></div></p>
 <p><strong>Directory Structure:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>/tmp/workflow-errors/
-<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a>└── workflow-name/
-<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a>    └── project-slug-20250103-143052/
-<a id="__codelineno-28-4" name="__codelineno-28-4" href="#__codelineno-28-4"></a>        ├── repository/
-<a id="__codelineno-28-5" name="__codelineno-28-5" href="#__codelineno-28-5"></a>        ├── workflow/
-<a id="__codelineno-28-6" name="__codelineno-28-6" href="#__codelineno-28-6"></a>        └── debug.log
+<div class="highlight"><pre><span></span><code><a id="__codelineno-25-1" name="__codelineno-25-1" href="#__codelineno-25-1"></a>/tmp/workflow-errors/
+<a id="__codelineno-25-2" name="__codelineno-25-2" href="#__codelineno-25-2"></a>└── workflow-name/
+<a id="__codelineno-25-3" name="__codelineno-25-3" href="#__codelineno-25-3"></a>    └── project-slug-20250103-143052/
+<a id="__codelineno-25-4" name="__codelineno-25-4" href="#__codelineno-25-4"></a>        ├── repository/
+<a id="__codelineno-25-5" name="__codelineno-25-5" href="#__codelineno-25-5"></a>        ├── workflow/
+<a id="__codelineno-25-6" name="__codelineno-25-6" href="#__codelineno-25-6"></a>        └── debug.log
 </code></pre></div></p>
 <h3 id="-debug">--debug<a class="headerlink" href="#-debug" title="Permanent link">&para;</a></h3>
 <p>Enable DEBUG level logging for all components.</p>
 <p><strong>Type:</strong> Flag (boolean)
 <strong>Default:</strong> <code>false</code> (INFO level)</p>
 <p><strong>Example:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/test<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a><span class="w">  </span>--project-id<span class="w"> </span><span class="m">123</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a><span class="w">  </span>--debug
+<div class="highlight"><pre><span></span><code><a id="__codelineno-26-1" name="__codelineno-26-1" href="#__codelineno-26-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/test<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-26-2" name="__codelineno-26-2" href="#__codelineno-26-2"></a><span class="w">  </span>--project-id<span class="w"> </span><span class="m">123</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-26-3" name="__codelineno-26-3" href="#__codelineno-26-3"></a><span class="w">  </span>--debug
 </code></pre></div></p>
 <p><strong>Output:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>2025-01-03 14:30:52 - imbi_automations.workflow_engine - DEBUG - Executing action: copy-files
-<a id="__codelineno-30-2" name="__codelineno-30-2" href="#__codelineno-30-2"></a>2025-01-03 14:30:52 - imbi_automations.actions.filea - DEBUG - Copying workflow:///template to repository:///config
-<a id="__codelineno-30-3" name="__codelineno-30-3" href="#__codelineno-30-3"></a>2025-01-03 14:30:52 - imbi_automations.utils - DEBUG - Resolved path: /tmp/workflow123/workflow/template
+<div class="highlight"><pre><span></span><code><a id="__codelineno-27-1" name="__codelineno-27-1" href="#__codelineno-27-1"></a>2025-01-03 14:30:52 - imbi_automations.workflow_engine - DEBUG - Executing action: copy-files
+<a id="__codelineno-27-2" name="__codelineno-27-2" href="#__codelineno-27-2"></a>2025-01-03 14:30:52 - imbi_automations.actions.filea - DEBUG - Copying workflow:///template to repository:///config
+<a id="__codelineno-27-3" name="__codelineno-27-3" href="#__codelineno-27-3"></a>2025-01-03 14:30:52 - imbi_automations.utils - DEBUG - Resolved path: /tmp/workflow123/workflow/template
 </code></pre></div></p>
-<p><strong>Log Categories:</strong>
-- Action execution details
-- HTTP requests/responses (API calls)
-- Git operations
-- File operations
-- Template rendering
-- Condition evaluation</p>
+<p><strong>Log Categories:</strong></p>
+<ul>
+<li>Action execution details</li>
+<li>HTTP requests/responses (API calls)</li>
+<li>Git operations</li>
+<li>File operations</li>
+<li>Template rendering</li>
+<li>Condition evaluation</li>
+</ul>
 <p><strong>See Also:</strong> <a href="../debugging/">Debugging Documentation</a></p>
 <h3 id="-v-verbose">-v, --verbose<a class="headerlink" href="#-v-verbose" title="Permanent link">&para;</a></h3>
 <p>Show action start/end INFO messages.</p>
 <p><strong>Type:</strong> Flag (boolean)
 <strong>Default:</strong> <code>false</code></p>
 <p><strong>Example:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-31-2" name="__codelineno-31-2" href="#__codelineno-31-2"></a><span class="w">  </span>--project-id<span class="w"> </span><span class="m">123</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-31-3" name="__codelineno-31-3" href="#__codelineno-31-3"></a><span class="w">  </span>--verbose
+<div class="highlight"><pre><span></span><code><a id="__codelineno-28-1" name="__codelineno-28-1" href="#__codelineno-28-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-28-2" name="__codelineno-28-2" href="#__codelineno-28-2"></a><span class="w">  </span>--project-id<span class="w"> </span><span class="m">123</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-28-3" name="__codelineno-28-3" href="#__codelineno-28-3"></a><span class="w">  </span>--verbose
 </code></pre></div></p>
 <p><strong>Output:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>2025-01-03 14:30:50 - INFO - Starting action: backup-files
-<a id="__codelineno-32-2" name="__codelineno-32-2" href="#__codelineno-32-2"></a>2025-01-03 14:30:52 - INFO - Completed action: backup-files
-<a id="__codelineno-32-3" name="__codelineno-32-3" href="#__codelineno-32-3"></a>2025-01-03 14:30:52 - INFO - Starting action: update-configs
+<div class="highlight"><pre><span></span><code><a id="__codelineno-29-1" name="__codelineno-29-1" href="#__codelineno-29-1"></a>2025-01-03 14:30:50 - INFO - Starting action: backup-files
+<a id="__codelineno-29-2" name="__codelineno-29-2" href="#__codelineno-29-2"></a>2025-01-03 14:30:52 - INFO - Completed action: backup-files
+<a id="__codelineno-29-3" name="__codelineno-29-3" href="#__codelineno-29-3"></a>2025-01-03 14:30:52 - INFO - Starting action: update-configs
 </code></pre></div></p>
-<p><strong>Difference from --debug:</strong>
-- <code>--verbose</code>: Action-level progress (cleaner output)
-- <code>--debug</code>: Everything (very detailed)</p>
+<p><strong>Difference from --debug:</strong></p>
+<ul>
+<li><code>--verbose</code>: Action-level progress (cleaner output)</li>
+<li><code>--debug</code>: Everything (very detailed)</li>
+</ul>
 <h2 id="general-options">General Options<a class="headerlink" href="#general-options" title="Permanent link">&para;</a></h2>
 <h3 id="-h-help">-h, --help<a class="headerlink" href="#-h-help" title="Permanent link">&para;</a></h3>
 <p>Show help message and exit.</p>
 <p><strong>Example:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>imbi-automations<span class="w"> </span>--help
+<div class="highlight"><pre><span></span><code><a id="__codelineno-30-1" name="__codelineno-30-1" href="#__codelineno-30-1"></a>imbi-automations<span class="w"> </span>--help
 </code></pre></div></p>
 <h3 id="-v-version">-V, --version<a class="headerlink" href="#-v-version" title="Permanent link">&para;</a></h3>
 <p>Show version number and exit.</p>
 <p><strong>Example:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>imbi-automations<span class="w"> </span>--version
+<div class="highlight"><pre><span></span><code><a id="__codelineno-31-1" name="__codelineno-31-1" href="#__codelineno-31-1"></a>imbi-automations<span class="w"> </span>--version
 </code></pre></div></p>
 <p><strong>Output:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>0.1.0
+<div class="highlight"><pre><span></span><code><a id="__codelineno-32-1" name="__codelineno-32-1" href="#__codelineno-32-1"></a>0.1.0
 </code></pre></div></p>
 <h2 id="common-usage-patterns">Common Usage Patterns<a class="headerlink" href="#common-usage-patterns" title="Permanent link">&para;</a></h2>
 <h3 id="test-on-single-project">Test on Single Project<a class="headerlink" href="#test-on-single-project" title="Permanent link">&para;</a></h3>
 <p>Test workflow before batch execution:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/new-workflow<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a><span class="w">  </span>--project-id<span class="w"> </span><span class="m">123</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-36-3" name="__codelineno-36-3" href="#__codelineno-36-3"></a><span class="w">  </span>--preserve-on-error<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a><span class="w">  </span>--debug
+<div class="highlight"><pre><span></span><code><a id="__codelineno-33-1" name="__codelineno-33-1" href="#__codelineno-33-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/new-workflow<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-33-2" name="__codelineno-33-2" href="#__codelineno-33-2"></a><span class="w">  </span>--project-id<span class="w"> </span><span class="m">123</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-33-3" name="__codelineno-33-3" href="#__codelineno-33-3"></a><span class="w">  </span>--preserve-on-error<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-33-4" name="__codelineno-33-4" href="#__codelineno-33-4"></a><span class="w">  </span>--debug
 </code></pre></div>
 <h3 id="batch-update-with-debugging">Batch Update with Debugging<a class="headerlink" href="#batch-update-with-debugging" title="Permanent link">&para;</a></h3>
 <p>Process all projects with error preservation:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update-deps<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-37-3" name="__codelineno-37-3" href="#__codelineno-37-3"></a><span class="w">  </span>--max-concurrency<span class="w"> </span><span class="m">5</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-37-4" name="__codelineno-37-4" href="#__codelineno-37-4"></a><span class="w">  </span>--preserve-on-error<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-37-5" name="__codelineno-37-5" href="#__codelineno-37-5"></a><span class="w">  </span>--error-dir<span class="w"> </span>./errors<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-37-6" name="__codelineno-37-6" href="#__codelineno-37-6"></a><span class="w">  </span>--verbose
+<div class="highlight"><pre><span></span><code><a id="__codelineno-34-1" name="__codelineno-34-1" href="#__codelineno-34-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update-deps<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-34-2" name="__codelineno-34-2" href="#__codelineno-34-2"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-34-3" name="__codelineno-34-3" href="#__codelineno-34-3"></a><span class="w">  </span>--max-concurrency<span class="w"> </span><span class="m">5</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-34-4" name="__codelineno-34-4" href="#__codelineno-34-4"></a><span class="w">  </span>--preserve-on-error<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-34-5" name="__codelineno-34-5" href="#__codelineno-34-5"></a><span class="w">  </span>--error-dir<span class="w"> </span>./errors<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-34-6" name="__codelineno-34-6" href="#__codelineno-34-6"></a><span class="w">  </span>--verbose
 </code></pre></div>
 <h3 id="resume-interrupted-run">Resume Interrupted Run<a class="headerlink" href="#resume-interrupted-run" title="Permanent link">&para;</a></h3>
 <p>Continue from where you left off:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/large-update<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-38-2" name="__codelineno-38-2" href="#__codelineno-38-2"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-38-3" name="__codelineno-38-3" href="#__codelineno-38-3"></a><span class="w">  </span>--start-from-project<span class="w"> </span><span class="m">456</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-38-4" name="__codelineno-38-4" href="#__codelineno-38-4"></a><span class="w">  </span>--max-concurrency<span class="w"> </span><span class="m">5</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-35-1" name="__codelineno-35-1" href="#__codelineno-35-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/large-update<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-35-2" name="__codelineno-35-2" href="#__codelineno-35-2"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-35-3" name="__codelineno-35-3" href="#__codelineno-35-3"></a><span class="w">  </span>--start-from-project<span class="w"> </span><span class="m">456</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-35-4" name="__codelineno-35-4" href="#__codelineno-35-4"></a><span class="w">  </span>--max-concurrency<span class="w"> </span><span class="m">5</span>
 </code></pre></div>
 <h3 id="github-organization-update">GitHub Organization Update<a class="headerlink" href="#github-organization-update" title="Permanent link">&para;</a></h3>
 <p>Update all repos in an organization:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update-actions<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-39-2" name="__codelineno-39-2" href="#__codelineno-39-2"></a><span class="w">  </span>--github-organization<span class="w"> </span>myorg<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-39-3" name="__codelineno-39-3" href="#__codelineno-39-3"></a><span class="w">  </span>--max-concurrency<span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-39-4" name="__codelineno-39-4" href="#__codelineno-39-4"></a><span class="w">  </span>--verbose
+<div class="highlight"><pre><span></span><code><a id="__codelineno-36-1" name="__codelineno-36-1" href="#__codelineno-36-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update-actions<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-36-2" name="__codelineno-36-2" href="#__codelineno-36-2"></a><span class="w">  </span>--github-organization<span class="w"> </span>myorg<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-36-3" name="__codelineno-36-3" href="#__codelineno-36-3"></a><span class="w">  </span>--max-concurrency<span class="w"> </span><span class="m">3</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-36-4" name="__codelineno-36-4" href="#__codelineno-36-4"></a><span class="w">  </span>--verbose
 </code></pre></div>
 <h3 id="critical-production-update">Critical Production Update<a class="headerlink" href="#critical-production-update" title="Permanent link">&para;</a></h3>
 <p>Ensure all or nothing success:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/security-patch<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-40-2" name="__codelineno-40-2" href="#__codelineno-40-2"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-40-3" name="__codelineno-40-3" href="#__codelineno-40-3"></a><span class="w">  </span>--exit-on-error<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-40-4" name="__codelineno-40-4" href="#__codelineno-40-4"></a><span class="w">  </span>--preserve-on-error<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-40-5" name="__codelineno-40-5" href="#__codelineno-40-5"></a><span class="w">  </span>--verbose
+<div class="highlight"><pre><span></span><code><a id="__codelineno-37-1" name="__codelineno-37-1" href="#__codelineno-37-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/security-patch<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-37-2" name="__codelineno-37-2" href="#__codelineno-37-2"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-37-3" name="__codelineno-37-3" href="#__codelineno-37-3"></a><span class="w">  </span>--exit-on-error<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-37-4" name="__codelineno-37-4" href="#__codelineno-37-4"></a><span class="w">  </span>--preserve-on-error<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-37-5" name="__codelineno-37-5" href="#__codelineno-37-5"></a><span class="w">  </span>--verbose
 </code></pre></div>
 <h3 id="debugging-specific-failure">Debugging Specific Failure<a class="headerlink" href="#debugging-specific-failure" title="Permanent link">&para;</a></h3>
 <p>Deep dive into a failing project:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/failing<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a><span class="w">  </span>--project-id<span class="w"> </span><span class="m">123</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-41-3" name="__codelineno-41-3" href="#__codelineno-41-3"></a><span class="w">  </span>--preserve-on-error<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-41-4" name="__codelineno-41-4" href="#__codelineno-41-4"></a><span class="w">  </span>--error-dir<span class="w"> </span>./debug<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-41-5" name="__codelineno-41-5" href="#__codelineno-41-5"></a><span class="w">  </span>--debug<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-41-6" name="__codelineno-41-6" href="#__codelineno-41-6"></a><span class="w">  </span>--verbose<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-41-7" name="__codelineno-41-7" href="#__codelineno-41-7"></a><span class="w">  </span>--exit-on-error
+<div class="highlight"><pre><span></span><code><a id="__codelineno-38-1" name="__codelineno-38-1" href="#__codelineno-38-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/failing<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-38-2" name="__codelineno-38-2" href="#__codelineno-38-2"></a><span class="w">  </span>--project-id<span class="w"> </span><span class="m">123</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-38-3" name="__codelineno-38-3" href="#__codelineno-38-3"></a><span class="w">  </span>--preserve-on-error<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-38-4" name="__codelineno-38-4" href="#__codelineno-38-4"></a><span class="w">  </span>--error-dir<span class="w"> </span>./debug<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-38-5" name="__codelineno-38-5" href="#__codelineno-38-5"></a><span class="w">  </span>--debug<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-38-6" name="__codelineno-38-6" href="#__codelineno-38-6"></a><span class="w">  </span>--verbose<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-38-7" name="__codelineno-38-7" href="#__codelineno-38-7"></a><span class="w">  </span>--exit-on-error
 </code></pre></div>
 <h3 id="project-type-targeted-update">Project Type Targeted Update<a class="headerlink" href="#project-type-targeted-update" title="Permanent link">&para;</a></h3>
 <p>Update only APIs:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update-api-configs<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a><span class="w">  </span>--project-type<span class="w"> </span>api<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-42-3" name="__codelineno-42-3" href="#__codelineno-42-3"></a><span class="w">  </span>--max-concurrency<span class="w"> </span><span class="m">5</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-42-4" name="__codelineno-42-4" href="#__codelineno-42-4"></a><span class="w">  </span>--verbose
+<div class="highlight"><pre><span></span><code><a id="__codelineno-39-1" name="__codelineno-39-1" href="#__codelineno-39-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update-api-configs<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-39-2" name="__codelineno-39-2" href="#__codelineno-39-2"></a><span class="w">  </span>--project-type<span class="w"> </span>api<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-39-3" name="__codelineno-39-3" href="#__codelineno-39-3"></a><span class="w">  </span>--max-concurrency<span class="w"> </span><span class="m">5</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-39-4" name="__codelineno-39-4" href="#__codelineno-39-4"></a><span class="w">  </span>--verbose
 </code></pre></div>
 <h2 id="exit-codes">Exit Codes<a class="headerlink" href="#exit-codes" title="Permanent link">&para;</a></h2>
 <table>
@@ -2495,18 +2451,18 @@
 </tbody>
 </table>
 <p><strong>Example Usage in Scripts:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a><span class="ch">#!/bin/bash</span>
-<a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update<span class="w"> </span>--all-projects
-<a id="__codelineno-43-3" name="__codelineno-43-3" href="#__codelineno-43-3"></a>
-<a id="__codelineno-43-4" name="__codelineno-43-4" href="#__codelineno-43-4"></a><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="nv">$?</span><span class="w"> </span>-eq<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
-<a id="__codelineno-43-5" name="__codelineno-43-5" href="#__codelineno-43-5"></a><span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;All projects updated successfully&quot;</span>
-<a id="__codelineno-43-6" name="__codelineno-43-6" href="#__codelineno-43-6"></a><span class="k">elif</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="nv">$?</span><span class="w"> </span>-eq<span class="w"> </span><span class="m">5</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
-<a id="__codelineno-43-7" name="__codelineno-43-7" href="#__codelineno-43-7"></a><span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Some projects failed - check logs&quot;</span>
-<a id="__codelineno-43-8" name="__codelineno-43-8" href="#__codelineno-43-8"></a><span class="w">    </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
-<a id="__codelineno-43-9" name="__codelineno-43-9" href="#__codelineno-43-9"></a><span class="k">else</span>
-<a id="__codelineno-43-10" name="__codelineno-43-10" href="#__codelineno-43-10"></a><span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Fatal error - check configuration&quot;</span>
-<a id="__codelineno-43-11" name="__codelineno-43-11" href="#__codelineno-43-11"></a><span class="w">    </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
-<a id="__codelineno-43-12" name="__codelineno-43-12" href="#__codelineno-43-12"></a><span class="k">fi</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-40-1" name="__codelineno-40-1" href="#__codelineno-40-1"></a><span class="ch">#!/bin/bash</span>
+<a id="__codelineno-40-2" name="__codelineno-40-2" href="#__codelineno-40-2"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update<span class="w"> </span>--all-projects
+<a id="__codelineno-40-3" name="__codelineno-40-3" href="#__codelineno-40-3"></a>
+<a id="__codelineno-40-4" name="__codelineno-40-4" href="#__codelineno-40-4"></a><span class="k">if</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="nv">$?</span><span class="w"> </span>-eq<span class="w"> </span><span class="m">0</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<a id="__codelineno-40-5" name="__codelineno-40-5" href="#__codelineno-40-5"></a><span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;All projects updated successfully&quot;</span>
+<a id="__codelineno-40-6" name="__codelineno-40-6" href="#__codelineno-40-6"></a><span class="k">elif</span><span class="w"> </span><span class="o">[</span><span class="w"> </span><span class="nv">$?</span><span class="w"> </span>-eq<span class="w"> </span><span class="m">5</span><span class="w"> </span><span class="o">]</span><span class="p">;</span><span class="w"> </span><span class="k">then</span>
+<a id="__codelineno-40-7" name="__codelineno-40-7" href="#__codelineno-40-7"></a><span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Some projects failed - check logs&quot;</span>
+<a id="__codelineno-40-8" name="__codelineno-40-8" href="#__codelineno-40-8"></a><span class="w">    </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<a id="__codelineno-40-9" name="__codelineno-40-9" href="#__codelineno-40-9"></a><span class="k">else</span>
+<a id="__codelineno-40-10" name="__codelineno-40-10" href="#__codelineno-40-10"></a><span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Fatal error - check configuration&quot;</span>
+<a id="__codelineno-40-11" name="__codelineno-40-11" href="#__codelineno-40-11"></a><span class="w">    </span><span class="nb">exit</span><span class="w"> </span><span class="m">1</span>
+<a id="__codelineno-40-12" name="__codelineno-40-12" href="#__codelineno-40-12"></a><span class="k">fi</span>
 </code></pre></div></p>
 <h2 id="environment-variables">Environment Variables<a class="headerlink" href="#environment-variables" title="Permanent link">&para;</a></h2>
 <p>While not CLI switches, these environment variables affect behavior:</p>
@@ -2537,107 +2493,107 @@
 </tbody>
 </table>
 <p><strong>Example:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANTHROPIC_API_KEY</span><span class="o">=</span><span class="s2">&quot;sk-ant-api03-...&quot;</span>
-<a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GITHUB_TOKEN</span><span class="o">=</span><span class="s2">&quot;ghp_...&quot;</span>
-<a id="__codelineno-44-3" name="__codelineno-44-3" href="#__codelineno-44-3"></a>
-<a id="__codelineno-44-4" name="__codelineno-44-4" href="#__codelineno-44-4"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/ai-workflow<span class="w"> </span>--all-projects
+<div class="highlight"><pre><span></span><code><a id="__codelineno-41-1" name="__codelineno-41-1" href="#__codelineno-41-1"></a><span class="nb">export</span><span class="w"> </span><span class="nv">ANTHROPIC_API_KEY</span><span class="o">=</span><span class="s2">&quot;sk-ant-api03-...&quot;</span>
+<a id="__codelineno-41-2" name="__codelineno-41-2" href="#__codelineno-41-2"></a><span class="nb">export</span><span class="w"> </span><span class="nv">GITHUB_TOKEN</span><span class="o">=</span><span class="s2">&quot;ghp_...&quot;</span>
+<a id="__codelineno-41-3" name="__codelineno-41-3" href="#__codelineno-41-3"></a>
+<a id="__codelineno-41-4" name="__codelineno-41-4" href="#__codelineno-41-4"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/ai-workflow<span class="w"> </span>--all-projects
 </code></pre></div></p>
 <h2 id="performance-tips">Performance Tips<a class="headerlink" href="#performance-tips" title="Permanent link">&para;</a></h2>
 <h3 id="optimize-concurrency">Optimize Concurrency<a class="headerlink" href="#optimize-concurrency" title="Permanent link">&para;</a></h3>
 <p>Start conservative, increase gradually:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a><span class="c1"># Test with 1</span>
-<a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a>--max-concurrency<span class="w"> </span><span class="m">1</span>
-<a id="__codelineno-45-3" name="__codelineno-45-3" href="#__codelineno-45-3"></a>
-<a id="__codelineno-45-4" name="__codelineno-45-4" href="#__codelineno-45-4"></a><span class="c1"># Increase to 5</span>
-<a id="__codelineno-45-5" name="__codelineno-45-5" href="#__codelineno-45-5"></a>--max-concurrency<span class="w"> </span><span class="m">5</span>
-<a id="__codelineno-45-6" name="__codelineno-45-6" href="#__codelineno-45-6"></a>
-<a id="__codelineno-45-7" name="__codelineno-45-7" href="#__codelineno-45-7"></a><span class="c1"># Monitor system resources, adjust</span>
-<a id="__codelineno-45-8" name="__codelineno-45-8" href="#__codelineno-45-8"></a>--max-concurrency<span class="w"> </span><span class="m">10</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-42-1" name="__codelineno-42-1" href="#__codelineno-42-1"></a><span class="c1"># Test with 1</span>
+<a id="__codelineno-42-2" name="__codelineno-42-2" href="#__codelineno-42-2"></a>--max-concurrency<span class="w"> </span><span class="m">1</span>
+<a id="__codelineno-42-3" name="__codelineno-42-3" href="#__codelineno-42-3"></a>
+<a id="__codelineno-42-4" name="__codelineno-42-4" href="#__codelineno-42-4"></a><span class="c1"># Increase to 5</span>
+<a id="__codelineno-42-5" name="__codelineno-42-5" href="#__codelineno-42-5"></a>--max-concurrency<span class="w"> </span><span class="m">5</span>
+<a id="__codelineno-42-6" name="__codelineno-42-6" href="#__codelineno-42-6"></a>
+<a id="__codelineno-42-7" name="__codelineno-42-7" href="#__codelineno-42-7"></a><span class="c1"># Monitor system resources, adjust</span>
+<a id="__codelineno-42-8" name="__codelineno-42-8" href="#__codelineno-42-8"></a>--max-concurrency<span class="w"> </span><span class="m">10</span>
 </code></pre></div>
 <h3 id="use-filtering">Use Filtering<a class="headerlink" href="#use-filtering" title="Permanent link">&para;</a></h3>
 <p>Reduce scope with workflow filters in <code>config.toml</code>:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a><span class="k">[filter]</span>
-<a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a><span class="n">project_types</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;api&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;consumer&quot;</span><span class="p">]</span>
-<a id="__codelineno-46-3" name="__codelineno-46-3" href="#__codelineno-46-3"></a><span class="n">requires_github_identifier</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-43-1" name="__codelineno-43-1" href="#__codelineno-43-1"></a><span class="k">[filter]</span>
+<a id="__codelineno-43-2" name="__codelineno-43-2" href="#__codelineno-43-2"></a><span class="n">project_types</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;api&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;consumer&quot;</span><span class="p">]</span>
+<a id="__codelineno-43-3" name="__codelineno-43-3" href="#__codelineno-43-3"></a><span class="n">requires_github_identifier</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 </code></pre></div>
 <h3 id="batch-smartly">Batch Smartly<a class="headerlink" href="#batch-smartly" title="Permanent link">&para;</a></h3>
 <p>Split large runs into chunks:</p>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a><span class="c1"># Process 100 at a time</span>
-<a id="__codelineno-47-2" name="__codelineno-47-2" href="#__codelineno-47-2"></a>--all-projects<span class="w"> </span>--max-concurrency<span class="w"> </span><span class="m">5</span><span class="w"> </span>--start-from-project<span class="w"> </span><span class="m">0</span>
-<a id="__codelineno-47-3" name="__codelineno-47-3" href="#__codelineno-47-3"></a><span class="c1"># ... after completion</span>
-<a id="__codelineno-47-4" name="__codelineno-47-4" href="#__codelineno-47-4"></a>--all-projects<span class="w"> </span>--max-concurrency<span class="w"> </span><span class="m">5</span><span class="w"> </span>--start-from-project<span class="w"> </span><span class="m">100</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-44-1" name="__codelineno-44-1" href="#__codelineno-44-1"></a><span class="c1"># Process 100 at a time</span>
+<a id="__codelineno-44-2" name="__codelineno-44-2" href="#__codelineno-44-2"></a>--all-projects<span class="w"> </span>--max-concurrency<span class="w"> </span><span class="m">5</span><span class="w"> </span>--start-from-project<span class="w"> </span><span class="m">0</span>
+<a id="__codelineno-44-3" name="__codelineno-44-3" href="#__codelineno-44-3"></a><span class="c1"># ... after completion</span>
+<a id="__codelineno-44-4" name="__codelineno-44-4" href="#__codelineno-44-4"></a>--all-projects<span class="w"> </span>--max-concurrency<span class="w"> </span><span class="m">5</span><span class="w"> </span>--start-from-project<span class="w"> </span><span class="m">100</span>
 </code></pre></div>
 <h2 id="troubleshooting">Troubleshooting<a class="headerlink" href="#troubleshooting" title="Permanent link">&para;</a></h2>
 <h3 id="no-module-named-imbi_automations">"No module named imbi_automations"<a class="headerlink" href="#no-module-named-imbi_automations" title="Permanent link">&para;</a></h3>
 <p><strong>Problem:</strong> CLI not installed or not in PATH</p>
 <p><strong>Solution:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
-<a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a><span class="c1"># or</span>
-<a id="__codelineno-48-3" name="__codelineno-48-3" href="#__codelineno-48-3"></a>pip<span class="w"> </span>install<span class="w"> </span>imbi-automations
+<div class="highlight"><pre><span></span><code><a id="__codelineno-45-1" name="__codelineno-45-1" href="#__codelineno-45-1"></a>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+<a id="__codelineno-45-2" name="__codelineno-45-2" href="#__codelineno-45-2"></a><span class="c1"># or</span>
+<a id="__codelineno-45-3" name="__codelineno-45-3" href="#__codelineno-45-3"></a>pip<span class="w"> </span>install<span class="w"> </span>imbi-automations
 </code></pre></div></p>
 <h3 id="workflow-path-is-not-a-directory">"Workflow path is not a directory"<a class="headerlink" href="#workflow-path-is-not-a-directory" title="Permanent link">&para;</a></h3>
 <p><strong>Problem:</strong> Incorrect workflow path</p>
 <p><strong>Solution:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a><span class="c1"># Correct - path to directory</span>
-<a id="__codelineno-49-2" name="__codelineno-49-2" href="#__codelineno-49-2"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/my-workflow<span class="w"> </span>--all-projects
-<a id="__codelineno-49-3" name="__codelineno-49-3" href="#__codelineno-49-3"></a>
-<a id="__codelineno-49-4" name="__codelineno-49-4" href="#__codelineno-49-4"></a><span class="c1"># Incorrect - don&#39;t include config.toml</span>
-<a id="__codelineno-49-5" name="__codelineno-49-5" href="#__codelineno-49-5"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/my-workflow/config.toml<span class="w"> </span>--all-projects
+<div class="highlight"><pre><span></span><code><a id="__codelineno-46-1" name="__codelineno-46-1" href="#__codelineno-46-1"></a><span class="c1"># Correct - path to directory</span>
+<a id="__codelineno-46-2" name="__codelineno-46-2" href="#__codelineno-46-2"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/my-workflow<span class="w"> </span>--all-projects
+<a id="__codelineno-46-3" name="__codelineno-46-3" href="#__codelineno-46-3"></a>
+<a id="__codelineno-46-4" name="__codelineno-46-4" href="#__codelineno-46-4"></a><span class="c1"># Incorrect - don&#39;t include config.toml</span>
+<a id="__codelineno-46-5" name="__codelineno-46-5" href="#__codelineno-46-5"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/my-workflow/config.toml<span class="w"> </span>--all-projects
 </code></pre></div></p>
 <h3 id="exactly-one-targeting-option-required">"Exactly one targeting option required"<a class="headerlink" href="#exactly-one-targeting-option-required" title="Permanent link">&para;</a></h3>
 <p><strong>Problem:</strong> No targeting flag specified</p>
 <p><strong>Solution:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a><span class="c1"># Must include one of:</span>
-<a id="__codelineno-50-2" name="__codelineno-50-2" href="#__codelineno-50-2"></a>--project-id<span class="w"> </span><span class="m">123</span>
-<a id="__codelineno-50-3" name="__codelineno-50-3" href="#__codelineno-50-3"></a>--project-type<span class="w"> </span>api
-<a id="__codelineno-50-4" name="__codelineno-50-4" href="#__codelineno-50-4"></a>--all-projects
-<a id="__codelineno-50-5" name="__codelineno-50-5" href="#__codelineno-50-5"></a>--github-repository<span class="w"> </span>org/repo
-<a id="__codelineno-50-6" name="__codelineno-50-6" href="#__codelineno-50-6"></a><span class="c1"># etc.</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-47-1" name="__codelineno-47-1" href="#__codelineno-47-1"></a><span class="c1"># Must include one of:</span>
+<a id="__codelineno-47-2" name="__codelineno-47-2" href="#__codelineno-47-2"></a>--project-id<span class="w"> </span><span class="m">123</span>
+<a id="__codelineno-47-3" name="__codelineno-47-3" href="#__codelineno-47-3"></a>--project-type<span class="w"> </span>api
+<a id="__codelineno-47-4" name="__codelineno-47-4" href="#__codelineno-47-4"></a>--all-projects
+<a id="__codelineno-47-5" name="__codelineno-47-5" href="#__codelineno-47-5"></a>--github-repository<span class="w"> </span>org/repo
+<a id="__codelineno-47-6" name="__codelineno-47-6" href="#__codelineno-47-6"></a><span class="c1"># etc.</span>
 </code></pre></div></p>
 <h3 id="configuration-validation-failed">"Configuration validation failed"<a class="headerlink" href="#configuration-validation-failed" title="Permanent link">&para;</a></h3>
 <p><strong>Problem:</strong> Invalid or missing config values</p>
 <p><strong>Solution:</strong>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a><span class="c1"># Validate config separately</span>
-<a id="__codelineno-51-2" name="__codelineno-51-2" href="#__codelineno-51-2"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from imbi_automations.cli import load_configuration; load_configuration(open(&#39;config.toml&#39;))&quot;</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-48-1" name="__codelineno-48-1" href="#__codelineno-48-1"></a><span class="c1"># Validate config separately</span>
+<a id="__codelineno-48-2" name="__codelineno-48-2" href="#__codelineno-48-2"></a>python<span class="w"> </span>-c<span class="w"> </span><span class="s2">&quot;from imbi_automations.cli import load_configuration; load_configuration(open(&#39;config.toml&#39;))&quot;</span>
 </code></pre></div></p>
 <h2 id="advanced-examples">Advanced Examples<a class="headerlink" href="#advanced-examples" title="Permanent link">&para;</a></h2>
 <h3 id="parallel-processing-with-error-handling">Parallel Processing with Error Handling<a class="headerlink" href="#parallel-processing-with-error-handling" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-52-1" name="__codelineno-52-1" href="#__codelineno-52-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/complex-update<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-52-2" name="__codelineno-52-2" href="#__codelineno-52-2"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-52-3" name="__codelineno-52-3" href="#__codelineno-52-3"></a><span class="w">  </span>--max-concurrency<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-52-4" name="__codelineno-52-4" href="#__codelineno-52-4"></a><span class="w">  </span>--preserve-on-error<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-52-5" name="__codelineno-52-5" href="#__codelineno-52-5"></a><span class="w">  </span>--error-dir<span class="w"> </span>/var/log/imbi-errors<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-52-6" name="__codelineno-52-6" href="#__codelineno-52-6"></a><span class="w">  </span>--verbose<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-52-7" name="__codelineno-52-7" href="#__codelineno-52-7"></a><span class="w">  </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tee<span class="w"> </span>workflow.log
+<div class="highlight"><pre><span></span><code><a id="__codelineno-49-1" name="__codelineno-49-1" href="#__codelineno-49-1"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/complex-update<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-49-2" name="__codelineno-49-2" href="#__codelineno-49-2"></a><span class="w">  </span>--all-projects<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-49-3" name="__codelineno-49-3" href="#__codelineno-49-3"></a><span class="w">  </span>--max-concurrency<span class="w"> </span><span class="m">10</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-49-4" name="__codelineno-49-4" href="#__codelineno-49-4"></a><span class="w">  </span>--preserve-on-error<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-49-5" name="__codelineno-49-5" href="#__codelineno-49-5"></a><span class="w">  </span>--error-dir<span class="w"> </span>/var/log/imbi-errors<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-49-6" name="__codelineno-49-6" href="#__codelineno-49-6"></a><span class="w">  </span>--verbose<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-49-7" name="__codelineno-49-7" href="#__codelineno-49-7"></a><span class="w">  </span><span class="m">2</span>&gt;<span class="p">&amp;</span><span class="m">1</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>tee<span class="w"> </span>workflow.log
 </code></pre></div>
 <h3 id="conditional-batch-processing">Conditional Batch Processing<a class="headerlink" href="#conditional-batch-processing" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-53-1" name="__codelineno-53-1" href="#__codelineno-53-1"></a><span class="ch">#!/bin/bash</span>
-<a id="__codelineno-53-2" name="__codelineno-53-2" href="#__codelineno-53-2"></a><span class="c1"># Process projects by type with different concurrency</span>
-<a id="__codelineno-53-3" name="__codelineno-53-3" href="#__codelineno-53-3"></a><span class="k">for</span><span class="w"> </span><span class="nb">type</span><span class="w"> </span><span class="k">in</span><span class="w"> </span>api<span class="w"> </span>consumer<span class="w"> </span>scheduled-job<span class="p">;</span><span class="w"> </span><span class="k">do</span>
-<a id="__codelineno-53-4" name="__codelineno-53-4" href="#__codelineno-53-4"></a><span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Processing </span><span class="nv">$type</span><span class="s2"> projects...&quot;</span>
-<a id="__codelineno-53-5" name="__codelineno-53-5" href="#__codelineno-53-5"></a><span class="w">    </span>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-53-6" name="__codelineno-53-6" href="#__codelineno-53-6"></a><span class="w">        </span>--project-type<span class="w"> </span><span class="nv">$type</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-53-7" name="__codelineno-53-7" href="#__codelineno-53-7"></a><span class="w">        </span>--max-concurrency<span class="w"> </span><span class="m">5</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-53-8" name="__codelineno-53-8" href="#__codelineno-53-8"></a><span class="w">        </span>--verbose
-<a id="__codelineno-53-9" name="__codelineno-53-9" href="#__codelineno-53-9"></a><span class="k">done</span>
+<div class="highlight"><pre><span></span><code><a id="__codelineno-50-1" name="__codelineno-50-1" href="#__codelineno-50-1"></a><span class="ch">#!/bin/bash</span>
+<a id="__codelineno-50-2" name="__codelineno-50-2" href="#__codelineno-50-2"></a><span class="c1"># Process projects by type with different concurrency</span>
+<a id="__codelineno-50-3" name="__codelineno-50-3" href="#__codelineno-50-3"></a><span class="k">for</span><span class="w"> </span><span class="nb">type</span><span class="w"> </span><span class="k">in</span><span class="w"> </span>api<span class="w"> </span>consumer<span class="w"> </span>scheduled-job<span class="p">;</span><span class="w"> </span><span class="k">do</span>
+<a id="__codelineno-50-4" name="__codelineno-50-4" href="#__codelineno-50-4"></a><span class="w">    </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Processing </span><span class="nv">$type</span><span class="s2"> projects...&quot;</span>
+<a id="__codelineno-50-5" name="__codelineno-50-5" href="#__codelineno-50-5"></a><span class="w">    </span>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-50-6" name="__codelineno-50-6" href="#__codelineno-50-6"></a><span class="w">        </span>--project-type<span class="w"> </span><span class="nv">$type</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-50-7" name="__codelineno-50-7" href="#__codelineno-50-7"></a><span class="w">        </span>--max-concurrency<span class="w"> </span><span class="m">5</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-50-8" name="__codelineno-50-8" href="#__codelineno-50-8"></a><span class="w">        </span>--verbose
+<a id="__codelineno-50-9" name="__codelineno-50-9" href="#__codelineno-50-9"></a><span class="k">done</span>
 </code></pre></div>
 <h3 id="error-analysis-pipeline">Error Analysis Pipeline<a class="headerlink" href="#error-analysis-pipeline" title="Permanent link">&para;</a></h3>
-<div class="highlight"><pre><span></span><code><a id="__codelineno-54-1" name="__codelineno-54-1" href="#__codelineno-54-1"></a><span class="ch">#!/bin/bash</span>
-<a id="__codelineno-54-2" name="__codelineno-54-2" href="#__codelineno-54-2"></a><span class="c1"># Run workflow with error preservation</span>
-<a id="__codelineno-54-3" name="__codelineno-54-3" href="#__codelineno-54-3"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-54-4" name="__codelineno-54-4" href="#__codelineno-54-4"></a><span class="w">    </span>--all-projects<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-54-5" name="__codelineno-54-5" href="#__codelineno-54-5"></a><span class="w">    </span>--preserve-on-error<span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-54-6" name="__codelineno-54-6" href="#__codelineno-54-6"></a><span class="w">    </span>--error-dir<span class="w"> </span>./errors
-<a id="__codelineno-54-7" name="__codelineno-54-7" href="#__codelineno-54-7"></a>
-<a id="__codelineno-54-8" name="__codelineno-54-8" href="#__codelineno-54-8"></a><span class="c1"># Analyze errors</span>
-<a id="__codelineno-54-9" name="__codelineno-54-9" href="#__codelineno-54-9"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Failed projects:&quot;</span>
-<a id="__codelineno-54-10" name="__codelineno-54-10" href="#__codelineno-54-10"></a>find<span class="w"> </span>./errors<span class="w"> </span>-name<span class="w"> </span><span class="s2">&quot;debug.log&quot;</span><span class="w"> </span>-exec<span class="w"> </span>grep<span class="w"> </span>-l<span class="w"> </span><span class="s2">&quot;ERROR&quot;</span><span class="w"> </span><span class="o">{}</span><span class="w"> </span><span class="se">\;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-54-11" name="__codelineno-54-11" href="#__codelineno-54-11"></a><span class="w">    </span>sed<span class="w"> </span><span class="s1">&#39;s|.*/\(.*\)-[0-9]*-[0-9]*/debug.log|\1|&#39;</span>
-<a id="__codelineno-54-12" name="__codelineno-54-12" href="#__codelineno-54-12"></a>
-<a id="__codelineno-54-13" name="__codelineno-54-13" href="#__codelineno-54-13"></a><span class="c1"># Count by error type</span>
-<a id="__codelineno-54-14" name="__codelineno-54-14" href="#__codelineno-54-14"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;\nError types:&quot;</span>
-<a id="__codelineno-54-15" name="__codelineno-54-15" href="#__codelineno-54-15"></a>find<span class="w"> </span>./errors<span class="w"> </span>-name<span class="w"> </span><span class="s2">&quot;debug.log&quot;</span><span class="w"> </span>-exec<span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;ERROR&quot;</span><span class="w"> </span><span class="o">{}</span><span class="w"> </span><span class="se">\;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
-<a id="__codelineno-54-16" name="__codelineno-54-16" href="#__codelineno-54-16"></a><span class="w">    </span>cut<span class="w"> </span>-d:<span class="w"> </span>-f4<span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span><span class="p">|</span><span class="w"> </span>uniq<span class="w"> </span>-c
+<div class="highlight"><pre><span></span><code><a id="__codelineno-51-1" name="__codelineno-51-1" href="#__codelineno-51-1"></a><span class="ch">#!/bin/bash</span>
+<a id="__codelineno-51-2" name="__codelineno-51-2" href="#__codelineno-51-2"></a><span class="c1"># Run workflow with error preservation</span>
+<a id="__codelineno-51-3" name="__codelineno-51-3" href="#__codelineno-51-3"></a>imbi-automations<span class="w"> </span>config.toml<span class="w"> </span>workflows/update<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-51-4" name="__codelineno-51-4" href="#__codelineno-51-4"></a><span class="w">    </span>--all-projects<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-51-5" name="__codelineno-51-5" href="#__codelineno-51-5"></a><span class="w">    </span>--preserve-on-error<span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-51-6" name="__codelineno-51-6" href="#__codelineno-51-6"></a><span class="w">    </span>--error-dir<span class="w"> </span>./errors
+<a id="__codelineno-51-7" name="__codelineno-51-7" href="#__codelineno-51-7"></a>
+<a id="__codelineno-51-8" name="__codelineno-51-8" href="#__codelineno-51-8"></a><span class="c1"># Analyze errors</span>
+<a id="__codelineno-51-9" name="__codelineno-51-9" href="#__codelineno-51-9"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;Failed projects:&quot;</span>
+<a id="__codelineno-51-10" name="__codelineno-51-10" href="#__codelineno-51-10"></a>find<span class="w"> </span>./errors<span class="w"> </span>-name<span class="w"> </span><span class="s2">&quot;debug.log&quot;</span><span class="w"> </span>-exec<span class="w"> </span>grep<span class="w"> </span>-l<span class="w"> </span><span class="s2">&quot;ERROR&quot;</span><span class="w"> </span><span class="o">{}</span><span class="w"> </span><span class="se">\;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-51-11" name="__codelineno-51-11" href="#__codelineno-51-11"></a><span class="w">    </span>sed<span class="w"> </span><span class="s1">&#39;s|.*/\(.*\)-[0-9]*-[0-9]*/debug.log|\1|&#39;</span>
+<a id="__codelineno-51-12" name="__codelineno-51-12" href="#__codelineno-51-12"></a>
+<a id="__codelineno-51-13" name="__codelineno-51-13" href="#__codelineno-51-13"></a><span class="c1"># Count by error type</span>
+<a id="__codelineno-51-14" name="__codelineno-51-14" href="#__codelineno-51-14"></a><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;\nError types:&quot;</span>
+<a id="__codelineno-51-15" name="__codelineno-51-15" href="#__codelineno-51-15"></a>find<span class="w"> </span>./errors<span class="w"> </span>-name<span class="w"> </span><span class="s2">&quot;debug.log&quot;</span><span class="w"> </span>-exec<span class="w"> </span>grep<span class="w"> </span><span class="s2">&quot;ERROR&quot;</span><span class="w"> </span><span class="o">{}</span><span class="w"> </span><span class="se">\;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span><span class="se">\</span>
+<a id="__codelineno-51-16" name="__codelineno-51-16" href="#__codelineno-51-16"></a><span class="w">    </span>cut<span class="w"> </span>-d:<span class="w"> </span>-f4<span class="w"> </span><span class="p">|</span><span class="w"> </span>sort<span class="w"> </span><span class="p">|</span><span class="w"> </span>uniq<span class="w"> </span>-c
 </code></pre></div>
 <h2 id="see-also">See Also<a class="headerlink" href="#see-also" title="Permanent link">&para;</a></h2>
 <ul>

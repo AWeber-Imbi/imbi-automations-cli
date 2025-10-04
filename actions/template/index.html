@@ -1237,6 +1237,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../templating/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Templating
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../debugging/" class="md-nav__link">
         
   
@@ -1654,15 +1677,19 @@
 </code></pre></div>
 <h2 id="fields">Fields<a class="headerlink" href="#fields" title="Permanent link">&para;</a></h2>
 <h3 id="source_path-required">source_path (required)<a class="headerlink" href="#source_path-required" title="Permanent link">&para;</a></h3>
-<p>Path to template file or directory. Can be:
-- Single <code>.j2</code> template file
-- Directory containing <code>.j2</code> files (recursively rendered)</p>
+<p>Path to template file or directory. Can be:</p>
+<ul>
+<li>Single <code>.j2</code> template file</li>
+<li>Directory containing <code>.j2</code> files (recursively rendered)</li>
+</ul>
 <p><strong>Type:</strong> <a href="../#resourceurl-path-system"><code>ResourceUrl</code></a> (string path)</p>
-<p><strong>Conventions:</strong>
-- Template files should use <code>.j2</code> extension
-- Directory paths should NOT include wildcards
-- Relative to working directory by default
-- Usually prefixed with <code>workflow:///</code> for workflow resources</p>
+<p><strong>Conventions:</strong></p>
+<ul>
+<li>Template files should use <code>.j2</code> extension</li>
+<li>Directory paths should NOT include wildcards</li>
+<li>Relative to working directory by default</li>
+<li>Usually prefixed with <code>workflow:///</code> for workflow resources</li>
+</ul>
 <h3 id="destination_path-required">destination_path (required)<a class="headerlink" href="#destination_path-required" title="Permanent link">&para;</a></h3>
 <p>Output location for rendered templates.</p>
 <p><strong>Type:</strong> <a href="../#resourceurl-path-system"><code>ResourceUrl</code></a> (string path)</p>
@@ -1699,11 +1726,6 @@
 <td><code>github_repository</code></td>
 <td><code>GitHubRepository</code></td>
 <td>GitHub repo data (if applicable)</td>
-</tr>
-<tr>
-<td><code>gitlab_project</code></td>
-<td><code>GitLabProject</code></td>
-<td>GitLab project data (if applicable)</td>
 </tr>
 <tr>
 <td><code>working_directory</code></td>

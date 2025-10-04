@@ -1180,6 +1180,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../templating/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Templating
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../debugging/" class="md-nav__link">
         
   
@@ -1536,7 +1559,7 @@
 <li><strong>Actions</strong>: Operations to perform (file manipulation, AI transformations, shell commands, etc.)</li>
 <li><strong>Conditions</strong>: Repository state checks to determine if workflow/actions should run</li>
 <li><strong>Filters</strong>: Project targeting criteria to select which projects to process</li>
-<li><strong>Configuration</strong>: Git, GitHub, and GitLab behavior settings</li>
+<li><strong>Configuration</strong>: Git and GitHub behavior settings</li>
 </ul>
 <h2 id="workflow-structure">Workflow Structure<a class="headerlink" href="#workflow-structure" title="Permanent link">&para;</a></h2>
 <div class="highlight"><pre><span></span><code><a id="__codelineno-0-1" name="__codelineno-0-1" href="#__codelineno-0-1"></a>workflows/workflow-name/
@@ -1603,7 +1626,7 @@
 <li><strong>Claude Actions</strong>: AI-powered code transformations using Claude Code SDK</li>
 <li><strong>Git Actions</strong>: Extract files from commit history, clone repositories</li>
 <li><strong>Docker Actions</strong>: Extract files from containers, build images</li>
-<li><strong>GitHub/GitLab/Imbi Actions</strong>: API operations on project management platforms</li>
+<li><strong>GitHub/Imbi Actions</strong>: API operations on project management platforms</li>
 <li><strong>Utility Actions</strong>: Helper operations for common patterns</li>
 </ul>
 <p>See the <a href="../actions/">Actions Reference</a> for complete documentation.</p>
@@ -1655,9 +1678,6 @@
 <div class="highlight"><pre><span></span><code><a id="__codelineno-8-1" name="__codelineno-8-1" href="#__codelineno-8-1"></a><span class="k">[github]</span>
 <a id="__codelineno-8-2" name="__codelineno-8-2" href="#__codelineno-8-2"></a><span class="n">create_pull_request</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 <a id="__codelineno-8-3" name="__codelineno-8-3" href="#__codelineno-8-3"></a><span class="n">replace_branch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span><span class="w">  </span><span class="c1"># Force-replace existing PR branch</span>
-<a id="__codelineno-8-4" name="__codelineno-8-4" href="#__codelineno-8-4"></a>
-<a id="__codelineno-8-5" name="__codelineno-8-5" href="#__codelineno-8-5"></a><span class="k">[gitlab]</span>
-<a id="__codelineno-8-6" name="__codelineno-8-6" href="#__codelineno-8-6"></a><span class="n">create_merge_request</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="kc">true</span>
 </code></pre></div>
 <h2 id="example-workflows">Example Workflows<a class="headerlink" href="#example-workflows" title="Permanent link">&para;</a></h2>
 <h3 id="simple-file-copy">Simple File Copy<a class="headerlink" href="#simple-file-copy" title="Permanent link">&para;</a></h3>
@@ -1731,20 +1751,26 @@
 <p>See the <a href="../cli/">CLI Reference</a> for complete command-line options.</p>
 <h2 id="included-workflows">Included Workflows<a class="headerlink" href="#included-workflows" title="Permanent link">&para;</a></h2>
 <p>Imbi Automations includes 25+ pre-built workflows for common tasks:</p>
-<p><strong>Infrastructure &amp; Tooling:</strong>
-- Docker image updates and health checks
-- Terraform CI/CD pipelines
-- Frontend build and deployment
-- Compose configuration fixes</p>
-<p><strong>Code Quality:</strong>
-- CI/CD pipeline enforcement
-- GitHub Actions workflow fixes
-- SonarQube quality gate fixes</p>
-<p><strong>Project Maintenance:</strong>
-- Standard .gitignore deployment
-- GitHub team synchronization
-- Environment synchronization
-- Project validation</p>
+<p><strong>Infrastructure &amp; Tooling:</strong></p>
+<ul>
+<li>Docker image updates and health checks</li>
+<li>Terraform CI/CD pipelines</li>
+<li>Frontend build and deployment</li>
+<li>Compose configuration fixes</li>
+</ul>
+<p><strong>Code Quality:</strong></p>
+<ul>
+<li>CI/CD pipeline enforcement</li>
+<li>GitHub Actions workflow fixes</li>
+<li>SonarQube quality gate fixes</li>
+</ul>
+<p><strong>Project Maintenance:</strong></p>
+<ul>
+<li>Standard .gitignore deployment</li>
+<li>GitHub team synchronization</li>
+<li>Environment synchronization</li>
+<li>Project validation</li>
+</ul>
 <p>See the <code>workflows/</code> directory in the repository for all available workflows.</p>
 <h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
 <h3 id="use-remote-conditions-first">Use Remote Conditions First<a class="headerlink" href="#use-remote-conditions-first" title="Permanent link">&para;</a></h3>

@@ -1303,6 +1303,29 @@
   
   
     <li class="md-nav__item">
+      <a href="../../templating/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    Templating
+    
+  </span>
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../../debugging/" class="md-nav__link">
         
   
@@ -1788,13 +1811,14 @@
 <h3 id="command-required">command (required)<a class="headerlink" href="#command-required" title="Permanent link">&para;</a></h3>
 <p>The shell command to execute. Supports full Jinja2 template syntax for variable substitution.</p>
 <p><strong>Type:</strong> <code>string</code></p>
-<p><strong>Template Variables Available:</strong>
-- <code>workflow</code>: Workflow configuration object
-- <code>imbi_project</code>: Complete Imbi project data
-- <code>github_repository</code>: GitHub repository object (if applicable)
-- <code>gitlab_project</code>: GitLab project object (if applicable)
-- <code>working_directory</code>: Path to workflow working directory
-- <code>starting_commit</code>: Initial Git commit SHA</p>
+<p><strong>Template Variables Available:</strong></p>
+<ul>
+<li><code>workflow</code>: Workflow configuration object</li>
+<li><code>imbi_project</code>: Complete Imbi project data</li>
+<li><code>github_repository</code>: GitHub repository object (if applicable)</li>
+<li><code>working_directory</code>: Path to workflow working directory</li>
+<li><code>starting_commit</code>: Initial Git commit SHA</li>
+</ul>
 <h3 id="working_directory-optional">working_directory (optional)<a class="headerlink" href="#working_directory-optional" title="Permanent link">&para;</a></h3>
 <p>Directory to execute the command in.</p>
 <p><strong>Type:</strong> <a href="../#resourceurl-path-system"><code>ResourceUrl</code></a> (string path)</p>
