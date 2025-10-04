@@ -260,3 +260,12 @@ def extract_json(response: str) -> dict[str, typing.Any]:
         pass
 
     raise ValueError(f'No valid JSON found in response: {response[:200]}...')
+
+
+def extract_package_name_from_pyproject_toml(path: pathlib.Path) -> str:
+    """Extract the Python package name from a pyproject.toml file."""
+    if not path.is_file():
+        raise ValueError(f'Path is not a file: {path}')
+    with path.open('r') as f:
+        data = load_toml(f)
+    return data['package']['name']

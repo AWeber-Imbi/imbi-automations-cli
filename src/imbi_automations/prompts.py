@@ -48,6 +48,13 @@ def render(
                 context, dockerfile
             )
         )
+        env.globals['extract_package_name_from_pyproject_toml'] = (
+            lambda path: utils.extract_package_name_from_pyproject_toml(
+                utils.resolve_path(
+                    context, path or 'repository:///pyproject.toml'
+                )
+            )
+        )
     if isinstance(source, pathlib.Path):
         source = source.read_text(encoding='utf-8')
     template = env.from_string(source)

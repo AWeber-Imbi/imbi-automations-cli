@@ -33,8 +33,9 @@ Across all of your software projects and repositories, Imbi Automations can auto
 
 At [AWeber](https://aweber.com), we've used Imbi Automations to:
 
-- Migrate nearly one thousand projects from GitLab to GitHub, automating the transition from GitLab CI to GitHub Actions.
+- Migrate several hundred projects from GitLab to GitHub, automating the transition from GitLab CI to GitHub Actions.
 - Finish our Python 3.9 to 3.12 migration by updating all projects to use the latest syntax, tooling, and project standards.
+- Update base Docker images across all projects in minutes instead of months.
 - Scan all projects leveraging Claude Code, creating comprehensive AGENTS.md files for every project to ensure Agent readiness to work on project related tasks.
 - Automate the scanning of our projects for standards compliance, updating Imbi project facts with the results.
 

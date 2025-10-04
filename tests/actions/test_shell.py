@@ -110,10 +110,14 @@ class ShellTestCase(base.AsyncTestCase):
             name='test-fail', type='shell', command='false'
         )
 
-        with self.assertRaises(subprocess.CalledProcessError) as exc_context:
+        with self.assertRaises(RuntimeError) as exc_context:
             await self.shell_executor.execute(action)
 
-        self.assertEqual(exc_context.exception.returncode, 1)
+        # Verify the chained exception is CalledProcessError
+        self.assertIsInstance(
+            exc_context.exception.__cause__, subprocess.CalledProcessError
+        )
+        self.assertEqual(exc_context.exception.__cause__.returncode, 1)
 
     @mock.patch('asyncio.create_subprocess_shell')
     async def test_execute_command_failure_ignored(
@@ -151,12 +155,16 @@ class ShellTestCase(base.AsyncTestCase):
             command='nonexistent-command',
         )
 
-        with self.assertRaises(FileNotFoundError) as exc_context:
+        with self.assertRaises(RuntimeError) as exc_context:
             await self.shell_executor.execute(action)
 
         self.assertIn(
             'Command not found: nonexistent-command',
             str(exc_context.exception),
+        )
+        # Verify the chained exception is FileNotFoundError
+        self.assertIsInstance(
+            exc_context.exception.__cause__, FileNotFoundError
         )
 
     @mock.patch('asyncio.create_subprocess_shell')
@@ -302,8 +310,13 @@ class ShellTestCase(base.AsyncTestCase):
         )
 
         # Shell processes the command and returns non-zero exit code
-        with self.assertRaises(subprocess.CalledProcessError):
+        with self.assertRaises(RuntimeError) as exc_context:
             await self.shell_executor.execute(action)
+
+        # Verify the chained exception is CalledProcessError
+        self.assertIsInstance(
+            exc_context.exception.__cause__, subprocess.CalledProcessError
+        )
 
     async def test_empty_command_after_rendering(self) -> None:
         """Test empty command after template rendering succeeds."""
