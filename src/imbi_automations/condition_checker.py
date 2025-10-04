@@ -29,9 +29,6 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
         self.github: clients.GitHub | None = None
         if configuration.github:
             self.github = clients.GitHub.get_instance(config=configuration)
-        self.gitlab: clients.GitLab | None = None
-        if configuration.gitlab:
-            self.gitlab = clients.GitLab.get_instance(config=configuration)
 
     def check(
         self,
@@ -274,14 +271,14 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
     async def _check_remote_file_glob(
         self,
         context: models.WorkflowContext,
-        client: clients.GitHub | clients.GitLab,
+        client: clients.GitHub,
         pattern: str,
     ) -> bool:
         """Check if any files match a glob pattern in remote repository.
 
         Args:
             context: Workflow context
-            client: GitHub or GitLab client
+            client: GitHub client
             pattern: Glob pattern to match
 
         Returns:
@@ -328,7 +325,7 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
 
     async def _check_remote_client(
         self, condition: models.WorkflowCondition
-    ) -> clients.GitHub | clients.GitLab:
+    ) -> clients.GitHub:
         """Return the appropriate client for the condition
 
         :raises: RuntimeError
@@ -344,14 +341,4 @@ class ConditionChecker(mixins.WorkflowLoggerMixin):
                     'but GitHub is not configured'
                 )
             return self.github
-        elif (
-            condition.remote_client
-            == models.WorkflowConditionRemoteClient.gitlab
-        ):
-            if not self.gitlab:
-                raise RuntimeError(
-                    'Remote Action invoked for GitLab, '
-                    'but GitLab is not configured'
-                )
-            return self.gitlab
         raise RuntimeError('Unsupported remote client for condition')

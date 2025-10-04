@@ -7,7 +7,6 @@ execution state management.
 """
 
 import enum
-import json
 import pathlib
 import typing
 
@@ -15,7 +14,7 @@ import pydantic
 import pydantic_core
 from pydantic import AnyUrl
 
-from . import github, gitlab, imbi, validators
+from . import github, imbi, validators
 
 
 def _ensure_file_scheme(v: str | pathlib.Path | pydantic.AnyUrl) -> str:
@@ -53,162 +52,6 @@ class WorkflowFilter(pydantic.BaseModel):
     github_workflow_status_exclude: set[str] = pydantic.Field(
         default_factory=set
     )
-
-    @pydantic.model_validator(mode='after')
-    def validate_filter_fields(self) -> 'WorkflowFilter':
-        """Validate project_types and project_facts against FactRegistry cache.
-
-        Returns:
-            Self after validation and normalization
-
-        Raises:
-            ValueError: If project type slugs or fact names are invalid
-        """
-        self._validate_project_types()
-        self._normalize_and_validate_project_facts()
-        return self
-
-    def _validate_project_types(self) -> None:
-        """Validate project_types against FactRegistry cache."""
-        if not self.project_types:
-            return
-
-        # Import here to avoid circular dependency
-        import pathlib
-
-        from imbi_automations import fact_registry
-
-        # Try to load registry from cache (no API calls)
-        cache_file = (
-            pathlib.Path.home() / '.imbi-automations' / 'fact-cache.json'
-        )
-
-        if not cache_file.exists():
-            return  # Skip validation if no cache
-
-        try:
-            registry = fact_registry.FactRegistry()
-            registry._cache_file = cache_file
-            registry._load_from_cache()
-        except (OSError, json.JSONDecodeError, KeyError):
-            return  # Skip validation on cache error
-
-        if not registry.project_type_slugs:
-            return  # Skip if no project types in cache
-
-        # Validate each project type slug
-        invalid_slugs = []
-        for slug in self.project_types:
-            if slug not in registry.project_type_slugs:
-                invalid_slugs.append(slug)
-
-        if invalid_slugs:
-            # Find similar slugs for suggestions
-            similar = []
-            for invalid in invalid_slugs:
-                matches = [
-                    s
-                    for s in registry.project_type_slugs
-                    if s.startswith(invalid[:3])
-                ][:2]
-                if matches:
-                    similar.extend(matches)
-
-            error_msg = (
-                f'Invalid project type slugs: {", ".join(invalid_slugs)}'
-            )
-            if similar:
-                error_msg += f'. Valid types include: {", ".join(similar)}'
-            raise ValueError(error_msg)
-
-    def _normalize_and_validate_project_facts(self) -> None:
-        """Normalize and validate project_facts keys against FactRegistry.
-
-        Converts fact names like "Programming Language" to
-        "programming_language" to match Imbi's OpenSearch API format.
-
-        If a FactRegistry cache exists, validates that fact names are known.
-        This catches typos early during workflow loading.
-        """
-        if not self.project_facts:
-            return
-
-        # Import here to avoid circular dependency
-        import pathlib
-
-        from imbi_automations import fact_registry
-
-        # Try to load registry from cache (no API calls)
-        cache_file = (
-            pathlib.Path.home() / '.imbi-automations' / 'fact-cache.json'
-        )
-
-        registry = None
-        if cache_file.exists():
-            try:
-                registry = fact_registry.FactRegistry()
-                registry._cache_file = cache_file
-                registry._load_from_cache()
-            except (OSError, json.JSONDecodeError, KeyError):
-                # Cache load failed, skip validation
-                registry = None
-
-        normalized = {}
-        for key, value in self.project_facts.items():
-            slug = fact_registry.FactRegistry.normalize_name(key)
-
-            # Validate against cache if available
-            if registry and registry.facts_by_slug:
-                fact_defs = registry.get_facts(slug)
-                if not fact_defs:
-                    # Try to find similar names for helpful error
-                    similar = [
-                        name
-                        for name in registry.slug_to_name.values()
-                        if name.lower().startswith(key.lower()[:3])
-                    ][:3]
-                    error_msg = (
-                        f'Unknown fact name in filter: "{key}" '
-                        f'(normalized to "{slug}")'
-                    )
-                    if similar:
-                        error_msg += f'. Did you mean: {", ".join(similar)}?'
-                    raise ValueError(error_msg)
-
-                # Validate value for enum facts
-                # For filters, collect ALL possible enum values across
-                # all fact definitions (since filters may target multiple
-                # project types with different enum options)
-                enum_facts = [
-                    f
-                    for f in fact_defs
-                    if f.fact_type == 'enum' and f.enum_values
-                ]
-
-                if enum_facts:
-                    # Collect all possible enum values
-                    all_enum_values = set()
-                    for fact_def in enum_facts:
-                        all_enum_values.update(fact_def.enum_values)
-
-                    # Validate against combined set
-                    try:
-                        typed_value = enum_facts[0]._coerce_value(value)
-                    except (ValueError, TypeError) as exc:
-                        raise ValueError(
-                            f'Invalid type for fact "{key}": {exc}'
-                        ) from exc
-
-                    if typed_value not in all_enum_values:
-                        combined = ', '.join(sorted(map(str, all_enum_values)))
-                        raise ValueError(
-                            f'Invalid value for fact "{key}": '
-                            f'Value must be one of: {combined}'
-                        )
-
-            normalized[slug] = value
-
-        self.project_facts = normalized
 
 
 class WorkflowActionTypes(enum.StrEnum):
@@ -620,7 +463,6 @@ class WorkflowConditionRemoteClient(enum.StrEnum):
     """
 
     github = 'github'
-    gitlab = 'gitlab'
 
 
 class WorkflowCondition(validators.ExclusiveGroupsMixin, pydantic.BaseModel):
@@ -760,7 +602,6 @@ class WorkflowConfiguration(pydantic.BaseModel):
     prompt: ResourceUrl | None = None
     git: WorkflowGit = pydantic.Field(default_factory=WorkflowGit)
     github: WorkflowGitHub = pydantic.Field(default_factory=WorkflowGitHub)
-    gitlab: WorkflowGitLab = pydantic.Field(default_factory=WorkflowGitLab)
     filter: WorkflowFilter | None = None
     use_devcontainers: bool = False
 
@@ -801,7 +642,6 @@ class WorkflowContext(pydantic.BaseModel):
 
     workflow: Workflow
     github_repository: github.GitHubRepository | None = None
-    gitlab_project: gitlab.GitLabProject | None = None
     imbi_project: imbi.ImbiProject
     working_directory: pathlib.Path | None = None
     starting_commit: str | None = None

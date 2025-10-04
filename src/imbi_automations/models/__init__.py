@@ -4,13 +4,12 @@ Centralizes imports for configuration, API responses (GitHub, GitLab, Imbi),
 workflow definitions, git operations, and Claude Code integration models.
 """
 
+from . import configuration, imbi
 from .claude import AgentRun, AgentRunResult
 from .configuration import (
     AnthropicConfiguration,
-    ClaudeCodeConfiguration,
     Configuration,
     GitHubConfiguration,
-    GitLabConfiguration,
     ImbiConfiguration,
 )
 from .git import GitCommit, GitCommitSummary, GitFileChange
@@ -26,17 +25,13 @@ from .github import (
     GitHubWorkflowJob,
     GitHubWorkflowRun,
 )
-from .gitlab import (
-    GitLabMergeRequest,
-    GitLabNamespace,
-    GitLabProject,
-    GitLabUser,
-)
 from .imbi import (
+    ImbiEnvironment,
     ImbiProject,
     ImbiProjectFact,
     ImbiProjectFactType,
     ImbiProjectFactTypeEnum,
+    ImbiProjectFactTypeRange,
     ImbiProjectLink,
     ImbiProjectType,
 )
@@ -76,17 +71,16 @@ from .workflow import (
 )
 
 __all__ = [
+    'configuration',
+    'imbi',
     'AgentRun',
     'AgentRunResult',
     'AnthropicConfiguration',
-    'ClaudeCodeConfiguration',
     'Configuration',
     'GitCommit',
     'GitCommitSummary',
     'GitFileChange',
     'GitHubConfiguration',
-    'GitLabConfiguration',
-    'ImbiConfiguration',
     'GitHubEnvironment',
     'GitHubLabel',
     'GitHubOrganization',
@@ -97,14 +91,13 @@ __all__ = [
     'GitHubUser',
     'GitHubWorkflowJob',
     'GitHubWorkflowRun',
-    'GitLabMergeRequest',
-    'GitLabNamespace',
-    'GitLabProject',
-    'GitLabUser',
+    'ImbiConfiguration',
+    'ImbiEnvironment',
     'ImbiProject',
     'ImbiProjectFact',
     'ImbiProjectFactType',
     'ImbiProjectFactTypeEnum',
+    'ImbiProjectFactTypeRange',
     'ImbiProjectType',
     'ImbiProjectLink',
     'ResourceUrl',

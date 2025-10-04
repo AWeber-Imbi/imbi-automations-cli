@@ -33,22 +33,22 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
 
     def __init__(
         self,
-        configuration: models.Configuration,
+        config: models.Configuration,
         workflow: models.Workflow,
         verbose: bool = False,
     ) -> None:
         super().__init__(verbose)
-        self.actions = actions.Actions(configuration, verbose)
-        self.committer = committer.Committer(configuration, verbose)
+        self.actions = actions.Actions(config, verbose)
+        self.committer = committer.Committer(config, verbose)
         self.condition_checker = condition_checker.ConditionChecker(
-            configuration, verbose
+            config, verbose
         )
-        self.configuration = configuration
-        self.github = clients.GitHub.get_instance(config=configuration.github)
+        self.configuration = config
+        self.github = clients.GitHub.get_instance(config=config.github)
         self.last_error_path: pathlib.Path | None = None
         self.workflow = workflow
         self.workflow_filter = workflow_filter.Filter(
-            configuration, workflow, verbose
+            config, workflow, verbose
         )
         self._set_workflow_logger(workflow)
 
@@ -64,12 +64,11 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         self,
         project: models.ImbiProject,
         github_repository: models.GitHubRepository | None = None,
-        gitlab_project: models.GitLabProject | None = None,
     ) -> bool:
         """Execute the workflow."""
         working_directory = tempfile.TemporaryDirectory()
         context = self._setup_workflow_run(
-            project, working_directory.name, github_repository, gitlab_project
+            project, working_directory.name, github_repository
         )
 
         if not await self.condition_checker.check_remote(
@@ -86,7 +85,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         if self.workflow.configuration.git.clone:
             context.starting_commit = await git.clone_repository(
                 context.working_directory,
-                self._git_clone_url(github_repository, gitlab_project),
+                self._git_clone_url(github_repository),
                 self.workflow.configuration.git.starting_branch,
                 self.workflow.configuration.git.depth,
             )
@@ -302,9 +301,7 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             )
 
     def _git_clone_url(
-        self,
-        github_repository: models.GitHubRepository | None = None,
-        gitlab_project: models.GitLabProject | None = None,
+        self, github_repository: models.GitHubRepository | None = None
     ) -> str:
         if github_repository:
             if (
@@ -313,13 +310,6 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
             ):
                 return github_repository.ssh_url
             return github_repository.clone_url
-        elif gitlab_project:
-            if (
-                self.workflow.configuration.git.clone_type
-                == models.WorkflowGitCloneType.ssh
-            ):
-                return gitlab_project.ssh_url_to_repo
-            return gitlab_project.http_url_to_repo
         raise ValueError('No repository provided')
 
     @property
@@ -335,7 +325,6 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         project: models.ImbiProject,
         working_directory: str,
         github_repository: models.GitHubRepository | None = None,
-        gitlab_project: models.GitLabProject | None = None,
     ) -> models.WorkflowContext:
         working_directory = pathlib.Path(working_directory)
 
@@ -353,7 +342,6 @@ class WorkflowEngine(mixins.WorkflowLoggerMixin):
         return models.WorkflowContext(
             workflow=self.workflow,
             github_repository=github_repository,
-            gitlab_project=gitlab_project,
             imbi_project=project,
             starting_commit=None,
             working_directory=working_directory,
