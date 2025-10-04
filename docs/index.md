@@ -1,10 +1,10 @@
 # Imbi Automations CLI
 
-A comprehensive CLI framework for executing automated workflows across software project repositories with AI-powered transformations and deep integration to the Imbi project management system.
+A comprehensive CLI framework for executing automated workflows across software project repositories with AI-powered transformations and deep integration to the [Imbi](https://github.com/AWeber-Imbi/imbi?tab=readme-ov-file#imbi) DevOps Service Management Platform.
 
 ## Overview
 
-Imbi Automations enables bulk automation across your software projects with intelligent targeting, conditional execution, and powerful transformation capabilities. Built on a modern async Python architecture, it provides seamless integration with GitHub and the Imbi project management platform.
+Imbi Automations enables bulk automation across your software projects with intelligent targeting, conditional execution, and powerful transformation capabilities. Built on a modern async Python architecture, it provides seamless integration with GitHub and the Imbi.
 
 ### Key Features
 
@@ -28,6 +28,15 @@ Across all of your software projects and repositories, Imbi Automations can auto
 - **Project Reviews**: Automated code reviews and code quality analysis
 - **Security Updates**: Update dependencies with security patches
 - **Software Upgrades**: Upgrade projects to newer software versions
+
+#### Real Life Examples
+
+At [AWeber](https://aweber.com), we've used Imbi Automations to:
+
+- Migrate nearly one thousand projects from GitLab to GitHub, automating the transition from GitLab CI to GitHub Actions.
+- Finish our Python 3.9 to 3.12 migration by updating all projects to use the latest syntax, tooling, and project standards.
+- Scan all projects leveraging Claude Code, creating comprehensive AGENTS.md files for every project to ensure Agent readiness to work on project related tasks.
+- Automate the scanning of our projects for standards compliance, updating Imbi project facts with the results.
 
 ### Action Types
 
