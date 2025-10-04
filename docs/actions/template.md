@@ -54,7 +54,6 @@ Output location for rendered templates.
 | `workflow` | `Workflow` | Current workflow configuration |
 | `imbi_project` | `ImbiProject` | Complete Imbi project data |
 | `github_repository` | `GitHubRepository` | GitHub repo data (if applicable) |
-| `gitlab_project` | `GitLabProject` | GitLab project data (if applicable) |
 | `working_directory` | `Path` | Workflow execution directory |
 | `starting_commit` | `str` | Initial Git commit SHA |
 

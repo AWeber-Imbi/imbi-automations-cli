@@ -35,7 +35,7 @@ imbi-automations config.toml workflows/workflow-name --all-projects --start-from
 
 ## Key Features
 
-- **Multi-Provider Support**: GitHub and GitLab API integration
+- **GitHub Integration**: GitHub API integration with comprehensive repository operations
 - **Workflow Engine**: Action-based processing with conditional execution
 - **AI Integration**: Claude Code SDK for intelligent transformations
 - **Batch Processing**: Concurrent processing with resumption capabilities

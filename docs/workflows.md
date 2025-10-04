@@ -9,7 +9,7 @@ A workflow is a directory containing a `config.toml` file that defines:
 - **Actions**: Operations to perform (file manipulation, AI transformations, shell commands, etc.)
 - **Conditions**: Repository state checks to determine if workflow/actions should run
 - **Filters**: Project targeting criteria to select which projects to process
-- **Configuration**: Git, GitHub, and GitLab behavior settings
+- **Configuration**: Git and GitHub behavior settings
 
 ## Workflow Structure
 
@@ -106,7 +106,7 @@ Workflows support multiple action types for different operations:
 - **Claude Actions**: AI-powered code transformations using Claude Code SDK
 - **Git Actions**: Extract files from commit history, clone repositories
 - **Docker Actions**: Extract files from containers, build images
-- **GitHub/GitLab/Imbi Actions**: API operations on project management platforms
+- **GitHub/Imbi Actions**: API operations on project management platforms
 - **Utility Actions**: Helper operations for common patterns
 
 See the [Actions Reference](actions/index.md) for complete documentation.
@@ -177,9 +177,6 @@ Automatically create PRs for workflow changes:
 [github]
 create_pull_request = true
 replace_branch = true  # Force-replace existing PR branch
-
-[gitlab]
-create_merge_request = true
 ```
 
 ## Example Workflows

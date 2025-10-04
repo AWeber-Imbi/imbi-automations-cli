@@ -142,7 +142,7 @@ The current model definition has some unclear aspects:
 
 2. **Import Resolution**: How does `import` + `callable` get resolved to an actual callable object? Is `callable` a string name looked up in the imported module?
 
-3. **Client Access**: How would this access workflow clients (GitHub, GitLab, Imbi) that are already instantiated in the workflow context?
+3. **Client Access**: How would this access workflow clients (GitHub, Imbi) that are already instantiated in the workflow context?
 
 4. **Context Passing**: How would the callable receive workflow context (repository, project data, etc.)?
 

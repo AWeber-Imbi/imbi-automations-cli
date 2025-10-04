@@ -35,19 +35,12 @@ enabled = true
 api_key = "ghp_your_github_token"
 hostname = "github.com"
 
-# GitLab API Configuration (optional)
-[gitlab]
-api_key = "glpat_your_gitlab_token"
-hostname = "gitlab.com"
-
 # Imbi Project Management Configuration
 [imbi]
 api_key = "your-imbi-api-key"
 hostname = "imbi.example.com"
 github_identifier = "github"
-gitlab_identifier = "gitlab"
 github_link = "GitHub Repository"
-gitlab_link = "GitLab Project"
 ```
 
 ## Global Settings
@@ -234,40 +227,6 @@ For GitHub Enterprise:
 hostname = "github.enterprise.com"
 ```
 
-## GitLab Configuration
-
-Configuration for GitLab API integration (optional).
-
-### [gitlab].api_key
-
-GitLab personal access token.
-
-**Type:** `string` (secret)
-**Required:** For GitLab workflows
-
-**Token Scopes Required:**
-- `api` - Full API access
-- `read_repository` - Read repository files
-- `write_repository` - Create/update files
-
-```toml
-[gitlab]
-api_key = "glpat_your_gitlab_token"
-```
-
-### [gitlab].hostname
-
-GitLab hostname for self-hosted installations.
-
-**Type:** `string`
-**Default:** `"gitlab.com"`
-
-For self-hosted:
-```toml
-[gitlab]
-hostname = "gitlab.example.com"
-```
-
 ## Imbi Configuration
 
 Configuration for Imbi project management system integration.
@@ -303,7 +262,6 @@ Project identifier field names in Imbi for external systems.
 **Type:** `string`
 **Defaults:**
 - `github_identifier = "github"`
-- `gitlab_identifier = "gitlab"`
 - `pagerduty_identifier = "pagerduty"`
 - `sonarqube_identifier = "sonarqube"`
 - `sentry_identifier = "sentry"`
@@ -313,7 +271,6 @@ These specify which Imbi project identifier fields contain external system refer
 ```toml
 [imbi]
 github_identifier = "github-id"
-gitlab_identifier = "gitlab-id"
 ```
 
 ### [imbi].*_link
@@ -323,7 +280,6 @@ Link type names in Imbi for external system URLs.
 **Type:** `string`
 **Defaults:**
 - `github_link = "GitHub Repository"`
-- `gitlab_link = "GitLab Project"`
 - `grafana_link = "Grafana Dashboard"`
 - `pagerduty_link = "PagerDuty"`
 - `sentry_link = "Sentry"`
@@ -334,7 +290,6 @@ These specify the link type names used in Imbi to store external URLs:
 ```toml
 [imbi]
 github_link = "GitHub Repo"
-gitlab_link = "GitLab"
 ```
 
 ## Environment Variables
@@ -503,22 +458,6 @@ api_key = "${GITHUB_TOKEN}"
 [imbi]
 api_key = "${IMBI_API_KEY}"
 hostname = "imbi.example.com"
-```
-
-### Multi-Platform
-
-```toml
-[github]
-api_key = "${GITHUB_TOKEN}"
-
-[gitlab]
-api_key = "${GITLAB_TOKEN}"
-
-[imbi]
-api_key = "${IMBI_API_KEY}"
-hostname = "imbi.example.com"
-github_identifier = "github"
-gitlab_identifier = "gitlab"
 ```
 
 ### With Debugging

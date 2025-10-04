@@ -4,11 +4,11 @@ A comprehensive CLI framework for executing automated workflows across software 
 
 ## Overview
 
-Imbi Automations enables bulk automation across your software projects with intelligent targeting, conditional execution, and powerful transformation capabilities. Built on a modern async Python architecture, it provides seamless integration with GitHub, GitLab, and the Imbi project management platform.
+Imbi Automations enables bulk automation across your software projects with intelligent targeting, conditional execution, and powerful transformation capabilities. Built on a modern async Python architecture, it provides seamless integration with GitHub and the Imbi project management platform.
 
 ### Key Features
 
-- **Multi-Provider Support**: Native GitHub and GitLab API integration
+- **GitHub Integration**: Native GitHub API integration for comprehensive repository operations
 - **AI-Powered Transformations**: Claude Code SDK for intelligent code changes
 - **Advanced Filtering**: Target specific project subsets with multiple criteria
 - **Conditional Execution**: Smart workflow execution based on repository state
@@ -111,4 +111,3 @@ The tool includes 25+ pre-built workflows for common tasks:
 - Python 3.12 or higher
 - Imbi project management system access
 - GitHub API access (for GitHub workflows)
-- GitLab API access (for GitLab workflows)

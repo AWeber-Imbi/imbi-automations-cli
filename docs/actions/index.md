@@ -6,7 +6,7 @@ Workflow actions are the core building blocks of automation in Imbi Automations.
 
 | Action Type | Purpose | Use Cases |
 |------------|---------|-----------|
-| [Callable](callable.md) | Direct API method calls | GitHub/GitLab operations, Imbi updates |
+| [Callable](callable.md) | Direct API method calls | GitHub operations, Imbi updates |
 | [Claude](claude.md) | AI-powered transformations | Complex code changes, intelligent analysis |
 | [Docker](docker.md) | Container operations | Extract files from images, build images |
 | [File](file.md) | File manipulation | Copy, move, delete, append, write files |
@@ -234,7 +234,6 @@ All actions execute with access to these context variables (via Jinja2 templatin
 - `workflow`: Current workflow configuration
 - `imbi_project`: Imbi project data (ID, name, type, facts, etc.)
 - `github_repository`: GitHub repository data (if applicable)
-- `gitlab_project`: GitLab project data (if applicable)
 - `working_directory`: Temporary execution directory path
 - `starting_commit`: Initial Git commit SHA (for tracking changes)
 

@@ -26,7 +26,6 @@ The shell command to execute. Supports full Jinja2 template syntax for variable 
 - `workflow`: Workflow configuration object
 - `imbi_project`: Complete Imbi project data
 - `github_repository`: GitHub repository object (if applicable)
-- `gitlab_project`: GitLab project object (if applicable)
 - `working_directory`: Path to workflow working directory
 - `starting_commit`: Initial Git commit SHA
 

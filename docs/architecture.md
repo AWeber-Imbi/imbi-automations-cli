@@ -66,13 +66,6 @@ GitHub API integration featuring:
 - Pull request creation and management
 - Rate limiting and API quota management
 
-#### GitLab Client (`clients/gitlab.py`)
-GitLab API integration for:
-- Project and group operations
-- Repository cloning and management
-- Pipeline and CI/CD integration
-- Merge request handling
-
 ### Data Models
 
 All models use Pydantic for validation and type safety:
@@ -80,7 +73,7 @@ All models use Pydantic for validation and type safety:
 #### Configuration Models (`models/configuration.py`)
 
 - TOML-based configuration with secret handling
-- Provider-specific settings (GitHub, GitLab, Imbi)
+- Provider-specific settings (GitHub, Imbi)
 - Claude Code SDK integration settings
 - Validation rules and default values
 
@@ -96,7 +89,6 @@ Comprehensive workflow definition including:
 #### Provider Models
 
 - **GitHub Models** (`models/github.py`): Repository, organization, and API response models
-- **GitLab Models** (`models/gitlab.py`): Project, group, and API response models
 - **Imbi Models** (`models/imbi.py`): Project management system models
 
 ### Supporting Components

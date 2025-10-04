@@ -71,7 +71,6 @@ Prompts have access to all workflow context variables:
 | `workflow` | Workflow configuration |
 | `imbi_project` | Imbi project data |
 | `github_repository` | GitHub repository (if applicable) |
-| `gitlab_project` | GitLab project (if applicable) |
 | `working_directory` | Execution directory path |
 | `starting_commit` | Initial commit SHA |
 | `commit_author` | Git commit author (from config) |

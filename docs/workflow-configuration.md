@@ -36,11 +36,6 @@ clone_type = "ssh"  # or "http"
 create_pull_request = true
 replace_branch = false
 
-# GitLab Configuration
-[gitlab]
-create_merge_request = true
-replace_branch = false
-
 # Workflow-Level Conditions
 condition_type = "all"  # or "any"
 
@@ -254,41 +249,6 @@ replace_branch = true  # Force-replace existing PR branch
 - Forcing clean state
 
 **Warning:** Destroys existing PR branch and its history.
-
-## GitLab Configuration
-
-The `[gitlab]` section controls GitLab merge request creation and branch management.
-
-### create_merge_request
-
-Whether to create a merge request after committing changes.
-
-**Type:** `boolean`
-
-**Default:** `true`
-
-
-```toml
-[gitlab]
-create_merge_request = true
-```
-
-### replace_branch
-
-Delete and recreate remote branch if it already exists.
-
-**Type:** `boolean`
-
-**Default:** `false`
-
-
-```toml
-[gitlab]
-create_merge_request = true
-replace_branch = false
-```
-
-**Requirements:** `create_merge_request` must be `true`.
 
 ## Workflow-Level Conditions
 

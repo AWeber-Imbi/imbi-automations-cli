@@ -31,10 +31,7 @@ imbi-automations [-h] [-V] [--debug] [-v]
                   --all-projects |
                   --github-repository URL |
                   --github-organization ORG |
-                  --all-github-repositories |
-                  --gitlab-repository URL |
-                  --gitlab-group GROUP |
-                  --all-gitlab-repositories)
+                  --all-github-repositories)
                  CONFIG WORKFLOW
 ```
 
@@ -210,49 +207,6 @@ imbi-automations config.toml workflows/security-update \
 ```
 
 **Note:** Discovers repositories from all organizations the API key has access to.
-
-### --gitlab-repository URL
-
-Process a single GitLab repository by URL.
-
-**Type:** URL string
-**Format:** `https://gitlab.com/group/project`
-
-**Use Case:** Target specific GitLab project
-
-**Example:**
-```bash
-imbi-automations config.toml workflows/update-ci \
-  --gitlab-repository https://gitlab.com/mygroup/myproject
-```
-
-### --gitlab-group GROUP
-
-Recursively process all repositories in a GitLab group.
-
-**Type:** String (group path)
-**Use Case:** Update all projects in a GitLab group
-
-**Example:**
-```bash
-imbi-automations config.toml workflows/update-deps \
-  --gitlab-group mygroup/subgroup
-```
-
-**Note:** Processes group and all subgroups recursively.
-
-### --all-gitlab-repositories
-
-Process all GitLab repositories across all accessible groups.
-
-**Type:** Flag (boolean)
-**Use Case:** Organization-wide GitLab updates
-
-**Example:**
-```bash
-imbi-automations config.toml workflows/security-scan \
-  --all-gitlab-repositories
-```
 
 ## Execution Control Options
 
