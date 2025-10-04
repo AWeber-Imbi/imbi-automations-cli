@@ -1,4 +1,4 @@
-"""Imbi Data Registry, tool for loading and caching Imbi data"""
+"""Imbi Metadata Cache for loading and caching Imbi data."""
 
 import asyncio
 import datetime
@@ -28,7 +28,9 @@ class CacheData(pydantic.BaseModel):
     project_types: list[imbi.ImbiProjectType]
 
 
-class Registry:
+class ImbiMetadataCache:
+    """Singleton cache for Imbi metadata with automatic refresh."""
+
     instance: typing.Self | None = None
 
     def __init__(self, config: configuration.ImbiConfiguration) -> None:
@@ -37,7 +39,7 @@ class Registry:
             pathlib.Path.home()
             / '.cache'
             / 'imbi-automations'
-            / 'registry.json'
+            / 'metadata.json'
         )
         self.imbi_client = clients.Imbi.get_instance(config=config)
 

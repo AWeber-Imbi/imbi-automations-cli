@@ -15,10 +15,10 @@ import async_lru
 
 from imbi_automations import (
     clients,
+    imc,
     mixins,
     models,
     per_project_logging,
-    registry,
     workflow_engine,
     workflow_filter,
 )
@@ -60,7 +60,7 @@ class Automation(mixins.WorkflowLoggerMixin):
         self.configuration = config
         self.counter = collections.Counter()
         self.logger = LOGGER
-        self.registry = registry.Registry.get_instance(config)
+        self.registry = imc.ImbiMetadataCache.get_instance(config)
         self.workflow = workflow
         self.workflow_engine = workflow_engine.WorkflowEngine(
             config=self.configuration, workflow=workflow, verbose=args.verbose
