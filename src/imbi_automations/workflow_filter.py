@@ -43,45 +43,29 @@ class Filter(mixins.WorkflowLoggerMixin):
 
         """
         if (
-            workflow_filter.github_identifier_required
-            and not project.identifiers.get(
-                self.configuration.imbi.github_identifier
-            )
-        ):
-            return None
-
-        if (
-            workflow_filter.project_ids
-            and project.id not in workflow_filter.project_ids
-        ):
-            return None
-
-        if workflow_filter.project_environments and not any(
-            env in project.environments
-            for env in workflow_filter.project_environments
-        ):
-            return None
-
-        if workflow_filter.project_facts:
-            # Check all fact filters with detailed logging
-            for fact_key, fact_value in workflow_filter.project_facts.items():
-                project_value = (
-                    project.facts.get(fact_key) if project.facts else None
+            (
+                workflow_filter.github_identifier_required
+                and not project.identifiers.get(
+                    self.configuration.imbi.github_identifier
                 )
-                if project_value != fact_value:
-                    self.logger.debug(
-                        'Project %s filtered out: fact "%s" = "%s" '
-                        '(expected "%s")',
-                        project.slug,
-                        fact_key,
-                        project_value,
-                        fact_value,
-                    )
-                    return None
-
-        if (
-            workflow_filter.project_types
-            and project.project_type_slug not in workflow_filter.project_types
+            )
+            or (
+                workflow_filter.project_ids
+                and project.id not in workflow_filter.project_ids
+            )
+            or (
+                workflow_filter.project_environments
+                and not self._filter_environments(project, workflow_filter)
+            )
+            or (
+                workflow_filter.project_facts
+                and not self._filter_project_facts(project, workflow_filter)
+            )
+            or (
+                workflow_filter.project_types
+                and project.project_type_slug
+                not in workflow_filter.project_types
+            )
         ):
             return None
 
@@ -94,9 +78,42 @@ class Filter(mixins.WorkflowLoggerMixin):
 
         return project
 
+    @staticmethod
+    def _filter_environments(
+        project: models.ImbiProject, workflow_filter: models.WorkflowFilter
+    ) -> models.ImbiProject | None:
+        """Filter projects based on environments."""
+        if not project.environments:
+            return None
+        for env in workflow_filter.project_environments:
+            if env not in project.environments:
+                return None
+        return project
+
     async def _filter_github_action_status(
         self, project: models.ImbiProject
     ) -> str:
         client = clients.GitHub.get_instance(config=self.configuration.github)
         repository = await client.get_repository(project)
         return await client.get_repository_workflow_status(repository)
+
+    @staticmethod
+    def _filter_project_facts(
+        project: models.ImbiProject, workflow_filter: models.WorkflowFilter
+    ) -> models.ImbiProject | None:
+        """Filter projects based on project facts."""
+        if not project.facts:
+            return None
+        for name, value in workflow_filter.project_facts.items():
+            LOGGER.debug('Validating %s is %s', name, value)
+            # OpenSearch facts are lowercased and underscore delimited
+            slug = name.lower().replace(' ', '_')
+            if project.facts.get(slug) != value:
+                LOGGER.debug(
+                    'Project fact %s value of "%s" is not "%s"',
+                    name,
+                    project.facts.get(slug),
+                    value,
+                )
+                return None
+        return project
