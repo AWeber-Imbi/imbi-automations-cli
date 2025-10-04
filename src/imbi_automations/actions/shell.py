@@ -130,7 +130,10 @@ class ShellAction(mixins.WorkflowLoggerMixin):
                         command_str,
                         error_output,
                     )
-                    raise subprocess.CalledProcessError(
+                    raise RuntimeError(
+                        f'Shell command failed with exit code '
+                        f'{process.returncode}: {command_str}'
+                    ) from subprocess.CalledProcessError(
                         process.returncode,
                         command_str,
                         output=stdout,
@@ -138,9 +141,7 @@ class ShellAction(mixins.WorkflowLoggerMixin):
                     )
 
         except FileNotFoundError as exc:
-            raise FileNotFoundError(
-                f'Command not found: {command_str}'
-            ) from exc
+            raise RuntimeError(f'Command not found: {command_str}') from exc
 
     def _render_command(
         self, command: str, context: models.WorkflowContext
